@@ -8,3 +8,4 @@ models/*
 !temp/.gitkeep
 !outputs/.gitkeep
 !models/.gitkeep
+.vercel
