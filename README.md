@@ -68,17 +68,16 @@ flowchart LR
 ## Project Structure
 
 ```text
-baif-translator/
-  app.py
-  requirements.txt
-  README.md
-  frontend/
-  config/
-  core/
-  models/
-  outputs/
-  samples/
-  temp/
+app.py
+requirements.txt
+README.md
+frontend/
+config/
+core/
+models/
+outputs/
+samples/
+temp/
 ```
 
 ## Installation
@@ -86,7 +85,6 @@ baif-translator/
 ### Linux
 
 ```bash
-cd baif-translator
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -105,7 +103,6 @@ pip install -r requirements-full.txt
 ### Windows
 
 ```powershell
-cd baif-translator
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -201,7 +198,6 @@ The app searches for `.onnx` voice files matching the target language hint (`en`
 ## Usage
 
 ```bash
-cd baif-translator
 uvicorn app:app --host 0.0.0.0 --port 8501
 ```
 
@@ -220,7 +216,6 @@ Existing files are still supported through the secondary upload control below th
 For mobile users, do not run models on the phone. Deploy the API on a server and let phones call it.
 
 ```bash
-cd baif-translator
 uvicorn api:app --host 0.0.0.0 --port 8000
 ```
 
@@ -275,7 +270,6 @@ docker compose up --build
 Vercel serves the modern web UI and FastAPI endpoints using the lightweight serverless profile:
 
 ```bash
-cd baif-translator
 vercel --prod
 ```
 

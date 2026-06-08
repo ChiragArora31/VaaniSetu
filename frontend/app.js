@@ -279,6 +279,24 @@ function renderResult(payload) {
   els.resultPanel.classList.remove("hidden");
 }
 
+function bestSpeechVoice(languageName) {
+  const targetLang = {
+    English: "en",
+    Hindi: "hi",
+    Marathi: "mr",
+  }[languageName] || "en";
+  const voices = window.speechSynthesis?.getVoices?.() || [];
+  const normalizedTarget = targetLang.toLowerCase();
+  return (
+    voices.find((voice) => voice.lang?.toLowerCase().startsWith(`${normalizedTarget}-`)) ||
+    voices.find((voice) => voice.lang?.toLowerCase() === normalizedTarget) ||
+    voices.find((voice) => targetLang === "mr" && voice.name?.toLowerCase().includes("lekha")) ||
+    voices.find((voice) => targetLang === "hi" && voice.name?.toLowerCase().includes("lekha")) ||
+    voices.find((voice) => voice.lang?.toLowerCase().startsWith("en-in")) ||
+    voices[0]
+  );
+}
+
 async function processBlob(blob, filename, inputLabel = "voice note") {
   clearError();
   resetResult();
@@ -367,7 +385,17 @@ els.speakTranslation.addEventListener("click", () => {
     Hindi: "hi-IN",
     Marathi: "mr-IN",
   }[els.targetLanguage.value] || "en-IN";
+  const voice = bestSpeechVoice(els.targetLanguage.value);
+  if (voice) {
+    utterance.voice = voice;
+    utterance.lang = voice.lang || utterance.lang;
+  }
+  utterance.rate = 0.92;
   window.speechSynthesis.speak(utterance);
 });
+
+if ("speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
 
 drawIdleMeter();
