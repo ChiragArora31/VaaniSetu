@@ -14,8 +14,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+COPY requirements-full.txt .
 RUN python -m pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install -r requirements-full.txt
 
 COPY . .
 

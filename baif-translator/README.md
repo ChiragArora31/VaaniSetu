@@ -96,6 +96,12 @@ sudo apt-get install -y ffmpeg
 uvicorn app:app --host 0.0.0.0 --port 8501
 ```
 
+Install the full local/on-prem model stack when preparing a production media worker:
+
+```bash
+pip install -r requirements-full.txt
+```
+
 ### Windows
 
 ```powershell
@@ -263,6 +269,17 @@ For production, prepare the quality model cache once:
 docker compose run --rm web python scripts/setup_models.py --profile quality --with-translation
 docker compose up --build
 ```
+
+## Vercel Deployment
+
+Vercel serves the modern web UI and FastAPI endpoints using the lightweight serverless profile:
+
+```bash
+cd baif-translator
+vercel --prod
+```
+
+The Vercel profile uses `/tmp/vaanisetu` for runtime files and the `fast` model profile. Full offline/on-prem media processing with large local model weights is best deployed with Docker or a GPU-backed VM because Vercel Functions have bundle and runtime limits.
 
 ## Validation
 

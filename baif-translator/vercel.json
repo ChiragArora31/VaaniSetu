@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "BAIF_MODEL_PROFILE": "fast",
+    "BAIF_RUNTIME_STORAGE_DIR": "/tmp/vaanisetu",
+    "BAIF_ENABLE_HOSTED_TRANSLATION": "1",
+    "BAIF_ALLOW_MODEL_DOWNLOAD": "1",
+    "BAIF_SHOW_ADMIN_PANEL": "0"
+  }
+}

@@ -7,9 +7,10 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-TEMP_DIR = BASE_DIR / "temp"
-OUTPUT_DIR = BASE_DIR / "outputs"
-MODEL_DIR = BASE_DIR / "models"
+RUNTIME_STORAGE_DIR = Path(os.getenv("BAIF_RUNTIME_STORAGE_DIR", str(BASE_DIR)))
+TEMP_DIR = Path(os.getenv("BAIF_TEMP_DIR", str(RUNTIME_STORAGE_DIR / "temp")))
+OUTPUT_DIR = Path(os.getenv("BAIF_OUTPUT_DIR", str(RUNTIME_STORAGE_DIR / "outputs")))
+MODEL_DIR = Path(os.getenv("BAIF_MODEL_DIR", str(RUNTIME_STORAGE_DIR / "models")))
 SAMPLE_DIR = BASE_DIR / "samples"
 
 MAX_UPLOAD_MB = int(os.getenv("BAIF_MAX_UPLOAD_MB", "1024"))

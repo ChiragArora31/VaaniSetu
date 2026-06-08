@@ -34,6 +34,7 @@ const els = {
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
   outputAudio: document.querySelector("#outputAudio"),
+  speakTranslation: document.querySelector("#speakTranslation"),
   downloadActions: document.querySelector("#downloadActions"),
   zipDownload: document.querySelector("#zipDownload"),
   originalText: document.querySelector("#originalText"),
@@ -97,6 +98,7 @@ function supportedMimeType() {
 function resetResult() {
   els.resultPanel.classList.add("hidden");
   els.outputAudio.removeAttribute("src");
+  els.speakTranslation.classList.add("hidden");
   els.downloadActions.innerHTML = "";
   els.zipDownload.classList.add("hidden");
   els.originalText.textContent = "";
@@ -259,6 +261,11 @@ function renderResult(payload) {
   const voice = artifacts.tts_mp3 || artifacts.tts_wav;
   if (voice) {
     els.outputAudio.src = artifactUrl(voice);
+    els.outputAudio.classList.remove("hidden");
+    els.speakTranslation.classList.add("hidden");
+  } else {
+    els.outputAudio.classList.add("hidden");
+    els.speakTranslation.classList.remove("hidden");
   }
   if (artifacts.bundle_zip) {
     els.zipDownload.href = artifactUrl(artifacts.bundle_zip);
@@ -295,12 +302,8 @@ async function processBlob(blob, filename, inputLabel = "voice note") {
     if (!response.ok) {
       throw new Error(payload.detail || "Translation failed.");
     }
-    const artifacts = artifactMap(payload.artifacts || []);
-    if (!artifacts.tts_mp3 && !artifacts.tts_wav) {
-      throw new Error("The translation completed, but no translated voice file was produced.");
-    }
     window.clearInterval(progressId);
-    setProgress(100, "Your translated voice is ready.");
+    setProgress(100, "Your translation is ready.");
     renderResult(payload);
   } catch (error) {
     window.clearInterval(progressId);
@@ -348,6 +351,23 @@ els.swapLanguages.addEventListener("click", () => {
   const source = els.sourceLanguage.value;
   els.sourceLanguage.value = els.targetLanguage.value;
   els.targetLanguage.value = source;
+});
+
+els.speakTranslation.addEventListener("click", () => {
+  if (!("speechSynthesis" in window)) {
+    showError("Speech playback is not available in this browser.");
+    return;
+  }
+  const text = els.translatedText.textContent.trim();
+  if (!text) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = {
+    English: "en-IN",
+    Hindi: "hi-IN",
+    Marathi: "mr-IN",
+  }[els.targetLanguage.value] || "en-IN";
+  window.speechSynthesis.speak(utterance);
 });
 
 drawIdleMeter();

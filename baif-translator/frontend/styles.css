@@ -282,6 +282,11 @@ audio {
   margin-top: 16px;
 }
 
+#speakTranslation {
+  width: 100%;
+  margin-top: 16px;
+}
+
 .result-actions {
   display: flex;
   flex-wrap: wrap;
