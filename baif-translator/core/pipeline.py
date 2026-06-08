@@ -324,4 +324,4 @@ class TranslationPipeline:
             except TTSError as exc:
                 result.warnings.append(str(exc))
         except TTSError as exc:
-            result.warnings.append(str(exc))
+            result.metadata["tts_backend"] = "browser-fallback"

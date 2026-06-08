@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "env": {
-    "BAIF_MODEL_PROFILE": "fast",
+    "BAIF_MODEL_PROFILE": "balanced",
     "BAIF_RUNTIME_STORAGE_DIR": "/tmp/vaanisetu",
     "HF_HOME": "/tmp/vaanisetu/huggingface",
     "HF_HUB_CACHE": "/tmp/vaanisetu/huggingface/hub",
