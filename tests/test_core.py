@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from core.file_utils import ValidationError, save_binary_upload
+from core.asr_cleanup import clean_indic_asr_text
 from core.pipeline import ProcessingOptions, TranslationPipeline
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
 from core.text_utils import normalize_text, split_for_translation
@@ -24,6 +25,15 @@ class TextUtilsTest(unittest.TestCase):
         self.assertTrue(chunks)
         self.assertTrue(all(len(chunk) <= 120 for chunk in chunks))
         self.assertNotIn("  ", normalized)
+
+    def test_clean_indic_asr_text(self):
+        cleaned, changed = clean_indic_asr_text(
+            "नमस्ति, अच मोसम अचा है, आर कि सान केद में काम कर रही है।",
+            "hi",
+        )
+        self.assertTrue(changed)
+        self.assertIn("नमस्ते", cleaned)
+        self.assertIn("आज मौसम अच्छा है और किसान खेत में काम कर रहे हैं", cleaned)
 
 
 class SubtitleTest(unittest.TestCase):

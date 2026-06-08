@@ -20,6 +20,7 @@ from config.settings import (
     ensure_directories,
 )
 from core.audio_extractor import extract_audio_to_wav
+from core.asr_cleanup import clean_indic_asr_text
 from core.export_utils import create_artifact_zip
 from core.file_utils import create_job_dirs, write_text
 from core.media_utils import MediaError, detect_input_type, inspect_media
@@ -230,7 +231,8 @@ class TranslationPipeline:
             source = get_language(source_language)
             self.transcriber.allow_model_download = options.allow_model_download
             transcription = self.transcriber.transcribe(transcription_input, source.whisper_code)
-            result.original_text = transcription.text
+            cleaned_text, did_cleanup = clean_indic_asr_text(transcription.text, source.whisper_code)
+            result.original_text = cleaned_text
             if not _has_meaningful_speech(result.original_text):
                 raise PipelineError(
                     "No clear speech was detected in this file. Please upload audio with audible speech; "
@@ -244,9 +246,13 @@ class TranslationPipeline:
             result.metadata["transcription_language"] = transcription.language or source.whisper_code
             result.metadata["transcript_segments"] = len(transcription.segments)
             result.metadata["asr_model"] = WHISPER_MODEL_ID
+            if did_cleanup:
+                result.metadata["asr_cleanup"] = "enabled"
 
             _status(status, "Translating transcript segments...", 0.62)
-            segment_texts = [segment.text for segment in transcription.segments] or [result.original_text]
+            segment_texts = [
+                clean_indic_asr_text(segment.text, source.whisper_code)[0] for segment in transcription.segments
+            ] or [result.original_text]
             translated = translate_segments(
                 segment_texts,
                 source_language,
