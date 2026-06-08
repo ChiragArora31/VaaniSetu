@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VaaniSetu</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace" aria-label="Voice translation workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">BAIF translation workspace</p>
+            <h1>VaaniSetu</h1>
+          </div>
+          <div class="language-panel" aria-label="Language selection">
+            <label>
+              <span>From</span>
+              <select id="sourceLanguage">
+                <option>Hindi</option>
+                <option>Marathi</option>
+                <option>English</option>
+              </select>
+            </label>
+            <button class="swap-button" id="swapLanguages" type="button" aria-label="Swap languages">⇄</button>
+            <label>
+              <span>To</span>
+              <select id="targetLanguage">
+                <option>Marathi</option>
+                <option>Hindi</option>
+                <option>English</option>
+              </select>
+            </label>
+          </div>
+        </header>
+
+        <section class="voice-stage" aria-label="Record translation">
+          <div class="record-visual" id="recordVisual">
+            <canvas id="meterCanvas" width="900" height="180" aria-hidden="true"></canvas>
+            <div class="record-center">
+              <p class="status-kicker" id="recordState">Ready to record</p>
+              <p class="timer" id="recordTimer">00:00</p>
+            </div>
+          </div>
+
+          <div class="voice-controls">
+            <button class="primary-action" id="recordButton" type="button">Start recording</button>
+            <button class="secondary-action" id="resetButton" type="button" disabled>Reset</button>
+          </div>
+
+          <div class="input-preview hidden" id="recordingPreview">
+            <div>
+              <p class="section-label">Your voice note</p>
+              <audio id="inputAudio" controls></audio>
+            </div>
+            <button class="translate-action" id="translateRecording" type="button">Translate to voice</button>
+          </div>
+        </section>
+
+        <section class="secondary-input">
+          <button class="link-button" id="toggleUpload" type="button">Use an existing audio or video file</button>
+          <div class="upload-panel hidden" id="uploadPanel">
+            <input id="fileInput" type="file" accept=".mp3,.wav,.aac,.m4a,.flac,.wma,.ogg,.mp4,.mov,.avi,.wmv,.mkv,.flv,.webm,.txt,.md" />
+            <button class="secondary-action" id="translateUpload" type="button" disabled>Translate file</button>
+          </div>
+        </section>
+
+        <section class="progress-panel hidden" id="progressPanel" aria-live="polite">
+          <div class="progress-header">
+            <p id="progressTitle">Processing</p>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-track"><span id="progressBar"></span></div>
+          <p class="progress-copy" id="progressCopy">Preparing your translation.</p>
+        </section>
+
+        <section class="result-panel hidden" id="resultPanel">
+          <div class="result-header">
+            <div>
+              <p class="section-label">Translated voice</p>
+              <h2 id="resultTitle">Ready</h2>
+            </div>
+            <a class="download-pill hidden" id="zipDownload" href="#" download>Download all</a>
+          </div>
+
+          <audio class="output-audio" id="outputAudio" controls></audio>
+
+          <div class="result-actions" id="downloadActions"></div>
+
+          <details class="text-details">
+            <summary>View transcript and translation</summary>
+            <div class="text-grid">
+              <article>
+                <p class="section-label">Original</p>
+                <p id="originalText"></p>
+              </article>
+              <article>
+                <p class="section-label">Translated</p>
+                <p id="translatedText"></p>
+              </article>
+            </div>
+          </details>
+        </section>
+
+        <section class="error-panel hidden" id="errorPanel" aria-live="assertive">
+          <p id="errorText"></p>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
