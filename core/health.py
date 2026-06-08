@@ -20,6 +20,7 @@ from config.settings import (
     MODEL_PROFILE,
     WHISPER_MODEL_ID,
 )
+from core.media_utils import MediaError, require_binary
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,25 @@ def _model_dir_ready(path: str | Path) -> bool:
     return expected.issubset(names) and has_weights
 
 
+def _ffmpeg_status() -> tuple[bool, str]:
+    try:
+        return True, require_binary(FFMPEG_BINARY, "FFmpeg")
+    except MediaError:
+        return False, f"Missing binary: {FFMPEG_BINARY}"
+
+
+def _ffprobe_status() -> tuple[bool, str]:
+    resolved = shutil.which(FFPROBE_BINARY)
+    if resolved:
+        return True, resolved
+    if _package_available("av"):
+        return True, "PyAV media inspection fallback available"
+    return False, f"Missing binary: {FFPROBE_BINARY}"
+
+
 def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> list[HealthCheck]:
+    ffmpeg_ok, ffmpeg_detail = _ffmpeg_status()
+    ffprobe_ok, ffprobe_detail = _ffprobe_status()
     checks = [
         HealthCheck(
             name="Model quality profile",
@@ -54,14 +73,14 @@ def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> 
         ),
         HealthCheck(
             name="FFmpeg",
-            ok=shutil.which(FFMPEG_BINARY) is not None,
-            detail=shutil.which(FFMPEG_BINARY) or f"Missing binary: {FFMPEG_BINARY}",
+            ok=ffmpeg_ok,
+            detail=ffmpeg_detail,
             required_for="audio/video extraction, MP3 export, video processing",
         ),
         HealthCheck(
             name="ffprobe",
-            ok=shutil.which(FFPROBE_BINARY) is not None,
-            detail=shutil.which(FFPROBE_BINARY) or f"Missing binary: {FFPROBE_BINARY}",
+            ok=ffprobe_ok,
+            detail=ffprobe_detail,
             required_for="media validation",
         ),
         HealthCheck(

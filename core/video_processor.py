@@ -5,17 +5,17 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from config.settings import FFMPEG_BINARY, FFMPEG_TIMEOUT_SECONDS
+from config.settings import FFMPEG_TIMEOUT_SECONDS
 from core.media_utils import MediaError, ensure_ffmpeg
 
 
 def burn_subtitles(video_path: Path, subtitle_path: Path, output_path: Path) -> Path:
-    ensure_ffmpeg()
+    ffmpeg_binary = ensure_ffmpeg()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     escaped_subtitle_path = str(subtitle_path).replace("\\", "/").replace(":", "\\:")
     subtitle_filter = f"subtitles='{escaped_subtitle_path}'"
     cmd = [
-        FFMPEG_BINARY,
+        ffmpeg_binary,
         "-y",
         "-i",
         str(video_path),
@@ -35,10 +35,10 @@ def burn_subtitles(video_path: Path, subtitle_path: Path, output_path: Path) -> 
 
 
 def mux_audio(video_path: Path, audio_path: Path, output_path: Path) -> Path:
-    ensure_ffmpeg()
+    ffmpeg_binary = ensure_ffmpeg()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
-        FFMPEG_BINARY,
+        ffmpeg_binary,
         "-y",
         "-i",
         str(video_path),

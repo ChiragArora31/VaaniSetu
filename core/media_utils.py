@@ -37,9 +37,18 @@ def detect_input_type(path: Path) -> str:
 
 def require_binary(binary: str, label: str) -> str:
     resolved = shutil.which(binary)
-    if not resolved:
-        raise MediaError(f"{label} was not found. Install it and ensure '{binary}' is on PATH.")
-    return resolved
+    if resolved:
+        return resolved
+    if binary == FFMPEG_BINARY:
+        try:
+            import imageio_ffmpeg
+
+            bundled = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            bundled = None
+        if bundled and Path(bundled).exists():
+            return bundled
+    raise MediaError(f"{label} was not found. Install it and ensure '{binary}' is on PATH.")
 
 
 def ensure_ffmpeg() -> str:
