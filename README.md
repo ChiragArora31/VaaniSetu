@@ -15,10 +15,9 @@ No paid APIs. No OpenAI, Google Cloud, Azure, AWS Transcribe, or ElevenLabs. The
 - Translated voice output with Piper or provider-side fallback TTS
 - Optional burned-in captions and translated audio video export with FFmpeg
 - Modern FastAPI-served web UI with progress, previews, playback, and downloads
-- Runtime readiness panel for FFmpeg, Whisper, IndicTrans2, and Piper
+- Runtime readiness API for FFmpeg, Whisper, IndicTrans2, and Piper
 - Job report JSON with backend, warnings, and generated artifact metadata
 - One-click ZIP export containing all generated artifacts
-- Production mode for real models plus clearly labeled setup-preview mode for UI/export smoke tests
 
 ## Production Model Stack
 
@@ -29,7 +28,7 @@ Recommended provider stack:
 | Task | Production choice | Why |
 | --- | --- | --- |
 | Speech-to-text | `faster-whisper-large-v3` | Best open-source Whisper quality profile for noisy multilingual media. |
-| Low-latency STT | `faster-whisper-small` or `faster-whisper-base` | Faster CPU fallback for demos and low-resource machines. |
+| Low-latency STT | `faster-whisper-small` or `faster-whisper-base` | Faster CPU fallback for low-resource machines. |
 | Translation | AI4Bharat IndicTrans2 | Built for Indian languages, including Hindi and Marathi. |
 | Text-to-speech | AI4Bharat Indic Parler TTS or Piper voices | Fully open-source voice path; Piper stays as the lightweight runtime option in this app. |
 | Media processing | FFmpeg | Reliable open-source extraction, caption burn-in, and muxing. |
@@ -37,8 +36,8 @@ Recommended provider stack:
 Model profile is controlled by `BAIF_MODEL_PROFILE`:
 
 ```bash
-export BAIF_MODEL_PROFILE=fast      # laptop/CPU smoke tests
-export BAIF_MODEL_PROFILE=balanced  # default local/provider demo
+export BAIF_MODEL_PROFILE=fast      # low-resource CPU/serverless profile
+export BAIF_MODEL_PROFILE=balanced  # default local/provider profile
 export BAIF_MODEL_PROFILE=quality   # provider production backend
 ```
 
@@ -179,7 +178,7 @@ export BAIF_INDICTRANS_INDIC_EN_MODEL=/path/to/indic-en
 export BAIF_INDICTRANS_INDIC_INDIC_MODEL=/path/to/indic-indic
 ```
 
-For installation smoke tests, the UI includes a setup-preview phrasebook mode. It is intentionally labeled and should not be used for production translation quality.
+For offline installation validation without translation models, enable the deterministic phrasebook fallback:
 
 ```bash
 export BAIF_ALLOW_PREVIEW_TRANSLATOR=1
@@ -252,12 +251,6 @@ API:     http://server:8000
 
 The Docker image installs system dependencies and Python libraries once. Model weights are cached in the mounted `models/` volume so the first server run prepares them and later runs reuse them.
 
-The public UI hides dependency and model controls by default. Provider/admin diagnostics can be enabled only for maintainers:
-
-```bash
-export BAIF_SHOW_ADMIN_PANEL=1
-```
-
 For production, prepare the quality model cache once:
 
 ```bash
@@ -277,10 +270,10 @@ The Vercel profile uses `/tmp/vaanisetu` for runtime files and the `fast` model 
 
 ## Validation
 
-Run the lightweight local checks before a release or presentation:
+Run the local checks before a release:
 
 ```bash
-python -m py_compile app.py config/*.py core/*.py
+python -m py_compile $(git ls-files '*.py')
 python -m unittest discover -s tests
 ```
 
@@ -293,19 +286,8 @@ The tests do not require large ML models; they verify import safety, text proces
 - faster-whisper is robust but transcription accuracy depends on audio quality, noise, and dialect.
 - Music-only files or songs with vocals mixed under instruments may not produce a useful speech transcript.
 - Piper voice availability for Indian regional languages can vary by installed model. Indic Parler TTS is the recommended production TTS direction.
-- Burned-in subtitle styling uses FFmpeg defaults in the MVP.
+- Burned-in subtitle styling uses FFmpeg defaults.
 - Large videos are supported through streaming FFmpeg processing, but local CPU/RAM/GPU capacity still matters.
-
-## Roadmap
-
-- Add background job queue with resumable processing for long videos.
-- Add GPU worker autoscaling for production deployments.
-- Add speaker diarization for multi-speaker community meetings.
-- Add subtitle style presets for mobile-first training videos.
-- Add batch mode for field content libraries.
-- Add glossary control for agriculture, health, SHG, and livelihood terminology.
-- Add Indic Parler TTS backend with voice selection and quality presets.
-- Add optional ONNX/CoreML/CTranslate2 acceleration profiles for low-cost edge machines.
 
 ## Operating Notes
 

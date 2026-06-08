@@ -7,7 +7,6 @@
     "HF_HUB_CACHE": "/tmp/vaanisetu/huggingface/hub",
     "XDG_CACHE_HOME": "/tmp/vaanisetu/cache",
     "BAIF_ENABLE_HOSTED_TRANSLATION": "1",
-    "BAIF_ALLOW_MODEL_DOWNLOAD": "1",
-    "BAIF_SHOW_ADMIN_PANEL": "0"
+    "BAIF_ALLOW_MODEL_DOWNLOAD": "1"
   }
 }

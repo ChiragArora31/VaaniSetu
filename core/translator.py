@@ -1,8 +1,8 @@
 """Offline translation adapters.
 
 Primary backend: IndicTrans2 through Hugging Face Transformers with local or
-downloaded model directories. A tiny phrasebook backend is kept only for setup
-smoke tests and is clearly reported as non-production metadata by the pipeline.
+downloaded model directories. A tiny phrasebook backend is kept only for
+explicit offline installation validation.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ class IndicTrans2Translator:
             from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
         except ImportError as exc:
             raise TranslationError(
-                "IndicTrans2 dependencies are not installed. Run 'pip install -r requirements.txt'."
+                "IndicTrans2 dependencies are not installed. Run 'pip install -r requirements-full.txt'."
             ) from exc
 
         try:
@@ -316,7 +316,7 @@ def get_translator(
     allow_model_download: bool = ALLOW_MODEL_DOWNLOAD,
 ):
     backend = TRANSLATION_BACKEND
-    if backend in {"preview", "demo"}:
+    if backend == "preview":
         return PreviewPhrasebookTranslator()
     if backend in {"auto", "indictrans2"}:
         return AutoTranslator(allow_preview=allow_preview, allow_model_download=allow_model_download)

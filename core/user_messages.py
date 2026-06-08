@@ -10,7 +10,9 @@ from __future__ import annotations
 _BACKEND_SETUP_MARKERS = (
     "pip install",
     "requirements.txt",
+    "requirements-full.txt",
     "dependencies are not installed",
+    "indictrans2 dependencies",
     "model folder is missing",
     "model files are not available",
     "install/cache",

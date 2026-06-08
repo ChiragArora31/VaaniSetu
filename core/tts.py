@@ -2,7 +2,7 @@
 
 Piper is the preferred open-source runtime backend. On macOS development
 machines, the built-in ``say`` command is used as a provider-side fallback so
-audio-to-audio demos still produce a downloadable voice artifact when Piper
+audio-to-audio flows still produce a downloadable voice artifact when Piper
 voices have not been installed yet.
 """
 

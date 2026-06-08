@@ -2,6 +2,11 @@
 __pycache__/
 *.pyc
 .DS_Store
+.env
+.env.*
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 temp/*
 outputs/*
 models/*

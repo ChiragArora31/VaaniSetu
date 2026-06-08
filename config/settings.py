@@ -57,7 +57,7 @@ MODEL_PROFILES = {
     },
     "balanced": {
         "label": "Balanced",
-        "description": "Recommended default for provider demos on CPU or small GPU machines.",
+        "description": "Recommended default for provider CPU or small GPU machines.",
         "whisper_repo": "Systran/faster-whisper-small",
         "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-small",
         "whisper_compute_type": "int8",
@@ -97,7 +97,6 @@ ENABLE_HOSTED_TRANSLATION = os.getenv("BAIF_ENABLE_HOSTED_TRANSLATION", "1") == 
 HOSTED_TRANSLATION_PROVIDER = os.getenv("BAIF_HOSTED_TRANSLATION_PROVIDER", "mymemory").lower()
 HOSTED_TRANSLATION_TIMEOUT_SECONDS = int(os.getenv("BAIF_HOSTED_TRANSLATION_TIMEOUT_SECONDS", "20"))
 MYMEMORY_EMAIL = os.getenv("BAIF_MYMEMORY_EMAIL", "")
-SHOW_ADMIN_PANEL = os.getenv("BAIF_SHOW_ADMIN_PANEL", "0") == "1"
 TRANSLATION_BATCH_SIZE = int(os.getenv("BAIF_TRANSLATION_BATCH_SIZE", "8"))
 
 INDICTRANS_MODEL_BY_DIRECTION = {

@@ -1,7 +1,14 @@
 .venv/
+.vercel/
+.git/
+.env
+.env.*
 __pycache__/
 *.pyc
 .DS_Store
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 outputs/*
 temp/*
 models/*

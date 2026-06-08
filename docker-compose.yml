@@ -6,7 +6,6 @@ services:
     environment:
       BAIF_MODEL_PROFILE: "quality"
       BAIF_ALLOW_MODEL_DOWNLOAD: "1"
-      BAIF_SHOW_ADMIN_PANEL: "0"
     volumes:
       - ./models:/app/models
       - ./outputs:/app/outputs
@@ -20,7 +19,6 @@ services:
     environment:
       BAIF_MODEL_PROFILE: "quality"
       BAIF_ALLOW_MODEL_DOWNLOAD: "1"
-      BAIF_SHOW_ADMIN_PANEL: "0"
     volumes:
       - ./models:/app/models
       - ./outputs:/app/outputs

@@ -1,4 +1,4 @@
-"""Runtime readiness checks for production and setup-preview runs."""
+"""Runtime readiness checks for model and media capabilities."""
 
 from __future__ import annotations
 
@@ -83,13 +83,13 @@ def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> 
         HealthCheck(
             name="Transformers package",
             ok=_package_available("transformers"),
-            detail="Installed" if _package_available("transformers") else "Install requirements.txt",
+            detail="Installed" if _package_available("transformers") else "Install requirements-full.txt",
             required_for="IndicTrans2 translation",
         ),
         HealthCheck(
             name="IndicTrans toolkit",
             ok=_package_available("IndicTransToolkit"),
-            detail="Installed" if _package_available("IndicTransToolkit") else "Install IndicTrans2 dependency",
+            detail="Installed" if _package_available("IndicTransToolkit") else "Install requirements-full.txt",
             required_for="IndicTrans2 translation",
         ),
     ]

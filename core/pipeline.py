@@ -128,7 +128,6 @@ class TranslationPipeline:
             target_language=target_language,
             original_text=normalize_text(text),
         )
-        result.metadata["preview_translation"] = "yes" if options.allow_preview_translation else "no"
         result.metadata["model_download"] = "enabled" if options.allow_model_download else "disabled"
         result.metadata["model_profile"] = MODEL_PROFILE
         if not result.original_text:
@@ -189,7 +188,6 @@ class TranslationPipeline:
             source_language=source_language,
             target_language=target_language,
         )
-        result.metadata["preview_translation"] = "yes" if options.allow_preview_translation else "no"
         result.metadata["model_download"] = "enabled" if options.allow_model_download else "disabled"
         result.metadata["model_profile"] = MODEL_PROFILE
 
