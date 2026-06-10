@@ -1,0 +1,6 @@
+{"id":"en-hi-001","source_language":"English","target_language":"Hindi","source":"The farmer needs clean water for the field.","reference":"किसान को खेत के लिए स्वच्छ पानी चाहिए।"}
+{"id":"en-mr-001","source_language":"English","target_language":"Marathi","source":"The women will attend the health meeting tomorrow.","reference":"महिला उद्या आरोग्य बैठकीला उपस्थित राहतील."}
+{"id":"hi-en-001","source_language":"Hindi","target_language":"English","source":"किसान मिट्टी की गुणवत्ता की जांच कर रहे हैं।","reference":"The farmers are checking the quality of the soil."}
+{"id":"hi-mr-001","source_language":"Hindi","target_language":"Marathi","source":"गांव में स्वच्छ पानी उपलब्ध है।","reference":"गावात स्वच्छ पाणी उपलब्ध आहे."}
+{"id":"mr-en-001","source_language":"Marathi","target_language":"English","source":"शेतकरी नवीन सिंचन पद्धतीचा वापर करत आहेत.","reference":"The farmers are using a new irrigation method."}
+{"id":"mr-hi-001","source_language":"Marathi","target_language":"Hindi","source":"महिला बचत गटाची बैठक आज आहे.","reference":"महिला स्वयं सहायता समूह की बैठक आज है।"}

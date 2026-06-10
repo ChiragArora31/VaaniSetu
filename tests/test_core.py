@@ -15,6 +15,8 @@ from core.asr_cleanup import clean_indic_asr_text
 from core.pipeline import ProcessingOptions, TranslationPipeline
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
 from core.text_utils import normalize_text, split_for_translation
+from core.translator import HostedHttpTranslator, TranslationError
+from core.transcriber import WhisperTranscriber, get_transcriber
 
 
 class TextUtilsTest(unittest.TestCase):
@@ -87,6 +89,24 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("bundle_zip", result.artifacts)
         for path in result.artifacts.values():
             self.assertTrue(path.exists())
+
+
+class TranslationGuardTest(unittest.TestCase):
+    def test_rejects_unchanged_cross_language_output(self):
+        with self.assertRaises(TranslationError):
+            HostedHttpTranslator._validate_output("how are you", "how are you", "Hindi")
+
+    def test_rejects_wrong_target_script(self):
+        with self.assertRaises(TranslationError):
+            HostedHttpTranslator._validate_output("hello", "namaste", "Hindi")
+
+    def test_accepts_target_script(self):
+        HostedHttpTranslator._validate_output("hello", "नमस्ते", "Hindi")
+
+
+class TranscriberSelectionTest(unittest.TestCase):
+    def test_default_transcriber_is_whisper(self):
+        self.assertIsInstance(get_transcriber(allow_model_download=False), WhisperTranscriber)
 
 
 if __name__ == "__main__":

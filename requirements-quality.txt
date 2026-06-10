@@ -1,0 +1,7 @@
+-r requirements-full.txt
+soundfile>=0.12
+sacrebleu>=2.4
+jiwer>=3.0
+torchaudio>=2.2
+onnxruntime>=1.20
+git+https://github.com/huggingface/parler-tts.git

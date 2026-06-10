@@ -40,6 +40,14 @@ MODELS = {
         "ai4bharat/indictrans2-indic-indic-1B",
         ROOT / "models" / "indictrans2" / "indictrans2-indic-indic-1B",
     ),
+    "indic-parler-tts": (
+        "ai4bharat/indic-parler-tts",
+        ROOT / "models" / "indic-parler-tts",
+    ),
+    "indic-conformer": (
+        "ai4bharat/indic-conformer-600m-multilingual",
+        ROOT / "models" / "indic-conformer-600m-multilingual",
+    ),
 }
 
 PROFILE_MODELS = {
@@ -74,6 +82,16 @@ def main() -> None:
         action="store_true",
         help="Also download all IndicTrans2 translation models.",
     )
+    parser.add_argument(
+        "--with-tts",
+        action="store_true",
+        help="Also download the Indic Parler TTS quality model.",
+    )
+    parser.add_argument(
+        "--with-indic-asr",
+        action="store_true",
+        help="Also download the IndicConformer multilingual ASR model.",
+    )
     args = parser.parse_args()
 
     if args.only:
@@ -82,6 +100,10 @@ def main() -> None:
         selected = list(PROFILE_MODELS[args.profile])
         if args.with_translation:
             selected.extend(CORE_TRANSLATION_MODELS)
+        if args.with_tts:
+            selected.append("indic-parler-tts")
+        if args.with_indic_asr:
+            selected.append("indic-conformer")
 
     for name in selected:
         repo_id, target = MODELS[name]

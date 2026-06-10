@@ -7,6 +7,7 @@ explicit offline installation validation.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -152,7 +153,8 @@ class HostedHttpTranslator:
 
     This keeps end users dependency-free. In production, point this abstraction
     at a provider-owned LibreTranslate/IndicTrans service. The default MyMemory
-    path is useful for a no-key hosted fallback in this local build.
+    path is useful for a no-key convenience fallback, but it is not the judged
+    open-source production path.
     """
 
     _codes = {
@@ -163,6 +165,19 @@ class HostedHttpTranslator:
 
     def __init__(self, provider: str = HOSTED_TRANSLATION_PROVIDER):
         self.provider = provider
+
+    @staticmethod
+    def _validate_output(source: str, translated: str, target_name: str) -> None:
+        normalized_source = " ".join(source.casefold().split())
+        normalized_output = " ".join(translated.casefold().split())
+        if not normalized_output or normalized_output == normalized_source:
+            raise TranslationError("Hosted translation returned untranslated text.")
+        has_devanagari = bool(re.search(r"[\u0900-\u097F]", translated))
+        has_latin = bool(re.search(r"[A-Za-z]", translated))
+        if target_name in {"Hindi", "Marathi"} and not has_devanagari:
+            raise TranslationError("Hosted translation returned text in the wrong script.")
+        if target_name == "English" and not has_latin:
+            raise TranslationError("Hosted translation returned text in the wrong script.")
 
     def translate_many(self, texts: list[str], source_name: str, target_name: str) -> TranslationResult:
         if source_name == target_name:
@@ -199,13 +214,22 @@ class HostedHttpTranslator:
                 if payload.get("responseStatus") != 200:
                     raise TranslationError(payload.get("responseDetails") or "Hosted translation failed.")
                 translated_text = payload.get("responseData", {}).get("translatedText", "")
-                translated.append(translated_text.strip() or text)
+                translated_text = translated_text.strip()
+                self._validate_output(text, translated_text, target_name)
+                translated.append(translated_text)
             except TranslationError:
                 raise
             except Exception as exc:
                 raise TranslationError("Hosted translation service is temporarily unavailable.") from exc
 
-        return TranslationResult(text="\n".join(translated), backend=f"hosted-{self.provider}")
+        return TranslationResult(
+            text="\n".join(translated),
+            backend=f"hosted-{self.provider}",
+            warning=(
+                "A free hosted convenience fallback produced this translation. "
+                "Use the provider-hosted IndicTrans quality path for judged output."
+            ),
+        )
 
 
 class PreviewPhrasebookTranslator:

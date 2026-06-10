@@ -16,7 +16,6 @@ from config.settings import (
     MAX_TEXT_CHARS,
     OUTPUT_DIR,
     TEMP_DIR,
-    WHISPER_MODEL_ID,
     ensure_directories,
 )
 from core.audio_extractor import extract_audio_to_wav
@@ -26,7 +25,7 @@ from core.file_utils import create_job_dirs, write_text
 from core.media_utils import MediaError, detect_input_type, inspect_media
 from core.subtitles import Segment, normalize_segments, render_srt, render_vtt, segments_from_text
 from core.text_utils import enforce_text_limit, normalize_text, split_for_translation
-from core.transcriber import TranscriptionError, WhisperTranscriber
+from core.transcriber import TranscriptionError, get_transcriber
 from core.translator import TranslationError, translate_segments
 from core.tts import TTSError, convert_wav_to_mp3, synthesize_speech
 from core.video_processor import burn_subtitles, mux_audio
@@ -110,7 +109,7 @@ def _finalize_artifacts(result: PipelineResult, output_dir: Path) -> None:
 class TranslationPipeline:
     def __init__(self):
         ensure_directories()
-        self.transcriber = WhisperTranscriber()
+        self.transcriber = get_transcriber()
 
     def process_text(
         self,
@@ -190,6 +189,7 @@ class TranslationPipeline:
         )
         result.metadata["model_download"] = "enabled" if options.allow_model_download else "disabled"
         result.metadata["model_profile"] = MODEL_PROFILE
+        result.metadata["asr_backend"] = self.transcriber.__class__.__name__
 
         if input_type == "text":
             return self.process_text(input_path.read_text(encoding="utf-8"), source_language, target_language, options, status)
@@ -243,7 +243,11 @@ class TranslationPipeline:
             result.artifacts["transcript_txt"] = write_text(output_dir / "source_transcript.txt", result.original_text)
             result.metadata["transcription_language"] = transcription.language or source.whisper_code
             result.metadata["transcript_segments"] = len(transcription.segments)
-            result.metadata["asr_model"] = WHISPER_MODEL_ID
+            result.metadata["asr_model"] = getattr(
+                self.transcriber,
+                "model_id",
+                self.transcriber.__class__.__name__,
+            )
             if did_cleanup:
                 result.metadata["asr_cleanup"] = "enabled"
 

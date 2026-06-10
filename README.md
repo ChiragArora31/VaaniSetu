@@ -27,11 +27,13 @@ Recommended provider stack:
 
 | Task | Production choice | Why |
 | --- | --- | --- |
-| Speech-to-text | `faster-whisper-large-v3` | Best open-source Whisper quality profile for noisy multilingual media. |
+| Speech-to-text | AI4Bharat IndicConformer or `faster-whisper-large-v3` | Benchmark both on BAIF field audio; use the lower-WER backend per language. |
 | Low-latency STT | `faster-whisper-small` or `faster-whisper-base` | Faster CPU fallback for low-resource machines. |
 | Translation | AI4Bharat IndicTrans2 | Built for Indian languages, including Hindi and Marathi. |
 | Text-to-speech | AI4Bharat Indic Parler TTS or Piper voices | Fully open-source voice path; Piper stays as the lightweight runtime option in this app. |
 | Media processing | FFmpeg | Reliable open-source extraction, caption burn-in, and muxing. |
+
+The judged production path must use provider-hosted open-source models. The lightweight public deployment may use explicitly reported convenience fallbacks, but those outputs must not be used as evidence of final model quality. See [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md).
 
 Model profile is controlled by `BAIF_MODEL_PROFILE`:
 
@@ -99,6 +101,12 @@ Install the full local/on-prem model stack when preparing a production media wor
 pip install -r requirements-full.txt
 ```
 
+Install the judged quality stack, including Indic Parler TTS and evaluation tools:
+
+```bash
+pip install -r requirements-quality.txt
+```
+
 ### Windows
 
 ```powershell
@@ -121,7 +129,7 @@ ffprobe -version
 The app can download/cache open-source models when internet is available. For repeatable production use, pre-download them:
 
 ```bash
-python scripts/setup_models.py --profile quality --with-translation
+python scripts/setup_models.py --profile quality --with-translation --with-tts --with-indic-asr
 ```
 
 You can download only one model family:
@@ -278,6 +286,14 @@ python -m unittest discover -s tests
 ```
 
 The tests do not require large ML models; they verify import safety, text processing, subtitle formatting, upload validation, and the text-output pipeline.
+
+Run the reviewed translation benchmark before comparing model or configuration changes:
+
+```bash
+python scripts/evaluate_quality.py
+```
+
+The generated `outputs/quality_report.json` records per-sample predictions, backend names, and chrF++ scores. Expand the benchmark with BAIF-reviewed field language before final judging.
 
 ## Assumptions and Limitations
 

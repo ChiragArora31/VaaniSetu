@@ -11,15 +11,99 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 
-from config.settings import FFMPEG_BINARY, PIPER_BINARY, PIPER_MODEL_DIR, TTS_TIMEOUT_SECONDS
+from config.settings import (
+    ALLOW_MODEL_DOWNLOAD,
+    FFMPEG_BINARY,
+    INDIC_PARLER_DEVICE,
+    INDIC_PARLER_MODEL,
+    INDIC_PARLER_MODEL_ID,
+    MODEL_PROFILE,
+    PIPER_BINARY,
+    PIPER_MODEL_DIR,
+    TTS_BACKEND,
+    TTS_TIMEOUT_SECONDS,
+)
 from core.media_utils import MediaError
 from core.media_utils import require_binary
 
 
 class TTSError(RuntimeError):
     """Raised when TTS generation cannot be completed."""
+
+
+_INDIC_PARLER_DESCRIPTIONS = {
+    "en": (
+        "An Indian speaker delivers clear, natural, moderately paced speech. "
+        "The recording is very high quality, with no background noise."
+    ),
+    "hi": (
+        "A Hindi speaker delivers clear, natural, moderately paced speech with accurate pronunciation. "
+        "The recording is very high quality, with no background noise."
+    ),
+    "mr": (
+        "A Marathi speaker delivers clear, natural, moderately paced speech with accurate pronunciation. "
+        "The recording is very high quality, with no background noise."
+    ),
+}
+
+
+@lru_cache(maxsize=1)
+def _load_indic_parler():
+    try:
+        import torch
+        from parler_tts import ParlerTTSForConditionalGeneration
+        from transformers import AutoTokenizer
+    except ImportError as exc:
+        raise TTSError("Indic Parler TTS dependencies are not installed.") from exc
+
+    device = INDIC_PARLER_DEVICE
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    model_path = Path(INDIC_PARLER_MODEL)
+    model_ref = str(model_path) if model_path.exists() else INDIC_PARLER_MODEL_ID
+    if not model_path.exists() and not ALLOW_MODEL_DOWNLOAD:
+        raise TTSError(f"Indic Parler TTS model is missing: {model_path}")
+    try:
+        model = ParlerTTSForConditionalGeneration.from_pretrained(
+            model_ref,
+            local_files_only=not ALLOW_MODEL_DOWNLOAD,
+        ).to(device)
+        prompt_tokenizer = AutoTokenizer.from_pretrained(model_ref, local_files_only=not ALLOW_MODEL_DOWNLOAD)
+        description_tokenizer = AutoTokenizer.from_pretrained(
+            model.config.text_encoder._name_or_path,
+            local_files_only=not ALLOW_MODEL_DOWNLOAD,
+        )
+    except Exception as exc:
+        raise TTSError(f"Indic Parler TTS model is unavailable: {exc}") from exc
+    return model, prompt_tokenizer, description_tokenizer, device
+
+
+def synthesize_with_indic_parler(text: str, language_hint: str, output_path: Path) -> Path:
+    try:
+        import soundfile as sf
+    except ImportError as exc:
+        raise TTSError("soundfile is required for Indic Parler TTS output.") from exc
+
+    model, prompt_tokenizer, description_tokenizer, device = _load_indic_parler()
+    description = _INDIC_PARLER_DESCRIPTIONS.get(language_hint, _INDIC_PARLER_DESCRIPTIONS["en"])
+    try:
+        description_inputs = description_tokenizer(description, return_tensors="pt").to(device)
+        prompt_inputs = prompt_tokenizer(text, return_tensors="pt").to(device)
+        generation = model.generate(
+            input_ids=description_inputs.input_ids,
+            attention_mask=description_inputs.attention_mask,
+            prompt_input_ids=prompt_inputs.input_ids,
+            prompt_attention_mask=prompt_inputs.attention_mask,
+        )
+        audio = generation.detach().cpu().numpy().squeeze()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        sf.write(str(output_path), audio, model.config.sampling_rate)
+    except Exception as exc:
+        raise TTSError(f"Indic Parler TTS synthesis failed: {exc}") from exc
+    return output_path
 
 
 def find_piper_model(language_hint: str) -> Path:
@@ -115,17 +199,25 @@ def synthesize_speech(text: str, language_hint: str, output_path: Path) -> tuple
     if not text.strip():
         raise TTSError("No translated text was available for speech synthesis.")
 
-    try:
-        return synthesize_with_piper(text, language_hint, output_path), "piper", None
-    except TTSError as piper_error:
+    backends = {
+        "indic-parler": lambda: synthesize_with_indic_parler(text, language_hint, output_path),
+        "piper": lambda: synthesize_with_piper(text, language_hint, output_path),
+        "macos-say": lambda: synthesize_with_macos_say(text, language_hint, output_path),
+    }
+    if TTS_BACKEND == "auto":
+        order = ["indic-parler", "piper", "macos-say"] if MODEL_PROFILE == "quality" else ["piper", "macos-say"]
+    elif TTS_BACKEND in backends:
+        order = [TTS_BACKEND]
+    else:
+        raise TTSError(f"Unknown TTS backend: {TTS_BACKEND}")
+
+    errors: list[str] = []
+    for backend in order:
         try:
-            return (
-                synthesize_with_macos_say(text, language_hint, output_path),
-                "macos-say",
-                None,
-            )
-        except TTSError as fallback_error:
-            raise TTSError(f"{piper_error} Fallback TTS also failed: {fallback_error}") from fallback_error
+            return backends[backend](), backend, None
+        except TTSError as exc:
+            errors.append(f"{backend}: {exc}")
+    raise TTSError("No configured speech engine succeeded. " + " ".join(errors))
 
 
 def _convert_wav_to_mp3_with_pyav(wav_path: Path, output_path: Path) -> Path:

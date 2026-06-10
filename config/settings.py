@@ -19,6 +19,10 @@ MAX_TEXT_CHARS = int(os.getenv("BAIF_MAX_TEXT_CHARS", "20000"))
 MAX_MEDIA_SECONDS = int(os.getenv("BAIF_MAX_MEDIA_SECONDS", "7200"))
 FFMPEG_TIMEOUT_SECONDS = int(os.getenv("BAIF_FFMPEG_TIMEOUT_SECONDS", "1800"))
 TTS_TIMEOUT_SECONDS = int(os.getenv("BAIF_TTS_TIMEOUT_SECONDS", "900"))
+TTS_BACKEND = os.getenv("BAIF_TTS_BACKEND", "auto").strip().lower()
+INDIC_PARLER_MODEL = os.getenv("BAIF_INDIC_PARLER_MODEL", str(MODEL_DIR / "indic-parler-tts"))
+INDIC_PARLER_MODEL_ID = os.getenv("BAIF_INDIC_PARLER_MODEL_ID", "ai4bharat/indic-parler-tts")
+INDIC_PARLER_DEVICE = os.getenv("BAIF_INDIC_PARLER_DEVICE", "auto").strip().lower()
 
 AUDIO_EXTENSIONS = {
     ".mp3",
@@ -89,6 +93,17 @@ ASR_VAD_MIN_SILENCE_MS = int(os.getenv("BAIF_ASR_VAD_MIN_SILENCE_MS", "500"))
 ASR_CONDITION_ON_PREVIOUS_TEXT = os.getenv("BAIF_ASR_CONDITION_ON_PREVIOUS_TEXT", "0") == "1"
 ASR_NO_SPEECH_THRESHOLD = float(os.getenv("BAIF_ASR_NO_SPEECH_THRESHOLD", "0.65"))
 ASR_LOG_PROB_THRESHOLD = float(os.getenv("BAIF_ASR_LOG_PROB_THRESHOLD", "-1.0"))
+ASR_BACKEND = os.getenv("BAIF_ASR_BACKEND", "whisper").strip().lower()
+INDIC_CONFORMER_MODEL = os.getenv(
+    "BAIF_INDIC_CONFORMER_MODEL",
+    str(MODEL_DIR / "indic-conformer-600m-multilingual"),
+)
+INDIC_CONFORMER_MODEL_ID = os.getenv(
+    "BAIF_INDIC_CONFORMER_MODEL_ID",
+    "ai4bharat/indic-conformer-600m-multilingual",
+)
+INDIC_CONFORMER_DECODER = os.getenv("BAIF_INDIC_CONFORMER_DECODER", "rnnt").strip().lower()
+INDIC_CONFORMER_DEVICE = os.getenv("BAIF_INDIC_CONFORMER_DEVICE", "auto").strip().lower()
 
 TRANSLATION_BACKEND = os.getenv("BAIF_TRANSLATION_BACKEND", "auto").lower()
 ALLOW_PREVIEW_TRANSLATOR = os.getenv("BAIF_ALLOW_PREVIEW_TRANSLATOR", "0") == "1"

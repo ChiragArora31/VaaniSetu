@@ -7,6 +7,7 @@ from pathlib import Path
 
 from config.settings import (
     ALLOW_MODEL_DOWNLOAD,
+    ASR_BACKEND,
     ASR_BEAM_SIZE,
     ASR_BEST_OF,
     ASR_CONDITION_ON_PREVIOUS_TEXT,
@@ -14,6 +15,10 @@ from config.settings import (
     ASR_NO_SPEECH_THRESHOLD,
     ASR_VAD_MIN_SILENCE_MS,
     DEFAULT_WHISPER_MODEL,
+    INDIC_CONFORMER_DECODER,
+    INDIC_CONFORMER_DEVICE,
+    INDIC_CONFORMER_MODEL,
+    INDIC_CONFORMER_MODEL_ID,
     WHISPER_COMPUTE_TYPE,
     WHISPER_CPU_THREADS,
     WHISPER_DEVICE,
@@ -141,3 +146,70 @@ class WhisperTranscriber:
             segments=segments,
             language=getattr(info, "language", source_language_code),
         )
+
+
+class IndicConformerTranscriber:
+    """AI4Bharat IndicConformer adapter for benchmarked Indian-language ASR."""
+
+    def __init__(self, allow_model_download: bool = ALLOW_MODEL_DOWNLOAD):
+        self.allow_model_download = allow_model_download
+        self._model = None
+
+    def _load_model(self):
+        if self._model is not None:
+            return self._model
+        try:
+            import torch
+            from transformers import AutoModel
+        except ImportError as exc:
+            raise TranscriptionError("IndicConformer dependencies are not installed.") from exc
+
+        model_path = Path(INDIC_CONFORMER_MODEL)
+        model_ref = str(model_path) if model_path.exists() else INDIC_CONFORMER_MODEL_ID
+        if not model_path.exists() and not self.allow_model_download:
+            raise TranscriptionError(f"IndicConformer model folder is missing: {model_path}")
+        device = INDIC_CONFORMER_DEVICE
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        try:
+            self._model = AutoModel.from_pretrained(
+                model_ref,
+                trust_remote_code=True,
+                local_files_only=not self.allow_model_download,
+            ).to(device)
+            self._model.eval()
+        except Exception as exc:
+            raise TranscriptionError(f"IndicConformer model is unavailable: {exc}") from exc
+        return self._model
+
+    def transcribe(self, audio_path: Path, source_language_code: str) -> TranscriptionResult:
+        if source_language_code not in {"hi", "mr"}:
+            raise TranscriptionError("IndicConformer is enabled only for supported Indian source languages.")
+        try:
+            import torch
+            import torchaudio
+
+            waveform, sample_rate = torchaudio.load(str(audio_path))
+            waveform = torch.mean(waveform, dim=0, keepdim=True)
+            if sample_rate != 16000:
+                waveform = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)(waveform)
+            model = self._load_model()
+            with torch.inference_mode():
+                text = str(model(waveform, source_language_code, INDIC_CONFORMER_DECODER)).strip()
+        except TranscriptionError:
+            raise
+        except Exception as exc:
+            raise TranscriptionError(f"IndicConformer transcription failed: {exc}") from exc
+        return TranscriptionResult(
+            text=text,
+            segments=[Segment(start=0.0, end=5.0, text=text)] if text else [],
+            language=source_language_code,
+        )
+
+
+def get_transcriber(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD):
+    if ASR_BACKEND == "whisper":
+        return WhisperTranscriber(allow_model_download=allow_model_download)
+    if ASR_BACKEND == "indic-conformer":
+        return IndicConformerTranscriber(allow_model_download=allow_model_download)
+    raise TranscriptionError(f"Unknown ASR backend: {ASR_BACKEND}")
