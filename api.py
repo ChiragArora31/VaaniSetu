@@ -10,7 +10,20 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from config.languages import language_names
-from config.settings import ACTIVE_MODEL_PROFILE, BASE_DIR, MODEL_PROFILE, OUTPUT_DIR, TEMP_DIR, ensure_directories
+from config.settings import (
+    ACTIVE_MODEL_PROFILE,
+    AUDIO_MAX_DURATION_SECONDS,
+    BASE_DIR,
+    COMPRESSED_AUDIO_MAX_UPLOAD_MB,
+    MODEL_PROFILE,
+    OUTPUT_DIR,
+    TEXT_MAX_UPLOAD_MB,
+    TEMP_DIR,
+    UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB,
+    VIDEO_MAX_DURATION_SECONDS,
+    VIDEO_MAX_UPLOAD_MB,
+    ensure_directories,
+)
 from core.file_utils import ValidationError, save_binary_upload
 from core.health import collect_health_checks
 from core.pipeline import PipelineError, PipelineResult, ProcessingOptions, TranslationPipeline
@@ -127,6 +140,29 @@ def health(allow_model_download: bool = True):
 @app.get("/languages")
 def languages():
     return {"languages": language_names()}
+
+
+@app.get("/limits")
+def limits():
+    return {
+        "audio": {
+            "max_duration_seconds": AUDIO_MAX_DURATION_SECONDS,
+            "compressed_max_mb": COMPRESSED_AUDIO_MAX_UPLOAD_MB,
+            "uncompressed_max_mb": UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB,
+            "compressed_extensions": [".aac", ".m4a", ".mp3", ".ogg", ".wma"],
+            "uncompressed_extensions": [".flac", ".wav"],
+        },
+        "video": {
+            "max_duration_seconds": VIDEO_MAX_DURATION_SECONDS,
+            "max_mb": VIDEO_MAX_UPLOAD_MB,
+            "max_resolution": "1920x1080",
+            "extensions": [".avi", ".flv", ".mkv", ".mov", ".mp4", ".webm", ".wmv"],
+        },
+        "text": {
+            "max_mb": TEXT_MAX_UPLOAD_MB,
+            "extensions": [".md", ".text", ".txt"],
+        },
+    }
 
 
 @app.post("/translate/text", response_model=JobResponse)

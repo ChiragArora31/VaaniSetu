@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
@@ -62,6 +63,7 @@
           <button class="link-button" id="toggleUpload" type="button">Use an existing audio or video file</button>
           <div class="upload-panel hidden" id="uploadPanel">
             <input id="fileInput" type="file" accept=".mp3,.wav,.aac,.m4a,.flac,.wma,.ogg,.mp4,.mov,.avi,.wmv,.mkv,.flv,.webm,.txt,.md" />
+            <p class="upload-hint" id="uploadHint">Audio up to 30 min. Video up to 15 min at 720p/1080p.</p>
             <button class="secondary-action" id="translateUpload" type="button" disabled>Translate file</button>
           </div>
         </section>

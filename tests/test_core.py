@@ -10,9 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.file_utils import ValidationError, save_binary_upload
+from core.file_utils import ValidationError, save_binary_upload, validate_size
 from core.asr_cleanup import clean_indic_asr_text
-from core.pipeline import ProcessingOptions, TranslationPipeline
+from core.media_utils import MediaInfo
+from core.pipeline import ProcessingOptions, TranslationPipeline, _validate_media_constraints
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
 from core.text_utils import normalize_text, split_for_translation
 from core.translator import HostedHttpTranslator, TranslationError
@@ -69,6 +70,37 @@ class FileUtilsTest(unittest.TestCase):
             saved = save_binary_upload(io.BytesIO(b"hello"), "notes.txt", Path(directory))
             self.assertEqual(saved.extension, ".txt")
             self.assertTrue(saved.path.exists())
+
+    def test_enforces_baif_file_size_limits_by_media_type(self):
+        with self.assertRaises(ValidationError):
+            validate_size((50 * 1024 * 1024) + 1, ".mp3")
+        validate_size(150 * 1024 * 1024, ".wav")
+        with self.assertRaises(ValidationError):
+            validate_size((200 * 1024 * 1024) + 1, ".mp4")
+
+
+class MediaConstraintTest(unittest.TestCase):
+    def test_audio_duration_limit_is_30_minutes(self):
+        with self.assertRaisesRegex(Exception, "30 minutes"):
+            _validate_media_constraints("audio", MediaInfo("audio", ".mp3", duration_seconds=1801, has_audio=True))
+
+    def test_video_duration_limit_is_15_minutes(self):
+        with self.assertRaisesRegex(Exception, "15 minutes"):
+            _validate_media_constraints("video", MediaInfo("video", ".mp4", duration_seconds=901, has_audio=True, has_video=True))
+
+    def test_audio_only_webm_uses_audio_duration_rule(self):
+        media_type = _validate_media_constraints(
+            "video",
+            MediaInfo("video", ".webm", duration_seconds=1200, has_audio=True, has_video=False),
+        )
+        self.assertEqual(media_type, "audio")
+
+    def test_rejects_above_1080p_video(self):
+        with self.assertRaisesRegex(Exception, "720p or 1080p"):
+            _validate_media_constraints(
+                "video",
+                MediaInfo("video", ".mp4", duration_seconds=60, has_audio=True, has_video=True, width=3840, height=2160),
+            )
 
 
 class PipelineTest(unittest.TestCase):

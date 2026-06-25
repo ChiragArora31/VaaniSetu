@@ -22,6 +22,8 @@ class MediaInfo:
     duration_seconds: float | None = None
     has_audio: bool | None = None
     has_video: bool | None = None
+    width: int | None = None
+    height: int | None = None
 
 
 def detect_input_type(path: Path) -> str:
@@ -64,7 +66,7 @@ def ffprobe(path: Path, timeout_seconds: int = 30) -> dict:
         "-v",
         "error",
         "-show_entries",
-        "format=duration:stream=codec_type",
+        "format=duration:stream=codec_type,width,height",
         "-of",
         "json",
         str(path),
@@ -97,13 +99,23 @@ def inspect_media(path: Path) -> MediaInfo:
             duration = None
     has_audio = any(stream.get("codec_type") == "audio" for stream in streams)
     has_video = any(stream.get("codec_type") == "video" for stream in streams)
+    video_stream = next((stream for stream in streams if stream.get("codec_type") == "video"), {})
     return MediaInfo(
         input_type=input_type,
         extension=path.suffix.lower(),
         duration_seconds=duration,
         has_audio=has_audio,
         has_video=has_video,
+        width=_safe_int(video_stream.get("width")),
+        height=_safe_int(video_stream.get("height")),
     )
+
+
+def _safe_int(value: object) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def inspect_media_with_pyav(path: Path, input_type: str | None = None) -> MediaInfo:
@@ -120,6 +132,7 @@ def inspect_media_with_pyav(path: Path, input_type: str | None = None) -> MediaI
             duration = None
             if container.duration is not None:
                 duration = float(container.duration / av.time_base)
+            video_stream = next((stream for stream in container.streams if stream.type == "video"), None)
     except Exception as exc:
         raise MediaError("The uploaded media file could not be inspected or decoded.") from exc
 
@@ -129,4 +142,6 @@ def inspect_media_with_pyav(path: Path, input_type: str | None = None) -> MediaI
         duration_seconds=duration,
         has_audio=has_audio,
         has_video=has_video,
+        width=getattr(video_stream, "width", None) if video_stream else None,
+        height=getattr(video_stream, "height", None) if video_stream else None,
     )

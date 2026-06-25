@@ -25,6 +25,7 @@ const els = {
   toggleUpload: document.querySelector("#toggleUpload"),
   uploadPanel: document.querySelector("#uploadPanel"),
   fileInput: document.querySelector("#fileInput"),
+  uploadHint: document.querySelector("#uploadHint"),
   translateUpload: document.querySelector("#translateUpload"),
   progressPanel: document.querySelector("#progressPanel"),
   progressTitle: document.querySelector("#progressTitle"),
@@ -45,6 +46,17 @@ const els = {
   recordVisual: document.querySelector("#recordVisual"),
 };
 
+const uploadLimits = {
+  audio: {
+    compressedMaxMb: 50,
+    uncompressedMaxMb: 150,
+    compressedExtensions: [".aac", ".m4a", ".mp3", ".ogg", ".wma"],
+    uncompressedExtensions: [".flac", ".wav"],
+  },
+  video: { maxMb: 200, extensions: [".avi", ".flv", ".mkv", ".mov", ".mp4", ".webm", ".wmv"] },
+  text: { maxMb: 10, extensions: [".md", ".text", ".txt"] },
+};
+
 const progressSteps = [
   "Preparing audio",
   "Transcribing speech",
@@ -52,6 +64,8 @@ const progressSteps = [
   "Generating voice",
   "Packaging outputs",
 ];
+
+const MAX_RECORDING_SECONDS = 30 * 60;
 
 function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -93,6 +107,47 @@ function supportedMimeType() {
     "audio/mp4",
   ];
   return candidates.find((type) => window.MediaRecorder?.isTypeSupported(type)) || "";
+}
+
+function fileExtension(filename) {
+  const index = filename.lastIndexOf(".");
+  return index >= 0 ? filename.slice(index).toLowerCase() : "";
+}
+
+function maxUploadMbForFile(file) {
+  const extension = fileExtension(file.name);
+  if (uploadLimits.audio.compressedExtensions.includes(extension)) return uploadLimits.audio.compressedMaxMb;
+  if (uploadLimits.audio.uncompressedExtensions.includes(extension)) return uploadLimits.audio.uncompressedMaxMb;
+  if (uploadLimits.video.extensions.includes(extension)) return uploadLimits.video.maxMb;
+  if (uploadLimits.text.extensions.includes(extension)) return uploadLimits.text.maxMb;
+  return 0;
+}
+
+function validateSelectedFile(file) {
+  const limitMb = maxUploadMbForFile(file);
+  if (!limitMb) return "Unsupported file type.";
+  const sizeMb = file.size / (1024 * 1024);
+  if (sizeMb > limitMb) return `File is too large. Maximum allowed size is ${limitMb} MB.`;
+  return "";
+}
+
+async function loadServerLimits() {
+  try {
+    const response = await fetch("/limits");
+    if (!response.ok) return;
+    const limits = await response.json();
+    uploadLimits.audio.compressedMaxMb = limits.audio.compressed_max_mb;
+    uploadLimits.audio.uncompressedMaxMb = limits.audio.uncompressed_max_mb;
+    uploadLimits.audio.compressedExtensions = limits.audio.compressed_extensions;
+    uploadLimits.audio.uncompressedExtensions = limits.audio.uncompressed_extensions;
+    uploadLimits.video.maxMb = limits.video.max_mb;
+    uploadLimits.video.extensions = limits.video.extensions;
+    uploadLimits.text.maxMb = limits.text.max_mb;
+    uploadLimits.text.extensions = limits.text.extensions;
+    els.uploadHint.textContent = "Audio up to 30 min. Video up to 15 min at 720p/1080p.";
+  } catch {
+    // Static fallback limits above keep client validation useful if this request fails.
+  }
 }
 
 function resetResult() {
@@ -179,7 +234,12 @@ async function startRecording() {
 
     state.startedAt = Date.now();
     state.timerId = window.setInterval(() => {
-      els.recordTimer.textContent = formatTime((Date.now() - state.startedAt) / 1000);
+      const elapsed = (Date.now() - state.startedAt) / 1000;
+      els.recordTimer.textContent = formatTime(elapsed);
+      if (elapsed >= MAX_RECORDING_SECONDS) {
+        stopRecording();
+        els.recordState.textContent = "30 minute limit reached";
+      }
     }, 250);
     els.recordButton.textContent = "Stop recording";
     els.recordButton.classList.add("recording");
@@ -357,7 +417,19 @@ els.toggleUpload.addEventListener("click", () => {
 });
 
 els.fileInput.addEventListener("change", () => {
-  els.translateUpload.disabled = !els.fileInput.files.length;
+  clearError();
+  const file = els.fileInput.files[0];
+  if (!file) {
+    els.translateUpload.disabled = true;
+    return;
+  }
+  const error = validateSelectedFile(file);
+  if (error) {
+    showError(error);
+    els.translateUpload.disabled = true;
+    return;
+  }
+  els.translateUpload.disabled = false;
 });
 
 els.translateUpload.addEventListener("click", () => {
@@ -398,4 +470,5 @@ if ("speechSynthesis" in window) {
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 }
 
+loadServerLimits();
 drawIdleMeter();

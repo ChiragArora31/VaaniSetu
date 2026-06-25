@@ -35,6 +35,8 @@ Recommended provider stack:
 
 The judged production path must use provider-hosted open-source models. The lightweight public deployment may use explicitly reported convenience fallbacks, but those outputs must not be used as evidence of final model quality. See [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md).
 
+BAIF delivery limits and handover expectations are documented in [DELIVERY_COMPATIBILITY.md](DELIVERY_COMPATIBILITY.md).
+
 Model profile is controlled by `BAIF_MODEL_PROFILE`:
 
 ```bash
@@ -231,6 +233,7 @@ Endpoints:
 ```text
 GET  /health
 GET  /languages
+GET  /limits
 POST /translate/text
 POST /translate/file
 GET  /jobs/{job_id}/artifacts/{artifact_key}
@@ -258,6 +261,8 @@ API:     http://server:8000
 ```
 
 The Docker image installs system dependencies and Python libraries once. Model weights are cached in the mounted `models/` volume so the first server run prepares them and later runs reuse them.
+
+Generated artifacts are stored under `outputs/<job_id>/`, and a reuse ledger is appended to `outputs/manifest.jsonl` for BAIF reference.
 
 For production, prepare the quality model cache once:
 
@@ -304,6 +309,7 @@ The generated `outputs/quality_report.json` records per-sample predictions, back
 - Piper voice availability for Indian regional languages can vary by installed model. Indic Parler TTS is the recommended production TTS direction.
 - Burned-in subtitle styling uses FFmpeg defaults.
 - Large videos are supported through streaming FFmpeg processing, but local CPU/RAM/GPU capacity still matters.
+- BAIF delivery profile enforces 30-minute audio, 15-minute video, 1080p max video, and differentiated size caps by file type.
 
 ## Operating Notes
 

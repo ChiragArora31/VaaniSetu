@@ -9,7 +9,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
-from config.settings import ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES
+from config.settings import (
+    ALLOWED_EXTENSIONS,
+    COMPRESSED_AUDIO_EXTENSIONS,
+    COMPRESSED_AUDIO_MAX_UPLOAD_MB,
+    TEXT_EXTENSIONS,
+    TEXT_MAX_UPLOAD_MB,
+    UNCOMPRESSED_AUDIO_EXTENSIONS,
+    UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB,
+    VIDEO_EXTENSIONS,
+    VIDEO_MAX_UPLOAD_MB,
+)
 
 
 class ValidationError(ValueError):
@@ -41,12 +51,36 @@ def validate_extension(filename: str) -> str:
     return suffix
 
 
-def validate_size(size_bytes: int) -> None:
+def max_upload_bytes_for_extension(suffix: str) -> int:
+    if suffix in COMPRESSED_AUDIO_EXTENSIONS:
+        return COMPRESSED_AUDIO_MAX_UPLOAD_MB * 1024 * 1024
+    if suffix in UNCOMPRESSED_AUDIO_EXTENSIONS:
+        return UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB * 1024 * 1024
+    if suffix in VIDEO_EXTENSIONS:
+        return VIDEO_MAX_UPLOAD_MB * 1024 * 1024
+    if suffix in TEXT_EXTENSIONS:
+        return TEXT_MAX_UPLOAD_MB * 1024 * 1024
+    return max(VIDEO_MAX_UPLOAD_MB, UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB) * 1024 * 1024
+
+
+def upload_limit_label(suffix: str) -> str:
+    if suffix in COMPRESSED_AUDIO_EXTENSIONS:
+        return f"{COMPRESSED_AUDIO_MAX_UPLOAD_MB} MB for compressed audio"
+    if suffix in UNCOMPRESSED_AUDIO_EXTENSIONS:
+        return f"{UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB} MB for WAV/FLAC audio"
+    if suffix in VIDEO_EXTENSIONS:
+        return f"{VIDEO_MAX_UPLOAD_MB} MB for video"
+    if suffix in TEXT_EXTENSIONS:
+        return f"{TEXT_MAX_UPLOAD_MB} MB for text"
+    return "the configured upload limit"
+
+
+def validate_size(size_bytes: int, suffix: str) -> None:
     if size_bytes <= 0:
         raise ValidationError("Uploaded file is empty.")
-    if size_bytes > MAX_UPLOAD_BYTES:
-        max_mb = MAX_UPLOAD_BYTES // (1024 * 1024)
-        raise ValidationError(f"File is too large. Maximum allowed size is {max_mb} MB.")
+    max_bytes = max_upload_bytes_for_extension(suffix)
+    if size_bytes > max_bytes:
+        raise ValidationError(f"File is too large. Maximum allowed size is {upload_limit_label(suffix)}.")
 
 
 def create_job_dirs(temp_root: Path, output_root: Path) -> tuple[str, Path, Path]:
@@ -77,12 +111,12 @@ def save_binary_upload(file_obj: BinaryIO, filename: str, temp_dir: Path) -> Sav
             if not chunk:
                 break
             size += len(chunk)
-            if size > MAX_UPLOAD_BYTES:
+            if size > max_upload_bytes_for_extension(suffix):
                 out.close()
                 target.unlink(missing_ok=True)
-                validate_size(size)
+                validate_size(size, suffix)
             out.write(chunk)
-    validate_size(size)
+    validate_size(size, suffix)
     return SavedUpload(original_name=filename, path=target, size_bytes=size, extension=suffix)
 
 

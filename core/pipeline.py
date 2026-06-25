@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -11,11 +12,12 @@ from typing import Callable
 from config.languages import get_language
 from config.settings import (
     ALLOW_MODEL_DOWNLOAD,
+    AUDIO_MAX_DURATION_SECONDS,
     MODEL_PROFILE,
-    MAX_MEDIA_SECONDS,
     MAX_TEXT_CHARS,
     OUTPUT_DIR,
     TEMP_DIR,
+    VIDEO_MAX_DURATION_SECONDS,
     ensure_directories,
 )
 from core.audio_extractor import extract_audio_to_wav
@@ -85,6 +87,32 @@ def _has_meaningful_speech(text: str) -> bool:
     return bool(re.search(r"[\w\u0900-\u097F]", text))
 
 
+def _effective_media_type(input_type: str, has_video: bool | None) -> str:
+    if input_type == "video" and has_video is False:
+        return "audio"
+    return input_type
+
+
+def _validate_media_constraints(input_type: str, media_info) -> str:
+    effective_type = _effective_media_type(input_type, media_info.has_video)
+    if media_info.has_audio is False:
+        raise PipelineError("This media file does not contain an audio stream.")
+
+    if media_info.duration_seconds:
+        limit = AUDIO_MAX_DURATION_SECONDS if effective_type == "audio" else VIDEO_MAX_DURATION_SECONDS
+        if media_info.duration_seconds > limit:
+            minutes = limit // 60
+            label = "audio" if effective_type == "audio" else "video"
+            raise PipelineError(f"{label.capitalize()} is too long. Maximum supported duration is {minutes} minutes.")
+
+    if effective_type == "video" and media_info.has_video:
+        if media_info.height and media_info.height > 1080:
+            raise PipelineError("Video resolution is too high. Please upload a 720p or 1080p video.")
+        if media_info.width and media_info.width > 1920:
+            raise PipelineError("Video resolution is too high. Please upload a 720p or 1080p video.")
+    return effective_type
+
+
 def _write_metadata(result: PipelineResult, output_dir: Path) -> None:
     payload = {
         "job_id": result.job_id,
@@ -104,6 +132,28 @@ def _write_metadata(result: PipelineResult, output_dir: Path) -> None:
 def _finalize_artifacts(result: PipelineResult, output_dir: Path) -> None:
     _write_metadata(result, output_dir)
     result.artifacts["bundle_zip"] = create_artifact_zip(result.artifacts, output_dir / "vaanisetu_outputs.zip")
+    _append_reuse_manifest(result, output_dir)
+
+
+def _append_reuse_manifest(result: PipelineResult, output_dir: Path) -> None:
+    def artifact_ref(path: Path) -> str:
+        try:
+            return str(path.relative_to(output_dir.parent))
+        except ValueError:
+            return path.name
+
+    payload = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "job_id": result.job_id,
+        "input_type": result.input_type,
+        "source_language": result.source_language,
+        "target_language": result.target_language,
+        "metadata": result.metadata,
+        "artifacts": {key: artifact_ref(path) for key, path in sorted(result.artifacts.items())},
+    }
+    manifest_path = output_dir.parent / "manifest.jsonl"
+    with manifest_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
 class TranslationPipeline:
@@ -198,15 +248,12 @@ class TranslationPipeline:
             _status(status, "Inspecting media...", 0.05)
             try:
                 media_info = inspect_media(input_path)
-                if media_info.has_audio is False:
-                    raise PipelineError("This media file does not contain an audio stream.")
-                if media_info.duration_seconds and media_info.duration_seconds > MAX_MEDIA_SECONDS:
-                    raise PipelineError(
-                        "Media is too long for this deployment configuration. Maximum duration is "
-                        f"{MAX_MEDIA_SECONDS // 60} minutes."
-                    )
+                effective_type = _validate_media_constraints(input_type, media_info)
+                result.metadata["effective_media_type"] = effective_type
                 if media_info.duration_seconds:
                     result.metadata["duration_seconds"] = round(media_info.duration_seconds, 2)
+                if media_info.width and media_info.height:
+                    result.metadata["resolution"] = f"{media_info.width}x{media_info.height}"
                 result.metadata["media_inspection"] = "ffprobe"
             except MediaError as exc:
                 if input_type != "audio":
