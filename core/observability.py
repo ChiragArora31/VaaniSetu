@@ -1,0 +1,44 @@
+"""Local-only structured logging for production support and auditability."""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        for key in ("event", "job_id", "kind", "method", "path", "status_code", "duration_ms"):
+            value = getattr(record, key, None)
+            if value is not None:
+                payload[key] = value
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+def configure_logging(log_dir: Path) -> None:
+    log_dir.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("vaanisetu")
+    if any(getattr(handler, "_vaanisetu_handler", False) for handler in logger.handlers):
+        return
+    logger.setLevel(logging.INFO)
+    handler = RotatingFileHandler(
+        log_dir / "vaanisetu.jsonl",
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    handler._vaanisetu_handler = True
+    handler.setFormatter(JsonFormatter())
+    logger.addHandler(handler)
+    logger.propagate = False

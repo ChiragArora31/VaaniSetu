@@ -27,7 +27,8 @@ def user_safe_error(message: str) -> str:
     lowered = message.lower()
     if any(marker in lowered for marker in _BACKEND_SETUP_MARKERS):
         return (
-            "The translation service is not fully ready on the server yet. "
-            "Please try again shortly while the provider backend finishes preparing the required processing engine."
+            "The local worker is not ready for this operation yet. "
+            "Ask BAIF IT to complete the one-time model setup, then try again. "
+            "Your content was not sent to an external translation service."
         )
     return message

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,12 +12,17 @@ from config.settings import (
     ACTIVE_MODEL_PROFILE,
     ALLOW_MODEL_DOWNLOAD,
     DEFAULT_WHISPER_MODEL,
+    ESPEAK_BINARY,
     FFMPEG_BINARY,
     FFPROBE_BINARY,
     INDICTRANS_MODEL_BY_DIRECTION,
     INDICTRANS_REPO_BY_DIRECTION,
+    NLLB_CT2_MODEL,
+    NLLB_MODEL,
+    NLLB_MODEL_ID,
     PIPER_BINARY,
     PIPER_MODEL_DIR,
+    TESSDATA_DIR,
     MODEL_PROFILE,
     WHISPER_MODEL_ID,
 )
@@ -61,9 +67,39 @@ def _ffprobe_status() -> tuple[bool, str]:
     return False, f"Missing binary: {FFPROBE_BINARY}"
 
 
+def _ocr_status() -> tuple[bool, str]:
+    binary = shutil.which("tesseract")
+    if not binary or not _package_available("pypdfium2"):
+        return False, "Install Tesseract and the local PDF renderer"
+    required = {"eng", "hin", "mar"}
+    local_languages = {
+        path.stem for path in TESSDATA_DIR.glob("*.traineddata")
+    } if TESSDATA_DIR.exists() else set()
+    if required.issubset(local_languages):
+        return True, f"Local OCR languages ready: {', '.join(sorted(required))}"
+    try:
+        result = subprocess.run(
+            [binary, "--list-langs"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        system_languages = set(result.stdout.splitlines())
+    except (OSError, subprocess.TimeoutExpired):
+        system_languages = set()
+    missing = sorted(required - system_languages)
+    if not missing:
+        return True, f"System OCR languages ready: {', '.join(sorted(required))}"
+    return False, "Missing OCR language data: " + ", ".join(missing)
+
+
 def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> list[HealthCheck]:
     ffmpeg_ok, ffmpeg_detail = _ffmpeg_status()
     ffprobe_ok, ffprobe_detail = _ffprobe_status()
+    ocr_ok, ocr_detail = _ocr_status()
+    nllb_ready = _model_dir_ready(NLLB_MODEL)
+    nllb_ct2_ready = (Path(NLLB_CT2_MODEL) / "model.bin").exists()
     checks = [
         HealthCheck(
             name="Model quality profile",
@@ -111,6 +147,46 @@ def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> 
             detail="Installed" if _package_available("IndicTransToolkit") else "Install requirements-full.txt",
             required_for="IndicTrans2 translation",
         ),
+        HealthCheck(
+            name="NLLB local translation",
+            ok=nllb_ready or allow_model_download,
+            detail=(
+                str(NLLB_MODEL)
+                if nllb_ready
+                else f"Will download/cache {NLLB_MODEL_ID}" if allow_model_download else str(NLLB_MODEL)
+            ),
+            required_for="non-gated local translation fallback",
+        ),
+        HealthCheck(
+            name="NLLB optimized CPU runtime",
+            ok=nllb_ct2_ready,
+            detail=str(NLLB_CT2_MODEL) if nllb_ct2_ready else "Run scripts/convert_nllb_ct2.py",
+            required_for="fast INT8 CPU translation fallback",
+        ),
+        HealthCheck(
+            name="Local translation route",
+            ok=nllb_ready or any(_model_dir_ready(path) for path in INDICTRANS_MODEL_BY_DIRECTION.values()),
+            detail=(
+                "Ready through optimized local NLLB fallback"
+                if nllb_ct2_ready
+                else "Ready through local NLLB fallback"
+                if nllb_ready
+                else "Install NLLB or authenticated IndicTrans2 models"
+            ),
+            required_for="text, document, audio, and video translation",
+        ),
+        HealthCheck(
+            name="PDF text extraction",
+            ok=_package_available("pypdf"),
+            detail="Installed" if _package_available("pypdf") else "Install requirements.txt",
+            required_for="PDF learning-module translation",
+        ),
+        HealthCheck(
+            name="Automatic OCR",
+            ok=ocr_ok,
+            detail=ocr_detail,
+            required_for="scanned PDF translation",
+        ),
     ]
 
     for direction, path in INDICTRANS_MODEL_BY_DIRECTION.items():
@@ -143,6 +219,18 @@ def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> 
                 ok=any(PIPER_MODEL_DIR.glob("*.onnx")) if PIPER_MODEL_DIR.exists() else False,
                 detail=str(PIPER_MODEL_DIR),
                 required_for="translated voice",
+            ),
+            HealthCheck(
+                name="eSpeak NG",
+                ok=shutil.which(ESPEAK_BINARY) is not None,
+                detail=shutil.which(ESPEAK_BINARY) or f"Missing binary: {ESPEAK_BINARY}",
+                required_for="compact cross-platform translated voice",
+            ),
+            HealthCheck(
+                name="Local speech fallback",
+                ok=shutil.which("say") is not None and shutil.which("afconvert") is not None,
+                detail=shutil.which("say") or "macOS speech fallback unavailable",
+                required_for="translated voice on this Mac",
             ),
         ]
     )
