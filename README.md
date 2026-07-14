@@ -1,27 +1,28 @@
 # VaaniSetu BAIF Translator
 
-Open-source multilingual translation for text, audio, and video. The app is built for BAIF field teams to turn Marathi, Hindi, and English content into translated text, subtitles, and optional speech/video outputs.
+Open-source multilingual translation for learning modules, text, audio, and video. The app is built for BAIF teams to turn Marathi, Hindi, and English content into translated text, subtitles, document exports, and optional speech/video outputs.
 
-No paid APIs. No OpenAI, Google Cloud, Azure, AWS Transcribe, or ElevenLabs. The app uses free/open-source tools and models. Internet may be used to download/cache open-source model weights, and the same models can later run from local cache.
+No paid APIs. No OpenAI, Google Cloud, Azure, AWS Transcribe, or ElevenLabs. The app uses open-source software and locally cached model assets whose licenses are documented separately. Internet is used during controlled setup; normal translation jobs do not silently download models or send content to hosted translation services.
 
 ## Features
 
 - Voice-note recording in the browser as the primary input
 - In-app playback for recorded source audio and translated voice output
-- Secondary upload path for existing text, audio, and video files
+- Secondary upload path for existing text, document, audio, and video files
+- Selectable-text and scanned PDF, DOCX, PPTX, XLSX, CSV, and TSV translation with reviewable TXT/Markdown/table exports
 - Audio/video transcription with faster-whisper
 - Transcript translation between Marathi, Hindi, and English
 - SRT and VTT subtitle export
-- Translated voice output with Piper or provider-side fallback TTS
+- Translated voice output with Indic Parler, Piper, or compact eSpeak NG fallback
 - Optional burned-in captions and translated audio video export with FFmpeg
 - Modern FastAPI-served web UI with progress, previews, playback, and downloads
-- Runtime readiness API for FFmpeg, Whisper, IndicTrans2, and Piper
+- Runtime readiness API for media, ASR, translation, OCR, and speech capabilities
 - Job report JSON with backend, warnings, and generated artifact metadata
-- One-click ZIP export containing all generated artifacts
+- One-click ZIP export containing all generated artifacts for offline field playback or reuse
 
 ## Production Model Stack
 
-VaaniSetu is designed as a thin-client product: users upload text/audio/video from web or mobile, and the provider backend runs the heavy open-source models. End users should not install Python, FFmpeg, or model weights.
+VaaniSetu is designed as a local/on-prem model-worker product with a browser UI. BAIF installs the open-source model stack once on an office workstation, LAN server, or provider-managed machine. Users access the same machine through the web UI/API, while the heavy models stay local to that worker. This gives better reproducibility and quality than depending on public translation APIs, without forcing every user laptop or phone to install Python, FFmpeg, and model weights.
 
 Recommended provider stack:
 
@@ -29,13 +30,15 @@ Recommended provider stack:
 | --- | --- | --- |
 | Speech-to-text | AI4Bharat IndicConformer or `faster-whisper-large-v3` | Benchmark both on BAIF field audio; use the lower-WER backend per language. |
 | Low-latency STT | `faster-whisper-small` or `faster-whisper-base` | Faster CPU fallback for low-resource machines. |
-| Translation | AI4Bharat IndicTrans2 | Built for Indian languages, including Hindi and Marathi. |
-| Text-to-speech | AI4Bharat Indic Parler TTS or Piper voices | Fully open-source voice path; Piper stays as the lightweight runtime option in this app. |
+| Translation | AI4Bharat IndicTrans2; NLLB-200 CTranslate2 INT8 evaluation fallback | Indian-language judged path plus a fast local fallback whose non-commercial model license must be reviewed. |
+| Text-to-speech | AI4Bharat Indic Parler TTS, Piper, or eSpeak NG | Natural-voice quality tier plus a compact open-source WAV fallback for English, Hindi, and Marathi. |
 | Media processing | FFmpeg | Reliable open-source extraction, caption burn-in, and muxing. |
+| Documents | Python ZIP/XML parsers, pypdf, PDFium, and Tesseract | Handles learning module files and automatic scanned-PDF OCR without paid office automation. |
 
-The judged production path must use provider-hosted open-source models. The lightweight public deployment may use explicitly reported convenience fallbacks, but those outputs must not be used as evidence of final model quality. See [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md).
+The judged production path must use locally hosted open-source models on the BAIF worker. Any convenience fallback must be explicitly reported and must not be used as evidence of final model quality. See [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md).
 
 BAIF delivery limits and handover expectations are documented in [DELIVERY_COMPATIBILITY.md](DELIVERY_COMPATIBILITY.md).
+The install-versus-web/API delivery decision is explained in [BAIF_ARCHITECTURE_NOTE.md](BAIF_ARCHITECTURE_NOTE.md).
 
 Model profile is controlled by `BAIF_MODEL_PROFILE`:
 
@@ -84,6 +87,38 @@ temp/
 ```
 
 ## Installation
+
+### One-command BAIF worker setup
+
+Use this on the BAIF office worker or approved provider machine:
+
+```bash
+python scripts/one_click_setup.py --profile balanced
+```
+
+Windows shortcut:
+
+```powershell
+.\scripts\setup_baif_worker.ps1
+```
+
+macOS/Linux shortcut:
+
+```bash
+./scripts/setup_baif_worker.sh
+```
+
+Start the app after setup. The Windows launcher disables runtime model downloads so a user job never changes the installation:
+
+```bash
+python -m uvicorn app:app --host 0.0.0.0 --port 8501
+```
+
+```powershell
+.\scripts\start_baif_worker.ps1
+```
+
+The preferred IndicTrans2 and Indic Parler repositories require one-time acceptance of their Hugging Face access conditions. Setup installs NLLB first and converts it to an INT8 CTranslate2 runtime, so the worker remains usable and responsive if that optional access is not ready. NLLB is CC-BY-NC-4.0 and is retained as an evaluation/resilience fallback, not the final judged open-source claim. After accepting the AI4Bharat terms, set `HF_TOKEN` and rerun model setup to enable the intended IndicTrans2 path.
 
 ### Linux
 
@@ -140,6 +175,7 @@ You can download only one model family:
 python scripts/setup_models.py --profile balanced
 python scripts/setup_models.py --only whisper-quality
 python scripts/setup_models.py --only indictrans-en-indic
+python scripts/convert_nllb_ct2.py
 ```
 
 ### faster-whisper
@@ -218,11 +254,11 @@ Open `http://localhost:8501`.
 4. Play the translated voice output in the app.
 5. Download MP3, WAV, TXT, SRT, VTT, or the all-outputs ZIP when needed.
 
-Existing files are still supported through the secondary upload control below the recorder.
+Existing files are still supported through the secondary upload control below the recorder. For documents, upload selectable-text or scanned PDF, DOCX, PPTX, XLSX, CSV, or TSV. Scanned PDFs are processed with local Tesseract OCR when that capability is ready; the UI reports a clear fallback when it is not.
 
 ## Mobile-Friendly API Mode
 
-For mobile users, do not run models on the phone. Deploy the API on a server and let phones call it.
+For mobile users, do not run models on the phone. Deploy the API on a server and let phones call it. BAIF users should normally use the browser UI or API client while the model stack runs on BAIF-premises/provider infrastructure.
 
 ```bash
 uvicorn api:app --host 0.0.0.0 --port 8000
@@ -239,9 +275,9 @@ POST /translate/file
 GET  /jobs/{job_id}/artifacts/{artifact_key}
 ```
 
-This keeps phones lightweight: the mobile app uploads text/audio/video, the server runs open-source STT/translation/TTS models, and the response returns translated text plus download links for TXT, SRT, VTT, audio, video, and ZIP artifacts.
+This keeps phones lightweight: the mobile app uploads text/document/audio/video, the server runs open-source extraction/STT/translation/TTS models, and the response returns translated text plus download links for TXT, Markdown, table, SRT, VTT, audio, video, and ZIP artifacts.
 
-The translation layer supports provider-managed backends. For lowest user friction, keep heavy model dependencies on the backend and expose only the API/UI to users. In this local build, `BAIF_ENABLE_HOSTED_TRANSLATION=1` enables a provider-side hosted HTTP translation fallback so users are not asked to install local ML packages.
+The translation layer is local/open-source first. Keep heavy model dependencies on the backend worker and expose only the API/UI to users. `BAIF_ENABLE_HOSTED_TRANSLATION=1` exists only as an explicitly marked emergency demo fallback; it should stay disabled for judged quality runs.
 
 ## Provider-Managed Deployment
 
@@ -302,13 +338,13 @@ The generated `outputs/quality_report.json` records per-sample predictions, back
 
 ## Assumptions and Limitations
 
-- Runtime can use internet to download/cache open-source model weights when enabled, but users never install them.
-- Translation quality depends on the provider-installed IndicTrans2 checkpoints or the configured provider-managed translation backend.
+- Setup can use BAIF-premises internet to download/cache approved model weights. Generated outputs are downloadable and usable offline in the field.
+- Translation quality depends on the locally installed IndicTrans2 checkpoints. NLLB is a CC-BY-NC-4.0 evaluation/resilience fallback pending BAIF license confirmation.
 - faster-whisper is robust but transcription accuracy depends on audio quality, noise, and dialect.
 - Music-only files or songs with vocals mixed under instruments may not produce a useful speech transcript.
 - Piper voice availability for Indian regional languages can vary by installed model. Indic Parler TTS is the recommended production TTS direction.
 - Burned-in subtitle styling uses FFmpeg defaults.
-- Large videos are supported through streaming FFmpeg processing, but local CPU/RAM/GPU capacity still matters.
+- Large videos are supported through streaming FFmpeg processing, but local CPU, memory, disk space, and processing time still matter.
 - BAIF delivery profile enforces 30-minute audio, 15-minute video, 1080p max video, and differentiated size caps by file type.
 
 ## Operating Notes

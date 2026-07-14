@@ -12,15 +12,15 @@ Minimum target machine:
 - OS: Windows 11
 - Office suite: Microsoft Office 2020 or later for BAIF-side document workflows
 
-Recommended production worker:
+Recommended production worker while remaining within the stated CPU-only constraint:
 
 - 8+ CPU cores, 32 GB RAM, SSD storage
-- NVIDIA GPU optional but strongly recommended for quality-profile ASR, translation, and TTS
-- Docker Desktop or native Python environment
+- Native Python environment with pinned dependencies and locally cached model assets
+- No GPU dependency
 
 ## Connectivity
 
-Internet access may be used at BAIF premises to download/cache open-source model weights and run provider-managed inference. No paid APIs or usage-cost services are required.
+Internet access may be used at BAIF premises to download/cache open-source model weights and run translation on the local/on-prem worker. No paid APIs or usage-cost services are required. Generated outputs are designed for offline field playback or reuse.
 
 ## Enforced Input Limits
 
@@ -32,6 +32,9 @@ The backend enforces these limits before processing:
 | Audio lossless/uncompressed | WAV, FLAC | 30 min | 150 MB |
 | Video agricultural demos | MP4, MOV, AVI, WMV, MKV, FLV, WebM | 15 min | 200 MB |
 | Text | TXT, MD, TEXT | n/a | 10 MB |
+| Documents / learning modules | PDF, DOCX, PPTX, XLSX, CSV, TSV | n/a | 50 MB |
+
+Selectable-text PDFs are extracted directly. Scanned PDFs use automatic local Tesseract OCR when the OCR runtime is installed; otherwise the app gives a clear fallback instruction instead of returning an empty translation.
 
 Video uploads are validated for 720p/1080p delivery. Higher-than-1080p uploads are rejected with a user-safe error.
 
@@ -41,6 +44,7 @@ Supported outputs:
 
 - Source transcript
 - Translated text
+- Translated document TXT/Markdown/table exports
 - SRT subtitles
 - VTT subtitles
 - Translated speech when a server or browser speech backend is available
@@ -65,6 +69,16 @@ For final handover to BAIF IT, provide:
 - Model setup command history
 - Deployment environment variables
 - Training walkthrough for recording, uploading, translating, exporting, and reusing outputs
+
+## One-command Setup
+
+Preferred BAIF worker setup:
+
+```bash
+python scripts/one_click_setup.py --profile balanced
+```
+
+Windows and macOS/Linux wrappers are available under `scripts/setup_baif_worker.ps1` and `scripts/setup_baif_worker.sh`.
 
 ## Quality Gates
 
