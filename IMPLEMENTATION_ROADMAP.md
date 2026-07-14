@@ -2,7 +2,7 @@
 
 Sprint window: Wednesday 15 July 2026, 08:00 IST to Friday 17 July 2026, end of day
 
-Last updated: Wednesday 15 July 2026, 01:13 IST
+Last updated: Wednesday 15 July 2026, 01:39 IST
 
 ## Mission
 
@@ -16,11 +16,11 @@ Speed matters. So do evidence, privacy, license compliance, and honest readiness
 | --- | ---: | ---: | --- |
 | Local translation and media foundation | 85% | 100% | Durable queue, OCR, six directions, TTS, subtitles, captioned/dubbed video, offline ZIP |
 | Judged translation quality | 20% | 90%* | Fast local NLLB evaluation fallback; IndicTrans2 access and reviewed corpus pending |
-| Access, review, and reusable library | 5% | 100% | Durable artifacts/history foundation only |
+| Access, review, and reusable library | 5% | 100% | First-run admin, sessions, CSRF, approval/deactivation, route enforcement, and protected UI |
 | Production and Windows hardening | 35% | 90%* | Setup scripts, health checks, logs, metrics; clean Windows proof pending |
 | UX, accessibility, and field handoff | 60% | 100% | Responsive primary workflow and offline downloads verified |
 | Evidence, documentation, and handover | 45% | 100% | CI, architecture, compliance, delivery notes, roadmap |
-| Overall release readiness | 42% | 95%* | 28 tests, real media E2E, GitHub CI green |
+| Overall release readiness | 48% | 95%* | 32 tests, secure-access smoke, real media E2E, GitHub CI pending for latest push |
 
 `*` External acceptance can only reach 100% after the team accepts the official model terms, bilingual reviewers approve quality, and a clean Windows 11 machine is available. Everything not dependent on those people or machines is targeted for completion by Friday night.
 
@@ -137,6 +137,7 @@ Every 08:00 and 20:00 session appends an entry here before pushing:
 | Session | Completed | Evidence | Blockers | Next three priorities | Overall |
 | --- | --- | --- | --- | --- | ---: |
 | 15 Jul 01:13 planning reset | Compressed roadmap to 72 hours; created twice-daily execution automation; established hard exit gates and external blocker lane | Automation scheduled for 08:00/20:00 IST through Friday; `main` began synchronized with green CI | IndicTrans2 acceptance, bilingual reviewers, Windows machine | Auth/RBAC; review library; quality harness | 42% |
+| 15 Jul 01:39 secure access slice | Added no-default first-run admin setup, PBKDF2 password hashes, HttpOnly local sessions, session expiry, CSRF checks, login throttling, pending user registration, admin approval/deactivation, protected content routes, admin metrics gate, and simple role-aware UI | `python -m py_compile` for tracked Python passed; `node --check frontend/app.js` passed; full unittest suite passed 32 tests; HTTP smoke on `127.0.0.1:8787` verified setup, 401 unauthenticated job, 403 missing CSRF, pending login block, approval, authorised login, and protected history | Browser screenshot tooling unavailable in this runtime; Tesseract integration test skipped locally; CI still pending after push; external IndicTrans2 acceptance, bilingual reviewers, and Windows machine remain | Reusable library and review workflow; retry/cancel/delete controls; corrected-output approval and translation memory | 48% |
 
 ## Operating Rules
 

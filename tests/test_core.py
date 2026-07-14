@@ -9,10 +9,13 @@ import time
 import shutil
 from pathlib import Path
 
+from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import api as api_module
+from core.auth import AuthError, AuthStore
 from core.file_utils import ValidationError, save_binary_upload, validate_size
 from core.job_manager import JobManager
 from core.observability import JsonFormatter
@@ -257,6 +260,107 @@ class TranslationGuardTest(unittest.TestCase):
         message = user_safe_error("IndicTrans2 dependencies are not installed")
         self.assertIn("local worker", message.lower())
         self.assertIn("not sent", message.lower())
+
+
+class AuthStoreTest(unittest.TestCase):
+    def test_first_admin_user_approval_and_deactivation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = AuthStore(Path(directory) / "auth.json")
+            admin, _ = store.create_first_admin("Admin.User", "correct horse battery", "Admin")
+            pending = store.register_user("trainer", "approved trainer password", "Trainer")
+
+            self.assertEqual(admin.username, "admin.user")
+            self.assertEqual(pending.status, "pending")
+            with self.assertRaises(AuthError):
+                store.login("trainer", "approved trainer password")
+
+            approved = store.approve_user("trainer", admin_username=admin.username)
+            self.assertEqual(approved.status, "active")
+            user, session = store.login("trainer", "approved trainer password")
+            self.assertEqual(user.username, "trainer")
+            store.authenticate(session.session_id)
+
+            store.deactivate_user("trainer", admin_username=admin.username)
+            with self.assertRaises(AuthError):
+                store.authenticate(session.session_id)
+
+    def test_login_throttling_blocks_repeated_failures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = AuthStore(Path(directory) / "auth.json")
+            store.create_first_admin("admin", "correct horse battery")
+            for _ in range(5):
+                with self.assertRaisesRegex(AuthError, "incorrect"):
+                    store.login("admin", "wrong password", throttle_key="local")
+            with self.assertRaisesRegex(AuthError, "Too many"):
+                store.login("admin", "correct horse battery", throttle_key="local")
+
+    def test_expired_session_requires_login_again(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = AuthStore(Path(directory) / "auth.json", session_ttl_seconds=-1)
+            _, session = store.create_first_admin("admin", "correct horse battery")
+            with self.assertRaisesRegex(AuthError, "expired"):
+                store.authenticate(session.session_id)
+
+
+class ApiAuthTest(unittest.TestCase):
+    def test_auth_flow_blocks_content_until_approval_and_csrf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            previous_store = api_module.auth_store
+            api_module.auth_store = AuthStore(Path(directory) / "auth.json")
+            try:
+                client = TestClient(api_module.app)
+                self.assertEqual(client.get("/auth/session").json()["setup_required"], True)
+                self.assertEqual(client.post("/jobs/text", json={"text": "hello"}).status_code, 401)
+
+                setup = client.post(
+                    "/auth/setup",
+                    json={"username": "admin", "password": "correct horse battery", "display_name": "Admin"},
+                )
+                self.assertEqual(setup.status_code, 200)
+                admin_csrf = setup.json()["csrf_token"]
+                self.assertTrue(admin_csrf)
+
+                missing_csrf = client.post("/jobs/text", json={"text": "hello farmer water"})
+                self.assertEqual(missing_csrf.status_code, 403)
+
+                register = client.post(
+                    "/auth/register",
+                    json={"username": "trainer", "password": "approved trainer password", "display_name": "Trainer"},
+                )
+                self.assertEqual(register.status_code, 201)
+                self.assertEqual(register.json()["status"], "pending")
+
+                pending_client = TestClient(api_module.app)
+                pending_login = pending_client.post(
+                    "/auth/login",
+                    json={"username": "trainer", "password": "approved trainer password"},
+                )
+                self.assertEqual(pending_login.status_code, 401)
+                self.assertIn("approval", pending_login.json()["detail"].lower())
+
+                approve = client.post(
+                    "/auth/users/trainer/approve",
+                    headers={"X-CSRF-Token": admin_csrf},
+                )
+                self.assertEqual(approve.status_code, 200)
+                self.assertEqual(approve.json()["status"], "active")
+
+                user_client = TestClient(api_module.app)
+                login = user_client.post(
+                    "/auth/login",
+                    json={"username": "trainer", "password": "approved trainer password"},
+                )
+                self.assertEqual(login.status_code, 200)
+                self.assertEqual(user_client.get("/history").status_code, 200)
+
+                deactivate = client.post(
+                    "/auth/users/trainer/deactivate",
+                    headers={"X-CSRF-Token": admin_csrf},
+                )
+                self.assertEqual(deactivate.status_code, 200)
+                self.assertEqual(user_client.get("/history").status_code, 401)
+            finally:
+                api_module.auth_store = previous_store
 
 
 class TranscriberSelectionTest(unittest.TestCase):

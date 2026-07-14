@@ -9,6 +9,11 @@ const state = {
   audioContext: null,
   analyser: null,
   stream: null,
+  auth: {
+    user: null,
+    csrfToken: "",
+    mode: "login",
+  },
 };
 
 const els = {
@@ -61,6 +66,21 @@ const els = {
   makeSubtitles: document.querySelector("#makeSubtitles"),
   burnCaptions: document.querySelector("#burnCaptions"),
   mergeTranslatedAudio: document.querySelector("#mergeTranslatedAudio"),
+  authPanel: document.querySelector("#authPanel"),
+  authTitle: document.querySelector("#authTitle"),
+  authCopy: document.querySelector("#authCopy"),
+  authForm: document.querySelector("#authForm"),
+  authUsername: document.querySelector("#authUsername"),
+  authDisplayName: document.querySelector("#authDisplayName"),
+  authPassword: document.querySelector("#authPassword"),
+  authSubmit: document.querySelector("#authSubmit"),
+  authSwitch: document.querySelector("#authSwitch"),
+  authMessage: document.querySelector("#authMessage"),
+  userBadge: document.querySelector("#userBadge"),
+  logoutButton: document.querySelector("#logoutButton"),
+  adminPanel: document.querySelector("#adminPanel"),
+  adminUserCount: document.querySelector("#adminUserCount"),
+  adminUserList: document.querySelector("#adminUserList"),
 };
 
 const uploadLimits = {
@@ -84,6 +104,210 @@ const progressSteps = [
 ];
 
 const MAX_RECORDING_SECONDS = 30 * 60;
+
+function setAuthMessage(message, isError = false) {
+  els.authMessage.textContent = message || "";
+  els.authMessage.classList.toggle("error", Boolean(isError));
+}
+
+function setAuthMode(mode) {
+  state.auth.mode = mode;
+  setAuthMessage("");
+  els.authPassword.value = "";
+  els.authDisplayName.closest("label").classList.toggle("hidden", mode === "login");
+  if (mode === "setup") {
+    els.authTitle.textContent = "Create the first admin";
+    els.authCopy.textContent = "Set up the first local admin before any BAIF content can be processed.";
+    els.authSubmit.textContent = "Create admin";
+    els.authSwitch.classList.add("hidden");
+    els.authPassword.autocomplete = "new-password";
+    return;
+  }
+  if (mode === "register") {
+    els.authTitle.textContent = "Request access";
+    els.authCopy.textContent = "An admin must approve the account before it can translate or download content.";
+    els.authSubmit.textContent = "Request access";
+    els.authSwitch.textContent = "Back to sign in";
+    els.authSwitch.classList.remove("hidden");
+    els.authPassword.autocomplete = "new-password";
+    return;
+  }
+  els.authTitle.textContent = "Sign in";
+  els.authCopy.textContent = "Use your approved VaaniSetu account to process or download content.";
+  els.authSubmit.textContent = "Sign in";
+  els.authSwitch.textContent = "Request access";
+  els.authSwitch.classList.remove("hidden");
+  els.authPassword.autocomplete = "current-password";
+}
+
+function showWorkspace(user) {
+  document.querySelectorAll("[data-auth-required]").forEach((element) => element.classList.remove("hidden"));
+  els.authPanel.classList.add("hidden");
+  els.userBadge.textContent = `${user.display_name || user.username} · ${user.role === "admin" ? "Admin" : "Authorised user"}`;
+  els.userBadge.classList.remove("hidden");
+  els.logoutButton.classList.remove("hidden");
+  els.adminPanel.classList.toggle("hidden", user.role !== "admin");
+  if (user.role === "admin") loadUsers();
+  loadHistory();
+}
+
+function showAuthPanel(mode) {
+  document.querySelectorAll("[data-auth-required]").forEach((element) => element.classList.add("hidden"));
+  els.adminPanel.classList.add("hidden");
+  els.userBadge.classList.add("hidden");
+  els.logoutButton.classList.add("hidden");
+  els.authPanel.classList.remove("hidden");
+  setAuthMode(mode);
+}
+
+async function apiFetch(url, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const headers = new Headers(options.headers || {});
+  if (!["GET", "HEAD", "OPTIONS"].includes(method) && state.auth.csrfToken) {
+    headers.set("X-CSRF-Token", state.auth.csrfToken);
+  }
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: "same-origin",
+  });
+  if (response.status === 401 || response.status === 403) {
+    if (!url.startsWith("/auth/")) {
+      state.auth.user = null;
+      state.auth.csrfToken = "";
+      showAuthPanel("login");
+    }
+  }
+  return response;
+}
+
+async function loadSession() {
+  try {
+    const response = await apiFetch("/auth/session", { cache: "no-store" });
+    const payload = await response.json();
+    state.auth.user = payload.user || null;
+    state.auth.csrfToken = payload.csrf_token || "";
+    if (payload.user) {
+      showWorkspace(payload.user);
+    } else {
+      showAuthPanel(payload.setup_required ? "setup" : "login");
+    }
+  } catch {
+    showAuthPanel("login");
+    setAuthMessage("Could not reach the local worker.", true);
+  }
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  setAuthMessage("");
+  const body = {
+    username: els.authUsername.value.trim(),
+    password: els.authPassword.value,
+    display_name: els.authDisplayName.value.trim(),
+  };
+  const endpoint = {
+    setup: "/auth/setup",
+    register: "/auth/register",
+    login: "/auth/login",
+  }[state.auth.mode];
+
+  els.authSubmit.disabled = true;
+  try {
+    const response = await apiFetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Access request failed.");
+    if (state.auth.mode === "register") {
+      setAuthMode("login");
+      setAuthMessage("Access requested. An admin must approve this account.");
+      return;
+    }
+    state.auth.user = payload.user;
+    state.auth.csrfToken = payload.csrf_token || "";
+    els.authForm.reset();
+    showWorkspace(payload.user);
+  } catch (error) {
+    setAuthMessage(error.message || "Access request failed.", true);
+  } finally {
+    els.authSubmit.disabled = false;
+  }
+}
+
+async function logout() {
+  try {
+    await apiFetch("/auth/logout", { method: "POST" });
+  } finally {
+    state.auth.user = null;
+    state.auth.csrfToken = "";
+    resetResult();
+    showAuthPanel("login");
+  }
+}
+
+function renderUsers(users) {
+  els.adminUserList.innerHTML = "";
+  els.adminUserCount.textContent = `${users.length} users`;
+  users.forEach((user) => {
+    const row = document.createElement("article");
+    row.className = "admin-user";
+
+    const copy = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = user.display_name ? `${user.display_name} (${user.username})` : user.username;
+    const meta = document.createElement("span");
+    meta.textContent = `${user.role} · ${user.status}`;
+    copy.append(title, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "admin-user-actions";
+    if (user.status === "pending") {
+      const approve = document.createElement("button");
+      approve.className = "translate-action";
+      approve.type = "button";
+      approve.textContent = "Approve";
+      approve.addEventListener("click", () => updateUser(user.username, "approve"));
+      actions.appendChild(approve);
+    }
+    if (user.status === "active" && user.username !== state.auth.user?.username) {
+      const deactivate = document.createElement("button");
+      deactivate.className = "secondary-action";
+      deactivate.type = "button";
+      deactivate.textContent = "Deactivate";
+      deactivate.addEventListener("click", () => updateUser(user.username, "deactivate"));
+      actions.appendChild(deactivate);
+    }
+    row.append(copy, actions);
+    els.adminUserList.appendChild(row);
+  });
+}
+
+async function loadUsers() {
+  if (state.auth.user?.role !== "admin") return;
+  try {
+    const response = await apiFetch("/auth/users", { cache: "no-store" });
+    if (!response.ok) return;
+    renderUsers(await response.json());
+  } catch {
+    // The admin panel is supplemental; sign-in protection remains server-side.
+  }
+}
+
+async function updateUser(username, action) {
+  try {
+    const response = await apiFetch(`/auth/users/${encodeURIComponent(username)}/${action}`, { method: "POST" });
+    if (!response.ok) {
+      const payload = await response.json();
+      throw new Error(payload.detail || "Could not update user.");
+    }
+    loadUsers();
+  } catch (error) {
+    setAuthMessage(error.message || "Could not update user.", true);
+  }
+}
 
 function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -366,7 +590,7 @@ function beginProgress(inputLabel) {
 
 async function waitForJob(statusUrl) {
   while (true) {
-    const response = await fetch(statusUrl, { cache: "no-store" });
+    const response = await apiFetch(statusUrl, { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not read translation status.");
     setProgress((payload.progress || 0) * 100, payload.message || "Processing...");
@@ -377,7 +601,7 @@ async function waitForJob(statusUrl) {
 }
 
 async function submitJob(url, options) {
-  const response = await fetch(url, options);
+  const response = await apiFetch(url, options);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.detail || "Translation could not be queued.");
   return waitForJob(payload.status_url);
@@ -496,8 +720,9 @@ function renderHistory(items) {
 }
 
 async function loadHistory() {
+  if (!state.auth.user) return;
   try {
-    const response = await fetch("/history?limit=6");
+    const response = await apiFetch("/history?limit=6");
     if (!response.ok) return;
     const payload = await response.json();
     renderHistory(payload.items || []);
@@ -775,12 +1000,24 @@ els.speakTranslation.addEventListener("click", () => {
   window.speechSynthesis.speak(utterance);
 });
 
+els.authForm.addEventListener("submit", submitAuth);
+
+els.authSwitch.addEventListener("click", () => {
+  setAuthMode(state.auth.mode === "register" ? "login" : "register");
+});
+
+els.logoutButton.addEventListener("click", logout);
+
+els.adminPanel.addEventListener("toggle", () => {
+  if (els.adminPanel.open) loadUsers();
+});
+
 if ("speechSynthesis" in window) {
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 }
 
 loadServerLimits();
 loadHealth();
-loadHistory();
+loadSession();
 drawIdleMeter();
 refreshOutputOptions();

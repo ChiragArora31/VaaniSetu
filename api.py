@@ -8,7 +8,7 @@ import threading
 import time
 import uuid
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Cookie, Depends, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +32,7 @@ from config.settings import (
     VIDEO_MAX_UPLOAD_MB,
     ensure_directories,
 )
+from core.auth import AuthError, AuthStore, SESSION_COOKIE_NAME, SESSION_TTL_SECONDS, SessionRecord, UserRecord
 from core.file_utils import ValidationError, save_binary_upload
 from core.health import collect_health_checks
 from core.job_manager import JobManager, JobQueueFullError
@@ -93,6 +94,7 @@ job_manager = JobManager(
     max_workers=JOB_WORKERS,
     max_pending=MAX_PENDING_JOBS,
 )
+auth_store = AuthStore(OUTPUT_DIR / ".auth" / "auth.json")
 FRONTEND_DIR = BASE_DIR / "frontend"
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -106,6 +108,33 @@ class TextRequest(BaseModel):
     make_tts: bool = False
     allow_preview_translation: bool = False
     allow_model_download: bool = False
+
+
+class AuthRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=64)
+    password: str = Field(min_length=10, max_length=256)
+    display_name: str = Field(default="", max_length=120)
+
+
+class UserPublic(BaseModel):
+    username: str
+    display_name: str
+    role: str
+    status: str
+    created_at: str
+    approved_at: str | None = None
+    approved_by: str | None = None
+    deactivated_at: str | None = None
+
+
+class SessionResponse(BaseModel):
+    setup_required: bool
+    user: UserPublic | None = None
+    csrf_token: str | None = None
+
+
+class AuthMessage(BaseModel):
+    message: str
 
 
 class Artifact(BaseModel):
@@ -156,6 +185,94 @@ class JobStatusResponse(BaseModel):
     completed_at: str | None = None
     result: JobResponse | None = None
     error: str | None = None
+
+
+def _public_user(user: UserRecord) -> UserPublic:
+    return UserPublic(
+        username=user.username,
+        display_name=user.display_name,
+        role=user.role,
+        status=user.status,
+        created_at=user.created_at,
+        approved_at=user.approved_at,
+        approved_by=user.approved_by,
+        deactivated_at=user.deactivated_at,
+    )
+
+
+def _auth_exception(exc: AuthError, status_code: int = 401) -> HTTPException:
+    return HTTPException(status_code=status_code, detail=str(exc))
+
+
+def _set_session_cookie(response: Response, session: SessionRecord) -> None:
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        session.session_id,
+        max_age=SESSION_TTL_SECONDS,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        path="/",
+    )
+
+
+def _clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/", httponly=True, samesite="lax")
+
+
+def _session_response(user: UserRecord | None, session: SessionRecord | None = None) -> SessionResponse:
+    return SessionResponse(
+        setup_required=auth_store.setup_required(),
+        user=_public_user(user) if user else None,
+        csrf_token=session.csrf_token if session else None,
+    )
+
+
+def _client_throttle_key(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip()
+    return request.client.host if request.client else "local"
+
+
+def require_user(
+    session_id: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+) -> tuple[UserRecord, SessionRecord]:
+    try:
+        return auth_store.authenticate(session_id)
+    except AuthError as exc:
+        raise _auth_exception(exc) from exc
+
+
+def require_admin(
+    session_id: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+) -> tuple[UserRecord, SessionRecord]:
+    try:
+        return auth_store.require_admin(session_id)
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=403 if "Admin" in str(exc) else 401) from exc
+
+
+def require_csrf_user(
+    auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> tuple[UserRecord, SessionRecord]:
+    try:
+        auth_store.require_csrf(auth[1], csrf_token)
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=403) from exc
+    return auth
+
+
+def require_csrf_admin(
+    auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_admin)],
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> tuple[UserRecord, SessionRecord]:
+    try:
+        auth_store.require_csrf(auth[1], csrf_token)
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=403) from exc
+    return auth
 
 
 def _validate_source_language(name: str) -> None:
@@ -250,13 +367,103 @@ def health(allow_model_download: bool = False):
 
 
 @app.get("/metrics")
-def metrics():
+def metrics(_auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_admin)]):
     return {
         "uptime_seconds": round(time.monotonic() - started_at, 1),
         "jobs": job_manager.summary(),
         "worker_threads": JOB_WORKERS,
         "storage": "local",
     }
+
+
+@app.get("/auth/session", response_model=SessionResponse)
+def auth_session(
+    session_id: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+):
+    if not session_id:
+        return _session_response(None)
+    try:
+        user, session = auth_store.authenticate(session_id)
+    except AuthError:
+        return _session_response(None)
+    return _session_response(user, session)
+
+
+@app.post("/auth/setup", response_model=SessionResponse)
+def auth_setup(request: AuthRequest, response: Response):
+    try:
+        user, session = auth_store.create_first_admin(
+            request.username,
+            request.password,
+            request.display_name,
+        )
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=409 if "already" in str(exc) else 400) from exc
+    _set_session_cookie(response, session)
+    return _session_response(user, session)
+
+
+@app.post("/auth/register", response_model=UserPublic, status_code=201)
+def auth_register(request: AuthRequest):
+    try:
+        user = auth_store.register_user(request.username, request.password, request.display_name)
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=400) from exc
+    return _public_user(user)
+
+
+@app.post("/auth/login", response_model=SessionResponse)
+def auth_login(request: AuthRequest, fastapi_request: Request, response: Response):
+    try:
+        user, session = auth_store.login(
+            request.username,
+            request.password,
+            throttle_key=_client_throttle_key(fastapi_request),
+        )
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=429 if "Too many" in str(exc) else 401) from exc
+    _set_session_cookie(response, session)
+    return _session_response(user, session)
+
+
+@app.post("/auth/logout", response_model=AuthMessage)
+def auth_logout(
+    response: Response,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+    session_id: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+):
+    auth_store.logout(session_id)
+    _clear_session_cookie(response)
+    return AuthMessage(message="Signed out.")
+
+
+@app.get("/auth/users", response_model=list[UserPublic])
+def auth_users(_auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_admin)]):
+    return [_public_user(user) for user in auth_store.list_users()]
+
+
+@app.post("/auth/users/{username}/approve", response_model=UserPublic)
+def auth_approve_user(
+    username: str,
+    auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_admin)],
+):
+    try:
+        user = auth_store.approve_user(username, admin_username=auth[0].username)
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=404 if "not found" in str(exc).lower() else 400) from exc
+    return _public_user(user)
+
+
+@app.post("/auth/users/{username}/deactivate", response_model=UserPublic)
+def auth_deactivate_user(
+    username: str,
+    auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_admin)],
+):
+    try:
+        user = auth_store.deactivate_user(username, admin_username=auth[0].username)
+    except AuthError as exc:
+        raise _auth_exception(exc, status_code=404 if "not found" in str(exc).lower() else 400) from exc
+    return _public_user(user)
 
 
 def _accepted(record) -> JobAccepted:
@@ -279,12 +486,18 @@ def _job_status(record) -> JobStatusResponse:
 
 
 @app.get("/jobs", response_model=list[JobStatusResponse])
-def queued_jobs(limit: int = 20):
+def queued_jobs(
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
+    limit: int = 20,
+):
     return [_job_status(record) for record in job_manager.recent(max(1, min(limit, 50)))]
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
-def queued_job(job_id: str):
+def queued_job(
+    job_id: str,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
+):
     record = job_manager.get(job_id)
     if not record:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -292,7 +505,10 @@ def queued_job(job_id: str):
 
 
 @app.post("/jobs/text", response_model=JobAccepted, status_code=202)
-def queue_text_translation(request: TextRequest):
+def queue_text_translation(
+    request: TextRequest,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
     _validate_source_language(request.source_language)
     _validate_target_language(request.target_language)
 
@@ -321,6 +537,7 @@ def queue_text_translation(request: TextRequest):
 @app.post("/jobs/file", response_model=JobAccepted, status_code=202)
 async def queue_file_translation(
     file: Annotated[UploadFile, File()],
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
     source_language: Annotated[str, Form()] = "English",
     target_language: Annotated[str, Form()] = "Hindi",
     make_subtitles: Annotated[bool, Form()] = True,
@@ -399,7 +616,10 @@ def limits():
 
 
 @app.get("/history", response_model=HistoryResponse)
-def history(limit: int = 10):
+def history(
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
+    limit: int = 10,
+):
     manifest_path = OUTPUT_DIR / "manifest.jsonl"
     if not manifest_path.exists():
         return HistoryResponse(items=[])
@@ -426,7 +646,10 @@ def history(limit: int = 10):
 
 
 @app.post("/translate/text", response_model=JobResponse)
-def translate_text(request: TextRequest):
+def translate_text(
+    request: TextRequest,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
     _validate_source_language(request.source_language)
     _validate_target_language(request.target_language)
     try:
@@ -450,6 +673,7 @@ def translate_text(request: TextRequest):
 @app.post("/translate/file", response_model=JobResponse)
 async def translate_file(
     file: Annotated[UploadFile, File()],
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
     source_language: Annotated[str, Form()] = "English",
     target_language: Annotated[str, Form()] = "Hindi",
     make_subtitles: Annotated[bool, Form()] = True,
@@ -496,7 +720,11 @@ def web_app_head():
 
 
 @app.get("/jobs/{job_id}/artifacts/{artifact_key}")
-def download_artifact(job_id: str, artifact_key: str):
+def download_artifact(
+    job_id: str,
+    artifact_key: str,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
+):
     job_dir = OUTPUT_DIR / job_id
     if not job_dir.exists():
         raise HTTPException(status_code=404, detail="Job not found")

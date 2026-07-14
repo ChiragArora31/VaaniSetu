@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css?v=20260714-implementation-2" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260715-auth-1" />
   </head>
   <body>
     <main class="shell">
@@ -15,12 +15,49 @@
           <h1>VaaniSetu</h1>
         </div>
         <div class="header-actions">
+          <span class="quiet-pill hidden" id="userBadge"></span>
+          <button class="secondary-action compact hidden" id="logoutButton" type="button">Sign out</button>
           <span class="quiet-pill">Local worker</span>
           <span class="quiet-pill">Offline exports</span>
         </div>
       </header>
 
-      <section class="translator-surface" aria-label="Translation workspace">
+      <section class="auth-panel hidden" id="authPanel" aria-live="polite">
+        <div>
+          <p class="section-label">Secure access</p>
+          <h2 id="authTitle">Sign in</h2>
+          <p id="authCopy">Use your approved VaaniSetu account to process or download content.</p>
+        </div>
+        <form class="auth-form" id="authForm">
+          <label>
+            <span>Username</span>
+            <input id="authUsername" name="username" autocomplete="username" required />
+          </label>
+          <label>
+            <span>Name</span>
+            <input id="authDisplayName" name="display_name" autocomplete="name" />
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="authPassword" name="password" type="password" autocomplete="current-password" required minlength="10" />
+          </label>
+          <div class="auth-actions">
+            <button class="primary-action" id="authSubmit" type="submit">Sign in</button>
+            <button class="secondary-action" id="authSwitch" type="button">Request access</button>
+          </div>
+          <p class="auth-message" id="authMessage"></p>
+        </form>
+      </section>
+
+      <details class="admin-panel hidden" id="adminPanel">
+        <summary>
+          <span>User approvals</span>
+          <span id="adminUserCount">0 users</span>
+        </summary>
+        <div class="admin-users" id="adminUserList"></div>
+      </details>
+
+      <section class="translator-surface hidden" data-auth-required aria-label="Translation workspace">
         <div class="language-panel" aria-label="Language selection">
           <label>
             <span>Source</span>
@@ -163,7 +200,7 @@
         </section>
       </section>
 
-      <details class="recent-panel">
+      <details class="recent-panel hidden" data-auth-required>
         <summary>
           <span>Recent translations</span>
           <span id="recentCount">0 saved</span>
@@ -207,6 +244,6 @@
       </details>
     </main>
 
-    <script src="/static/app.js?v=20260714-implementation-2"></script>
+    <script src="/static/app.js?v=20260715-auth-1"></script>
   </body>
 </html>
