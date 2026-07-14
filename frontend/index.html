@@ -5,42 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260714-implementation-2" />
   </head>
   <body>
     <main class="shell">
-      <section class="workspace" aria-label="Voice translation workspace">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">BAIF translation workspace</p>
-            <h1>VaaniSetu</h1>
-          </div>
-          <div class="language-panel" aria-label="Language selection">
-            <label>
-              <span>From</span>
-              <select id="sourceLanguage">
-                <option>Hindi</option>
-                <option>Marathi</option>
-                <option>English</option>
-              </select>
-            </label>
-            <button class="swap-button" id="swapLanguages" type="button" aria-label="Swap languages">⇄</button>
-            <label>
-              <span>To</span>
-              <select id="targetLanguage">
-                <option>Marathi</option>
-                <option>Hindi</option>
-                <option>English</option>
-              </select>
-            </label>
-          </div>
-        </header>
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">BAIF knowledge translation</p>
+          <h1>VaaniSetu</h1>
+        </div>
+        <div class="header-actions">
+          <span class="quiet-pill">Local worker</span>
+          <span class="quiet-pill">Offline exports</span>
+        </div>
+      </header>
 
-        <section class="voice-stage" aria-label="Record translation">
+      <section class="translator-surface" aria-label="Translation workspace">
+        <div class="language-panel" aria-label="Language selection">
+          <label>
+            <span>Source</span>
+            <select id="sourceLanguage">
+              <option>Hindi</option>
+              <option>Marathi</option>
+              <option>English</option>
+              <option>Auto detect</option>
+            </select>
+          </label>
+          <button class="icon-button" id="swapLanguages" type="button" aria-label="Swap languages" title="Swap languages">⇄</button>
+          <label>
+            <span>Translate to</span>
+            <select id="targetLanguage">
+              <option>Marathi</option>
+              <option>Hindi</option>
+              <option>English</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="mode-tabs" role="tablist" aria-label="Input mode">
+          <button class="mode-tab active" type="button" data-mode="record">Record</button>
+          <button class="mode-tab" type="button" data-mode="text">Text</button>
+          <button class="mode-tab" id="toggleUpload" type="button" data-mode="upload">Upload</button>
+        </div>
+
+        <details class="output-options" id="outputOptions">
+          <summary>
+            <span>Output package</span>
+            <span id="outputSummary">Translated text, voice, subtitles</span>
+          </summary>
+          <div class="output-option-grid">
+            <label class="check-option">
+              <input id="makeTts" type="checkbox" checked />
+              <span><strong>Translated voice</strong><small>Offline WAV and MP3 when available</small></span>
+            </label>
+            <label class="check-option">
+              <input id="makeSubtitles" type="checkbox" checked />
+              <span><strong>Subtitles</strong><small>SRT and VTT for playback</small></span>
+            </label>
+            <label class="check-option">
+              <input id="burnCaptions" type="checkbox" disabled />
+              <span><strong>Captioned video</strong><small>Burn translation into an MP4</small></span>
+            </label>
+            <label class="check-option">
+              <input id="mergeTranslatedAudio" type="checkbox" disabled />
+              <span><strong>Translated-audio video</strong><small>Replace the original audio track</small></span>
+            </label>
+          </div>
+        </details>
+
+        <section class="input-mode" id="recordMode" aria-label="Record audio">
           <div class="record-visual" id="recordVisual">
             <canvas id="meterCanvas" width="900" height="180" aria-hidden="true"></canvas>
             <div class="record-center">
-              <p class="status-kicker" id="recordState">Ready to record</p>
+              <p class="status-kicker" id="recordState">Ready</p>
               <p class="timer" id="recordTimer">00:00</p>
             </div>
           </div>
@@ -52,19 +89,32 @@
 
           <div class="input-preview hidden" id="recordingPreview">
             <div>
-              <p class="section-label">Your voice note</p>
+              <p class="section-label">Captured audio</p>
               <audio id="inputAudio" controls></audio>
             </div>
-            <button class="translate-action" id="translateRecording" type="button">Translate to voice</button>
+            <button class="translate-action" id="translateRecording" type="button">Translate</button>
           </div>
         </section>
 
-        <section class="secondary-input">
-          <button class="link-button" id="toggleUpload" type="button">Use an existing audio or video file</button>
-          <div class="upload-panel hidden" id="uploadPanel">
-            <input id="fileInput" type="file" accept=".mp3,.wav,.aac,.m4a,.flac,.wma,.ogg,.mp4,.mov,.avi,.wmv,.mkv,.flv,.webm,.txt,.md" />
-            <p class="upload-hint" id="uploadHint">Audio up to 30 min. Video up to 15 min at 720p/1080p.</p>
-            <button class="secondary-action" id="translateUpload" type="button" disabled>Translate file</button>
+        <section class="input-mode hidden" id="textMode" aria-label="Type or paste text">
+          <div class="text-input-panel">
+            <label for="textInput">
+              <span>Text</span>
+              <textarea id="textInput" rows="9" placeholder="Paste or type training content here"></textarea>
+            </label>
+            <button class="translate-action" id="translateText" type="button">Translate text</button>
+          </div>
+        </section>
+
+        <section class="input-mode hidden" id="uploadMode" aria-label="Upload content">
+          <div class="upload-panel" id="uploadPanel">
+            <label class="upload-dropzone" for="fileInput">
+              <span class="upload-mark" aria-hidden="true">+</span>
+              <strong id="selectedFileName">Choose a file</strong>
+              <span id="uploadHint">Audio up to 30 min. Video up to 15 min. TXT, PDF, DOCX, PPTX, XLSX, CSV.</span>
+            </label>
+            <input id="fileInput" type="file" accept=".mp3,.wav,.aac,.m4a,.flac,.wma,.ogg,.mp4,.mov,.avi,.wmv,.mkv,.flv,.webm,.txt,.text,.md,.pdf,.docx,.pptx,.xlsx,.csv,.tsv" />
+            <button class="translate-action" id="translateUpload" type="button" disabled>Translate file</button>
           </div>
         </section>
 
@@ -80,20 +130,21 @@
         <section class="result-panel hidden" id="resultPanel">
           <div class="result-header">
             <div>
-              <p class="section-label">Translated voice</p>
-              <h2 id="resultTitle">Ready</h2>
+              <p class="section-label">Ready for review</p>
+              <h2 id="resultTitle">Translation complete</h2>
             </div>
-            <a class="download-pill hidden" id="zipDownload" href="#" download>Download all</a>
+            <a class="primary-download hidden" id="zipDownload" href="#" download>Download package</a>
           </div>
 
-          <audio class="output-audio" id="outputAudio" controls></audio>
+          <div class="warning-list hidden" id="warningList"></div>
 
+          <audio class="output-audio" id="outputAudio" controls></audio>
           <button class="translate-action hidden" id="speakTranslation" type="button">Play translated speech</button>
 
           <div class="result-actions" id="downloadActions"></div>
 
           <details class="text-details">
-            <summary>View transcript and translation</summary>
+            <summary>Transcript and translation</summary>
             <div class="text-grid">
               <article>
                 <p class="section-label">Original</p>
@@ -111,8 +162,51 @@
           <p id="errorText"></p>
         </section>
       </section>
+
+      <details class="recent-panel">
+        <summary>
+          <span>Recent translations</span>
+          <span id="recentCount">0 saved</span>
+        </summary>
+        <div class="recent-list" id="recentList"></div>
+      </details>
+
+      <details class="system-panel">
+        <summary>
+          <span>System</span>
+          <span class="status-chip" id="healthChip">Checking</span>
+        </summary>
+        <div class="system-grid">
+          <section>
+            <p class="section-label">Delivery</p>
+            <div class="mode-row">
+              <span>Translation</span>
+              <strong>BAIF office worker</strong>
+            </div>
+            <div class="mode-row">
+              <span>Access</span>
+              <strong>Browser on machine or LAN</strong>
+            </div>
+            <div class="mode-row">
+              <span>Field use</span>
+              <strong>Downloaded offline package</strong>
+            </div>
+          </section>
+          <section>
+            <p class="section-label">Readiness</p>
+            <div class="readiness-list" id="readinessList"></div>
+          </section>
+          <section>
+            <p class="section-label">One-time setup</p>
+            <div class="setup-box">
+              <strong>Run once on the BAIF worker</strong>
+              <code>python scripts/one_click_setup.py --profile balanced</code>
+            </div>
+          </section>
+        </div>
+      </details>
     </main>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=20260714-implementation-2"></script>
   </body>
 </html>

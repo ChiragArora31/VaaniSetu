@@ -25,8 +25,15 @@ const els = {
   toggleUpload: document.querySelector("#toggleUpload"),
   uploadPanel: document.querySelector("#uploadPanel"),
   fileInput: document.querySelector("#fileInput"),
+  selectedFileName: document.querySelector("#selectedFileName"),
   uploadHint: document.querySelector("#uploadHint"),
   translateUpload: document.querySelector("#translateUpload"),
+  textMode: document.querySelector("#textMode"),
+  textInput: document.querySelector("#textInput"),
+  translateText: document.querySelector("#translateText"),
+  modeTabs: document.querySelectorAll(".mode-tab"),
+  recordMode: document.querySelector("#recordMode"),
+  uploadMode: document.querySelector("#uploadMode"),
   progressPanel: document.querySelector("#progressPanel"),
   progressTitle: document.querySelector("#progressTitle"),
   progressPercent: document.querySelector("#progressPercent"),
@@ -34,6 +41,7 @@ const els = {
   progressCopy: document.querySelector("#progressCopy"),
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
+  warningList: document.querySelector("#warningList"),
   outputAudio: document.querySelector("#outputAudio"),
   speakTranslation: document.querySelector("#speakTranslation"),
   downloadActions: document.querySelector("#downloadActions"),
@@ -44,6 +52,15 @@ const els = {
   errorText: document.querySelector("#errorText"),
   meterCanvas: document.querySelector("#meterCanvas"),
   recordVisual: document.querySelector("#recordVisual"),
+  healthChip: document.querySelector("#healthChip"),
+  readinessList: document.querySelector("#readinessList"),
+  recentCount: document.querySelector("#recentCount"),
+  recentList: document.querySelector("#recentList"),
+  outputSummary: document.querySelector("#outputSummary"),
+  makeTts: document.querySelector("#makeTts"),
+  makeSubtitles: document.querySelector("#makeSubtitles"),
+  burnCaptions: document.querySelector("#burnCaptions"),
+  mergeTranslatedAudio: document.querySelector("#mergeTranslatedAudio"),
 };
 
 const uploadLimits = {
@@ -55,13 +72,14 @@ const uploadLimits = {
   },
   video: { maxMb: 200, extensions: [".avi", ".flv", ".mkv", ".mov", ".mp4", ".webm", ".wmv"] },
   text: { maxMb: 10, extensions: [".md", ".text", ".txt"] },
+  document: { maxMb: 50, extensions: [".csv", ".docx", ".pdf", ".pptx", ".tsv", ".xlsx"] },
 };
 
 const progressSteps = [
-  "Preparing audio",
-  "Transcribing speech",
+  "Preparing input",
+  "Reading content",
   "Translating meaning",
-  "Generating voice",
+  "Generating speech",
   "Packaging outputs",
 ];
 
@@ -89,6 +107,30 @@ function showError(message) {
 function clearError() {
   els.errorPanel.classList.add("hidden");
   els.errorText.textContent = "";
+}
+
+function setInputMode(mode) {
+  const isUpload = mode === "upload";
+  const isText = mode === "text";
+  els.recordMode.classList.toggle("hidden", isUpload || isText);
+  els.textMode.classList.toggle("hidden", !isText);
+  els.uploadMode.classList.toggle("hidden", !isUpload);
+  els.modeTabs.forEach((tab) => {
+    const active = tab.dataset.mode === mode;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  clearError();
+}
+
+function languagesMatch() {
+  return els.sourceLanguage.value === els.targetLanguage.value;
+}
+
+function validateLanguagePair() {
+  if (els.sourceLanguage.value === "Auto detect") return "";
+  if (!languagesMatch()) return "";
+  return "Choose two different languages before translating.";
 }
 
 function mimeToExtension(mimeType) {
@@ -120,7 +162,37 @@ function maxUploadMbForFile(file) {
   if (uploadLimits.audio.uncompressedExtensions.includes(extension)) return uploadLimits.audio.uncompressedMaxMb;
   if (uploadLimits.video.extensions.includes(extension)) return uploadLimits.video.maxMb;
   if (uploadLimits.text.extensions.includes(extension)) return uploadLimits.text.maxMb;
+  if (uploadLimits.document.extensions.includes(extension)) return uploadLimits.document.maxMb;
   return 0;
+}
+
+function isMediaFile(file) {
+  const extension = fileExtension(file.name);
+  return (
+    uploadLimits.audio.compressedExtensions.includes(extension) ||
+    uploadLimits.audio.uncompressedExtensions.includes(extension) ||
+    uploadLimits.video.extensions.includes(extension)
+  );
+}
+
+function isVideoFile(file) {
+  return uploadLimits.video.extensions.includes(fileExtension(file.name));
+}
+
+function refreshOutputOptions(file = null) {
+  const video = Boolean(file && isVideoFile(file));
+  els.burnCaptions.disabled = !video;
+  els.mergeTranslatedAudio.disabled = !video;
+  if (!video) {
+    els.burnCaptions.checked = false;
+    els.mergeTranslatedAudio.checked = false;
+  }
+  const outputs = ["Translated text"];
+  if (els.makeTts.checked) outputs.push("voice");
+  if (els.makeSubtitles.checked) outputs.push("subtitles");
+  if (els.burnCaptions.checked) outputs.push("captioned video");
+  if (els.mergeTranslatedAudio.checked) outputs.push("translated-audio video");
+  els.outputSummary.textContent = outputs.join(", ");
 }
 
 function validateSelectedFile(file) {
@@ -144,7 +216,9 @@ async function loadServerLimits() {
     uploadLimits.video.extensions = limits.video.extensions;
     uploadLimits.text.maxMb = limits.text.max_mb;
     uploadLimits.text.extensions = limits.text.extensions;
-    els.uploadHint.textContent = "Audio up to 30 min. Video up to 15 min at 720p/1080p.";
+    uploadLimits.document.maxMb = limits.document?.max_mb || uploadLimits.document.maxMb;
+    uploadLimits.document.extensions = limits.document?.extensions || uploadLimits.document.extensions;
+    els.uploadHint.textContent = "Audio up to 30 min. Video up to 15 min. TXT, PDF, DOCX, PPTX, XLSX, CSV.";
   } catch {
     // Static fallback limits above keep client validation useful if this request fails.
   }
@@ -156,6 +230,8 @@ function resetResult() {
   els.speakTranslation.classList.add("hidden");
   els.downloadActions.innerHTML = "";
   els.zipDownload.classList.add("hidden");
+  els.warningList.classList.add("hidden");
+  els.warningList.innerHTML = "";
   els.originalText.textContent = "";
   els.translatedText.textContent = "";
 }
@@ -169,7 +245,7 @@ function resetRecording() {
   els.recordingPreview.classList.add("hidden");
   els.resetButton.disabled = true;
   els.recordTimer.textContent = "00:00";
-  els.recordState.textContent = "Ready to record";
+  els.recordState.textContent = "Ready";
   drawIdleMeter();
 }
 
@@ -277,15 +353,34 @@ function onRecordingStop() {
   drawIdleMeter();
 }
 
-function beginFakeProgress(inputLabel) {
+function beginProgress(inputLabel) {
   els.progressPanel.classList.remove("hidden");
-  setProgress(7, `Uploading your ${inputLabel}.`);
-  let index = 0;
-  return window.setInterval(() => {
-    const next = Math.min(88, 18 + index * 17);
-    setProgress(next, progressSteps[Math.min(index, progressSteps.length - 1)]);
-    index += 1;
-  }, 1800);
+  const label =
+    inputLabel === "file"
+      ? "Uploading your file."
+      : inputLabel === "text"
+        ? "Preparing your text."
+        : "Uploading your recording.";
+  setProgress(7, label);
+}
+
+async function waitForJob(statusUrl) {
+  while (true) {
+    const response = await fetch(statusUrl, { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Could not read translation status.");
+    setProgress((payload.progress || 0) * 100, payload.message || "Processing...");
+    if (payload.status === "succeeded") return payload.result;
+    if (payload.status === "failed") throw new Error(payload.error || "Translation could not be completed.");
+    await new Promise((resolve) => window.setTimeout(resolve, 800));
+  }
+}
+
+async function submitJob(url, options) {
+  const response = await fetch(url, options);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.detail || "Translation could not be queued.");
+  return waitForJob(payload.status_url);
 }
 
 function artifactMap(artifacts) {
@@ -296,16 +391,26 @@ function artifactUrl(artifact) {
   return artifact.download_url;
 }
 
+function artifactDownloadUrl(jobId, artifactKey) {
+  return `/jobs/${jobId}/artifacts/${artifactKey}`;
+}
+
 function renderDownloads(artifacts) {
   const labels = {
     tts_mp3: "MP3",
     tts_wav: "WAV",
+    captioned_video: "Captioned video",
+    translated_video: "Translated-audio video",
     translated_txt: "Text",
+    translated_markdown: "Markdown",
+    translated_table: "Table",
+    source_txt: "Source",
     srt: "SRT",
     vtt: "VTT",
+    job_report: "Details",
   };
   els.downloadActions.innerHTML = "";
-  ["tts_mp3", "tts_wav", "translated_txt", "srt", "vtt"].forEach((key) => {
+  ["tts_mp3", "tts_wav", "captioned_video", "translated_video", "translated_txt", "translated_markdown", "translated_table", "source_txt", "srt", "vtt", "job_report"].forEach((key) => {
     if (!artifacts[key]) return;
     const link = document.createElement("a");
     link.className = "download-pill";
@@ -316,7 +421,22 @@ function renderDownloads(artifacts) {
   });
 }
 
+function renderWarnings(warnings) {
+  els.warningList.innerHTML = "";
+  if (!warnings?.length) {
+    els.warningList.classList.add("hidden");
+    return;
+  }
+  warnings.forEach((warning) => {
+    const item = document.createElement("p");
+    item.textContent = warning;
+    els.warningList.appendChild(item);
+  });
+  els.warningList.classList.remove("hidden");
+}
+
 function renderResult(payload) {
+  els.progressPanel.classList.add("hidden");
   const artifacts = artifactMap(payload.artifacts || []);
   const voice = artifacts.tts_mp3 || artifacts.tts_wav;
   if (voice) {
@@ -335,8 +455,116 @@ function renderResult(payload) {
   els.resultTitle.textContent = `${payload.source_language} to ${payload.target_language}`;
   els.originalText.textContent = payload.original_text || "No transcript returned.";
   els.translatedText.textContent = payload.translated_text || "No translation returned.";
+  renderWarnings(payload.warnings || []);
   renderDownloads(artifacts);
   els.resultPanel.classList.remove("hidden");
+  loadHistory();
+}
+
+function renderHistory(items) {
+  els.recentList.innerHTML = "";
+  els.recentCount.textContent = `${items.length} saved`;
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "recent-empty";
+    empty.textContent = "Completed translations will appear here.";
+    els.recentList.appendChild(empty);
+    return;
+  }
+  items.slice(0, 6).forEach((item) => {
+    const row = document.createElement("article");
+    row.className = "recent-item";
+
+    const copy = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = `${item.source_language} to ${item.target_language}`;
+    const meta = document.createElement("span");
+    meta.textContent = `${item.input_type} · ${new Date(item.created_at).toLocaleString()}`;
+    copy.append(title, meta);
+    row.appendChild(copy);
+
+    if (item.artifacts?.bundle_zip) {
+      const link = document.createElement("a");
+      link.className = "download-pill";
+      link.href = artifactDownloadUrl(item.job_id, "bundle_zip");
+      link.download = "vaanisetu_outputs.zip";
+      link.textContent = "Package";
+      row.appendChild(link);
+    }
+    els.recentList.appendChild(row);
+  });
+}
+
+async function loadHistory() {
+  try {
+    const response = await fetch("/history?limit=6");
+    if (!response.ok) return;
+    const payload = await response.json();
+    renderHistory(payload.items || []);
+  } catch {
+    renderHistory([]);
+  }
+}
+
+function renderReadiness(checks) {
+  els.readinessList.innerHTML = "";
+  const importantChecks = checks.filter((check) =>
+    [
+      "Model quality profile",
+      "FFmpeg",
+      "faster-whisper package",
+      "Whisper model",
+      "Local translation route",
+      "NLLB local translation",
+      "NLLB optimized CPU runtime",
+      "PDF text extraction",
+      "Automatic OCR",
+      "eSpeak NG",
+      "Local speech fallback",
+    ].includes(check.name)
+  );
+  importantChecks.slice(0, 9).forEach((check) => {
+    const row = document.createElement("div");
+    row.className = "readiness-item";
+
+    const dot = document.createElement("span");
+    dot.className = `readiness-dot${check.ok ? " ok" : ""}`;
+    dot.setAttribute("aria-hidden", "true");
+
+    const copy = document.createElement("div");
+    const title = document.createElement("p");
+    title.textContent = check.name;
+    const detail = document.createElement("span");
+    detail.textContent = check.detail;
+    copy.append(title, detail);
+    row.append(dot, copy);
+    els.readinessList.appendChild(row);
+  });
+}
+
+async function loadHealth() {
+  try {
+    const response = await fetch("/health?allow_model_download=false");
+    if (!response.ok) throw new Error("Health request failed");
+    const payload = await response.json();
+    const operationalReady = payload.ok && payload.portable_speech_ready;
+    els.healthChip.textContent = payload.production_ready
+      ? "Production ready"
+      : operationalReady
+        ? "Ready to translate"
+        : "Needs setup";
+    els.healthChip.classList.toggle("ready", operationalReady);
+    els.healthChip.classList.toggle("attention", !operationalReady);
+    renderReadiness(payload.checks || []);
+  } catch {
+    els.healthChip.textContent = "Unavailable";
+    els.healthChip.classList.add("attention");
+    els.readinessList.innerHTML = "";
+    const row = document.createElement("div");
+    row.className = "readiness-item";
+    row.innerHTML = '<span class="readiness-dot"></span><div><p>Backend health</p><span>Start the API server to see model readiness.</span></div>';
+    els.readinessList.appendChild(row);
+  }
 }
 
 function bestSpeechVoice(languageName) {
@@ -359,8 +587,17 @@ function bestSpeechVoice(languageName) {
 
 async function processBlob(blob, filename, inputLabel = "voice note") {
   clearError();
+  if (els.sourceLanguage.value === "Auto detect" && (inputLabel === "voice note" || isMediaFile({ name: filename }))) {
+    showError("For audio/video, choose the spoken source language for best transcription accuracy.");
+    return;
+  }
+  const languageError = validateLanguagePair();
+  if (languageError) {
+    showError(languageError);
+    return;
+  }
   resetResult();
-  const progressId = beginFakeProgress(inputLabel);
+  beginProgress(inputLabel);
   els.translateRecording.disabled = true;
   els.translateUpload.disabled = true;
 
@@ -368,27 +605,61 @@ async function processBlob(blob, filename, inputLabel = "voice note") {
   form.append("file", blob, filename);
   form.append("source_language", els.sourceLanguage.value);
   form.append("target_language", els.targetLanguage.value);
-  form.append("make_subtitles", "true");
-  form.append("make_tts", "true");
-  form.append("burn_captions", "false");
-  form.append("merge_translated_audio", "false");
-  form.append("allow_model_download", "true");
+  form.append("make_subtitles", String(els.makeSubtitles.checked));
+  form.append("make_tts", String(els.makeTts.checked));
+  form.append("burn_captions", String(els.burnCaptions.checked));
+  form.append("merge_translated_audio", String(els.mergeTranslatedAudio.checked));
+  form.append("allow_preview_translation", "false");
+  form.append("allow_model_download", "false");
 
   try {
-    const response = await fetch("/translate/file", { method: "POST", body: form });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.detail || "Translation failed.");
-    }
-    window.clearInterval(progressId);
+    const payload = await submitJob("/jobs/file", { method: "POST", body: form });
     setProgress(100, "Your translation is ready.");
     renderResult(payload);
   } catch (error) {
-    window.clearInterval(progressId);
     showError(error.message || "Translation failed.");
   } finally {
     els.translateRecording.disabled = false;
     els.translateUpload.disabled = !els.fileInput.files.length;
+  }
+}
+
+async function processTextInput() {
+  clearError();
+  const text = els.textInput.value.trim();
+  if (!text) {
+    showError("Paste or type text to translate.");
+    return;
+  }
+  const languageError = validateLanguagePair();
+  if (languageError) {
+    showError(languageError);
+    return;
+  }
+  resetResult();
+  beginProgress("text");
+  els.translateText.disabled = true;
+
+  try {
+    const payload = await submitJob("/jobs/text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        source_language: els.sourceLanguage.value,
+        target_language: els.targetLanguage.value,
+        make_subtitles: els.makeSubtitles.checked,
+        make_tts: els.makeTts.checked,
+        allow_preview_translation: false,
+        allow_model_download: false,
+      }),
+    });
+    setProgress(100, "Your translation is ready.");
+    renderResult(payload);
+  } catch (error) {
+    showError(error.message || "Translation failed.");
+  } finally {
+    els.translateText.disabled = false;
   }
 }
 
@@ -413,19 +684,33 @@ els.translateRecording.addEventListener("click", () => {
 });
 
 els.toggleUpload.addEventListener("click", () => {
-  els.uploadPanel.classList.toggle("hidden");
+  setInputMode("upload");
 });
+
+els.modeTabs.forEach((tab) => {
+  tab.addEventListener("click", () => setInputMode(tab.dataset.mode));
+});
+
+els.translateText.addEventListener("click", processTextInput);
 
 els.fileInput.addEventListener("change", () => {
   clearError();
   const file = els.fileInput.files[0];
+  refreshOutputOptions(file || null);
   if (!file) {
     els.translateUpload.disabled = true;
+    els.selectedFileName.textContent = "Choose a file";
     return;
   }
+  els.selectedFileName.textContent = file.name;
   const error = validateSelectedFile(file);
   if (error) {
     showError(error);
+    els.translateUpload.disabled = true;
+    return;
+  }
+  if (els.sourceLanguage.value === "Auto detect" && isMediaFile(file)) {
+    showError("For audio/video, choose the spoken source language for best transcription accuracy.");
     els.translateUpload.disabled = true;
     return;
   }
@@ -437,10 +722,34 @@ els.translateUpload.addEventListener("click", () => {
   if (file) processBlob(file, file.name, "file");
 });
 
+[els.makeTts, els.makeSubtitles, els.burnCaptions, els.mergeTranslatedAudio].forEach((control) => {
+  control.addEventListener("change", () => refreshOutputOptions(els.fileInput.files[0] || null));
+});
+
 els.swapLanguages.addEventListener("click", () => {
   const source = els.sourceLanguage.value;
+  if (source === "Auto detect") {
+    els.sourceLanguage.value = els.targetLanguage.value;
+    els.targetLanguage.value = "English";
+    clearError();
+    return;
+  }
   els.sourceLanguage.value = els.targetLanguage.value;
   els.targetLanguage.value = source;
+  clearError();
+});
+
+els.sourceLanguage.addEventListener("change", () => {
+  clearError();
+  const file = els.fileInput.files[0];
+  if (file && els.sourceLanguage.value === "Auto detect" && isMediaFile(file)) {
+    showError("For audio/video, choose the spoken source language for best transcription accuracy.");
+    els.translateUpload.disabled = true;
+    return;
+  }
+  if (file && !validateSelectedFile(file)) {
+    els.translateUpload.disabled = false;
+  }
 });
 
 els.speakTranslation.addEventListener("click", () => {
@@ -471,4 +780,7 @@ if ("speechSynthesis" in window) {
 }
 
 loadServerLimits();
+loadHealth();
+loadHistory();
 drawIdleMeter();
+refreshOutputOptions();
