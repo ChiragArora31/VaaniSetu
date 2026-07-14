@@ -16,6 +16,7 @@ from pathlib import Path
 
 from config.settings import (
     ALLOW_MODEL_DOWNLOAD,
+    ESPEAK_BINARY,
     FFMPEG_BINARY,
     INDIC_PARLER_DEVICE,
     INDIC_PARLER_MODEL,
@@ -195,6 +196,27 @@ def synthesize_with_macos_say(text: str, language_hint: str, output_path: Path) 
     return output_path
 
 
+def synthesize_with_espeak(text: str, language_hint: str, output_path: Path) -> Path:
+    binary = shutil.which(ESPEAK_BINARY)
+    if not binary:
+        raise TTSError("The compact open-source speech engine is not installed on this worker.")
+    voice = {"en": "en", "hi": "hi", "mr": "mr"}.get(language_hint, "en")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        result = subprocess.run(
+            [binary, "-v", voice, "-s", "155", "-w", str(output_path), text],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=TTS_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TTSError("Compact speech synthesis timed out.") from exc
+    if result.returncode != 0:
+        raise TTSError(result.stderr.strip() or "Compact speech synthesis failed.")
+    return output_path
+
+
 def synthesize_speech(text: str, language_hint: str, output_path: Path) -> tuple[Path, str, str | None]:
     if not text.strip():
         raise TTSError("No translated text was available for speech synthesis.")
@@ -202,10 +224,15 @@ def synthesize_speech(text: str, language_hint: str, output_path: Path) -> tuple
     backends = {
         "indic-parler": lambda: synthesize_with_indic_parler(text, language_hint, output_path),
         "piper": lambda: synthesize_with_piper(text, language_hint, output_path),
+        "espeak": lambda: synthesize_with_espeak(text, language_hint, output_path),
         "macos-say": lambda: synthesize_with_macos_say(text, language_hint, output_path),
     }
     if TTS_BACKEND == "auto":
-        order = ["indic-parler", "piper", "macos-say"] if MODEL_PROFILE == "quality" else ["piper", "macos-say"]
+        order = (
+            ["indic-parler", "piper", "espeak", "macos-say"]
+            if MODEL_PROFILE == "quality"
+            else ["piper", "espeak", "macos-say"]
+        )
     elif TTS_BACKEND in backends:
         order = [TTS_BACKEND]
     else:

@@ -11,13 +11,17 @@ RUNTIME_STORAGE_DIR = Path(os.getenv("BAIF_RUNTIME_STORAGE_DIR", str(BASE_DIR)))
 TEMP_DIR = Path(os.getenv("BAIF_TEMP_DIR", str(RUNTIME_STORAGE_DIR / "temp")))
 OUTPUT_DIR = Path(os.getenv("BAIF_OUTPUT_DIR", str(RUNTIME_STORAGE_DIR / "outputs")))
 MODEL_DIR = Path(os.getenv("BAIF_MODEL_DIR", str(RUNTIME_STORAGE_DIR / "models")))
+TESSDATA_DIR = Path(os.getenv("BAIF_TESSDATA_DIR", str(MODEL_DIR / "tessdata")))
 SAMPLE_DIR = BASE_DIR / "samples"
 
 TEXT_MAX_UPLOAD_MB = int(os.getenv("BAIF_TEXT_MAX_UPLOAD_MB", "10"))
+DOCUMENT_MAX_UPLOAD_MB = int(os.getenv("BAIF_DOCUMENT_MAX_UPLOAD_MB", "50"))
 COMPRESSED_AUDIO_MAX_UPLOAD_MB = int(os.getenv("BAIF_COMPRESSED_AUDIO_MAX_UPLOAD_MB", "50"))
 UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB = int(os.getenv("BAIF_UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB", "150"))
 VIDEO_MAX_UPLOAD_MB = int(os.getenv("BAIF_VIDEO_MAX_UPLOAD_MB", "200"))
 MAX_TEXT_CHARS = int(os.getenv("BAIF_MAX_TEXT_CHARS", "20000"))
+JOB_WORKERS = max(1, min(2, int(os.getenv("BAIF_JOB_WORKERS", "1"))))
+MAX_PENDING_JOBS = max(1, int(os.getenv("BAIF_MAX_PENDING_JOBS", "20")))
 AUDIO_MAX_DURATION_SECONDS = int(os.getenv("BAIF_AUDIO_MAX_DURATION_SECONDS", "1800"))
 VIDEO_MAX_DURATION_SECONDS = int(os.getenv("BAIF_VIDEO_MAX_DURATION_SECONDS", "900"))
 FFMPEG_TIMEOUT_SECONDS = int(os.getenv("BAIF_FFMPEG_TIMEOUT_SECONDS", "1800"))
@@ -61,8 +65,9 @@ VIDEO_EXTENSIONS = {
 }
 
 TEXT_EXTENSIONS = {".txt", ".md", ".text"}
+DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".tsv"}
 
-ALLOWED_EXTENSIONS = AUDIO_EXTENSIONS | VIDEO_EXTENSIONS | TEXT_EXTENSIONS
+ALLOWED_EXTENSIONS = AUDIO_EXTENSIONS | VIDEO_EXTENSIONS | TEXT_EXTENSIONS | DOCUMENT_EXTENSIONS
 
 MODEL_PROFILE = os.getenv("BAIF_MODEL_PROFILE", "balanced").strip().lower()
 
@@ -74,6 +79,7 @@ MODEL_PROFILES = {
         "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-base",
         "whisper_compute_type": "int8",
         "asr_beam_size": 3,
+        "translation_beam_size": 1,
     },
     "balanced": {
         "label": "Balanced",
@@ -82,6 +88,7 @@ MODEL_PROFILES = {
         "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-small",
         "whisper_compute_type": "int8",
         "asr_beam_size": 5,
+        "translation_beam_size": 2,
     },
     "quality": {
         "label": "Production Quality",
@@ -90,6 +97,7 @@ MODEL_PROFILES = {
         "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-large-v3",
         "whisper_compute_type": "auto",
         "asr_beam_size": 5,
+        "translation_beam_size": 4,
     },
 }
 
@@ -124,35 +132,70 @@ INDIC_CONFORMER_DEVICE = os.getenv("BAIF_INDIC_CONFORMER_DEVICE", "auto").strip(
 TRANSLATION_BACKEND = os.getenv("BAIF_TRANSLATION_BACKEND", "auto").lower()
 ALLOW_PREVIEW_TRANSLATOR = os.getenv("BAIF_ALLOW_PREVIEW_TRANSLATOR", "0") == "1"
 ALLOW_MODEL_DOWNLOAD = os.getenv("BAIF_ALLOW_MODEL_DOWNLOAD", "1") == "1"
-ENABLE_HOSTED_TRANSLATION = os.getenv("BAIF_ENABLE_HOSTED_TRANSLATION", "1") == "1"
+ENABLE_HOSTED_TRANSLATION = os.getenv("BAIF_ENABLE_HOSTED_TRANSLATION", "0") == "1"
 HOSTED_TRANSLATION_PROVIDER = os.getenv("BAIF_HOSTED_TRANSLATION_PROVIDER", "mymemory").lower()
 HOSTED_TRANSLATION_TIMEOUT_SECONDS = int(os.getenv("BAIF_HOSTED_TRANSLATION_TIMEOUT_SECONDS", "20"))
 MYMEMORY_EMAIL = os.getenv("BAIF_MYMEMORY_EMAIL", "")
 TRANSLATION_BATCH_SIZE = int(os.getenv("BAIF_TRANSLATION_BATCH_SIZE", "8"))
+TRANSLATION_CPU_THREADS = max(1, int(os.getenv("BAIF_TRANSLATION_CPU_THREADS", "4")))
+TRANSLATION_BEAM_SIZE = int(
+    os.getenv("BAIF_TRANSLATION_BEAM_SIZE", str(ACTIVE_MODEL_PROFILE["translation_beam_size"]))
+)
+NLLB_MODEL = os.getenv("BAIF_NLLB_MODEL", str(MODEL_DIR / "nllb" / "nllb-200-distilled-600M"))
+NLLB_CT2_MODEL = os.getenv("BAIF_NLLB_CT2_MODEL", str(MODEL_DIR / "nllb" / "nllb-200-distilled-600M-ct2-int8"))
+NLLB_MODEL_ID = os.getenv("BAIF_NLLB_MODEL_ID", "facebook/nllb-200-distilled-600M")
 
 INDICTRANS_MODEL_BY_DIRECTION = {
     "en-indic": os.getenv(
         "BAIF_INDICTRANS_EN_INDIC_MODEL",
-        str(MODEL_DIR / "indictrans2" / "indictrans2-en-indic-1B"),
+        str(
+            MODEL_DIR
+            / "indictrans2"
+            / ("indictrans2-en-indic-1B" if MODEL_PROFILE == "quality" else "indictrans2-en-indic-dist-200M")
+        ),
     ),
     "indic-en": os.getenv(
         "BAIF_INDICTRANS_INDIC_EN_MODEL",
-        str(MODEL_DIR / "indictrans2" / "indictrans2-indic-en-1B"),
+        str(
+            MODEL_DIR
+            / "indictrans2"
+            / ("indictrans2-indic-en-1B" if MODEL_PROFILE == "quality" else "indictrans2-indic-en-dist-200M")
+        ),
     ),
     "indic-indic": os.getenv(
         "BAIF_INDICTRANS_INDIC_INDIC_MODEL",
-        str(MODEL_DIR / "indictrans2" / "indictrans2-indic-indic-1B"),
+        str(
+            MODEL_DIR
+            / "indictrans2"
+            / ("indictrans2-indic-indic-1B" if MODEL_PROFILE == "quality" else "indictrans2-indic-indic-dist-320M")
+        ),
     ),
 }
 
 INDICTRANS_REPO_BY_DIRECTION = {
-    "en-indic": os.getenv("BAIF_INDICTRANS_EN_INDIC_REPO", "ai4bharat/indictrans2-en-indic-1B"),
-    "indic-en": os.getenv("BAIF_INDICTRANS_INDIC_EN_REPO", "ai4bharat/indictrans2-indic-en-1B"),
-    "indic-indic": os.getenv("BAIF_INDICTRANS_INDIC_INDIC_REPO", "ai4bharat/indictrans2-indic-indic-1B"),
+    "en-indic": os.getenv(
+        "BAIF_INDICTRANS_EN_INDIC_REPO",
+        "ai4bharat/indictrans2-en-indic-1B"
+        if MODEL_PROFILE == "quality"
+        else "ai4bharat/indictrans2-en-indic-dist-200M",
+    ),
+    "indic-en": os.getenv(
+        "BAIF_INDICTRANS_INDIC_EN_REPO",
+        "ai4bharat/indictrans2-indic-en-1B"
+        if MODEL_PROFILE == "quality"
+        else "ai4bharat/indictrans2-indic-en-dist-200M",
+    ),
+    "indic-indic": os.getenv(
+        "BAIF_INDICTRANS_INDIC_INDIC_REPO",
+        "ai4bharat/indictrans2-indic-indic-1B"
+        if MODEL_PROFILE == "quality"
+        else "ai4bharat/indictrans2-indic-indic-dist-320M",
+    ),
 }
 
 PIPER_BINARY = os.getenv("BAIF_PIPER_BINARY", "piper")
 PIPER_MODEL_DIR = Path(os.getenv("BAIF_PIPER_MODEL_DIR", str(MODEL_DIR / "piper")))
+ESPEAK_BINARY = os.getenv("BAIF_ESPEAK_BINARY", "espeak-ng")
 
 FFMPEG_BINARY = os.getenv("BAIF_FFMPEG_BINARY", "ffmpeg")
 FFPROBE_BINARY = os.getenv("BAIF_FFPROBE_BINARY", "ffprobe")

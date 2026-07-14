@@ -22,11 +22,12 @@ from config.settings import (
 )
 from core.audio_extractor import extract_audio_to_wav
 from core.asr_cleanup import clean_indic_asr_text
+from core.document_processor import DocumentProcessingError, extract_document_text, write_document_exports
 from core.export_utils import create_artifact_zip
 from core.file_utils import create_job_dirs, write_text
 from core.media_utils import MediaError, detect_input_type, inspect_media
 from core.subtitles import Segment, normalize_segments, render_srt, render_vtt, segments_from_text
-from core.text_utils import enforce_text_limit, normalize_text, split_for_translation
+from core.text_utils import detect_language_name, enforce_text_limit, normalize_text, split_for_translation
 from core.transcriber import TranscriptionError, get_transcriber
 from core.translator import TranslationError, translate_segments
 from core.tts import TTSError, convert_wav_to_mp3, synthesize_speech
@@ -48,6 +49,7 @@ class ProcessingOptions:
     merge_translated_audio: bool = False
     allow_preview_translation: bool = False
     allow_model_download: bool = ALLOW_MODEL_DOWNLOAD
+    auto_detect_source: bool = False
 
 
 @dataclass
@@ -85,6 +87,15 @@ def _split_translated_lines(text: str, count: int) -> list[str]:
 
 def _has_meaningful_speech(text: str) -> bool:
     return bool(re.search(r"[\w\u0900-\u097F]", text))
+
+
+def _resolved_source_language(text: str, source_language: str, result: PipelineResult) -> str:
+    if source_language != "Auto detect":
+        return source_language
+    detected = detect_language_name(text)
+    result.source_language = detected
+    result.metadata["source_language_detection"] = detected
+    return detected
 
 
 def _effective_media_type(input_type: str, has_video: bool | None) -> str:
@@ -181,6 +192,7 @@ class TranslationPipeline:
         result.metadata["model_profile"] = MODEL_PROFILE
         if not result.original_text:
             raise PipelineError("Please enter text to translate.")
+        source_language = _resolved_source_language(result.original_text, source_language, result)
         try:
             enforce_text_limit(result.original_text, MAX_TEXT_CHARS)
         except ValueError as exc:
@@ -243,6 +255,15 @@ class TranslationPipeline:
 
         if input_type == "text":
             return self.process_text(input_path.read_text(encoding="utf-8"), source_language, target_language, options, status)
+
+        if input_type == "document":
+            return self.process_document(input_path, source_language, target_language, options, status)
+
+        if source_language == "Auto detect":
+            raise PipelineError(
+                "Auto source-language detection is available for text and document files. "
+                "Please choose Hindi, Marathi, or English for audio/video transcription quality."
+            )
 
         try:
             _status(status, "Inspecting media...", 0.05)
@@ -356,6 +377,74 @@ class TranslationPipeline:
                     result.warnings.append(str(exc))
 
         except (MediaError, TranscriptionError, TranslationError, TTSError) as exc:
+            raise PipelineError(str(exc)) from exc
+
+        _finalize_artifacts(result, output_dir)
+        _status(status, "Done.", 1.0)
+        return result
+
+    def process_document(
+        self,
+        input_path: Path,
+        source_language: str,
+        target_language: str,
+        options: ProcessingOptions,
+        status: StatusCallback | None = None,
+    ) -> PipelineResult:
+        job_id, _temp_dir, output_dir = create_job_dirs(TEMP_DIR, OUTPUT_DIR)
+        result = PipelineResult(
+            job_id=job_id,
+            input_type="document",
+            source_language=source_language,
+            target_language=target_language,
+        )
+        result.metadata["model_download"] = "enabled" if options.allow_model_download else "disabled"
+        result.metadata["model_profile"] = MODEL_PROFILE
+        result.metadata["source_filename"] = input_path.name
+        result.metadata["document_extension"] = input_path.suffix.lower()
+
+        try:
+            _status(status, "Extracting document text...", 0.12)
+            document = extract_document_text(input_path)
+            result.metadata["document_kind"] = document.kind
+            result.original_text = normalize_text(document.text)
+            if document.warning:
+                result.warnings.append(document.warning)
+            if not result.original_text:
+                raise PipelineError("No translatable text was found in this document.")
+            source_language = _resolved_source_language(result.original_text, source_language, result)
+            enforce_text_limit(result.original_text, MAX_TEXT_CHARS)
+
+            _status(status, "Translating document text...", 0.52)
+            chunks = split_for_translation(result.original_text)
+            translated = translate_segments(
+                chunks,
+                source_language,
+                target_language,
+                allow_preview=options.allow_preview_translation,
+                allow_model_download=options.allow_model_download,
+            )
+            result.translated_text = translated.text
+            result.metadata["translation_backend"] = translated.backend
+            result.metadata["text_chunks"] = len(chunks)
+            if translated.warning:
+                result.warnings.append(translated.warning)
+
+            _status(status, "Writing translated document exports...", 0.82)
+            result.artifacts["source_txt"] = write_text(output_dir / "source_document_text.txt", result.original_text)
+            result.artifacts.update(write_document_exports(input_path, result.translated_text, output_dir))
+            result.warnings.append(
+                "Document export is format-preserving best effort for text content. "
+                "Use the Markdown/TXT export for review, or reflow into the original BAIF template when exact layout is required."
+            )
+
+            if options.make_subtitles:
+                segments = segments_from_text(result.translated_text) or normalize_segments([], result.translated_text)
+                result.translated_segments = segments
+                result.artifacts["srt"] = write_text(output_dir / "translated_subtitles.srt", render_srt(segments))
+                result.artifacts["vtt"] = write_text(output_dir / "translated_subtitles.vtt", render_vtt(segments))
+
+        except (DocumentProcessingError, TranslationError, ValueError) as exc:
             raise PipelineError(str(exc)) from exc
 
         _finalize_artifacts(result, output_dir)

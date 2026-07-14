@@ -8,6 +8,7 @@ explicit offline installation validation.
 from __future__ import annotations
 
 import re
+import gc
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -21,8 +22,13 @@ from config.settings import (
     INDICTRANS_MODEL_BY_DIRECTION,
     INDICTRANS_REPO_BY_DIRECTION,
     MYMEMORY_EMAIL,
+    NLLB_CT2_MODEL,
+    NLLB_MODEL,
+    NLLB_MODEL_ID,
     TRANSLATION_BACKEND,
     TRANSLATION_BATCH_SIZE,
+    TRANSLATION_BEAM_SIZE,
+    TRANSLATION_CPU_THREADS,
 )
 
 
@@ -49,12 +55,13 @@ def _direction(source_code: str, target_code: str) -> str:
 
 class IndicTrans2Translator:
     def __init__(self, allow_model_download: bool = ALLOW_MODEL_DOWNLOAD):
-        self._cache: dict[str, tuple[object, object, object]] = {}
+        self._loaded_direction: str | None = None
+        self._loaded: tuple[object, object, object] | None = None
         self.allow_model_download = allow_model_download
 
     def _load(self, direction: str):
-        if direction in self._cache:
-            return self._cache[direction]
+        if direction == self._loaded_direction and self._loaded:
+            return self._loaded
         if direction == "same":
             raise TranslationError("No model is required for same-language translation.")
 
@@ -98,8 +105,12 @@ class IndicTrans2Translator:
                 f"internet-backed open-source model download. Tried: {model_ref}"
             ) from exc
 
-        self._cache[direction] = (tokenizer, model, processor)
-        return self._cache[direction]
+        self._loaded = None
+        self._loaded_direction = None
+        gc.collect()
+        self._loaded = (tokenizer, model, processor)
+        self._loaded_direction = direction
+        return self._loaded
 
     def translate_many(self, texts: list[str], source_name: str, target_name: str) -> TranslationResult:
         source = get_language(source_name)
@@ -132,13 +143,13 @@ class IndicTrans2Translator:
                 )
                 if torch.cuda.is_available():
                     inputs = {key: value.to("cuda") for key, value in inputs.items()}
-                with torch.no_grad():
+                with torch.inference_mode():
                     generated = model.generate(
                         **inputs,
                         use_cache=True,
                         min_length=0,
-                        max_length=512,
-                        num_beams=5,
+                        max_new_tokens=256,
+                        num_beams=max(1, TRANSLATION_BEAM_SIZE),
                         num_return_sequences=1,
                     )
                 decoded = tokenizer.batch_decode(generated, skip_special_tokens=True)
@@ -232,6 +243,161 @@ class HostedHttpTranslator:
         )
 
 
+class NllbTranslator:
+    """Non-gated local open-source translator for the three BAIF languages."""
+
+    def __init__(self, allow_model_download: bool = ALLOW_MODEL_DOWNLOAD):
+        self.allow_model_download = allow_model_download
+        self._loaded: tuple[object, object] | None = None
+
+    def _load(self):
+        if self._loaded:
+            return self._loaded
+
+        from pathlib import Path
+
+        model_ref = NLLB_MODEL if Path(NLLB_MODEL).exists() else NLLB_MODEL_ID
+        if not Path(NLLB_MODEL).exists() and not self.allow_model_download:
+            raise TranslationError(f"NLLB local model folder is missing: {NLLB_MODEL}")
+
+        try:
+            import torch
+            from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        except ImportError as exc:
+            raise TranslationError("NLLB dependencies are not installed. Run 'pip install -r requirements-full.txt'.") from exc
+
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_ref,
+                local_files_only=not self.allow_model_download,
+            )
+            model = AutoModelForSeq2SeqLM.from_pretrained(
+                model_ref,
+                local_files_only=not self.allow_model_download,
+                low_cpu_mem_usage=True,
+            )
+            model.eval()
+            if torch.cuda.is_available():
+                model = model.to("cuda")
+        except Exception as exc:
+            raise TranslationError(
+                "NLLB model files are not available. Install/cache the local NLLB model or enable model download. "
+                f"Tried: {model_ref}"
+            ) from exc
+
+        self._loaded = (tokenizer, model)
+        return self._loaded
+
+    def translate_many(self, texts: list[str], source_name: str, target_name: str) -> TranslationResult:
+        source = get_language(source_name)
+        target = get_language(target_name)
+        cleaned = [text.strip() for text in texts]
+        if source.code == target.code:
+            return TranslationResult(text="\n".join(cleaned), backend="same-language")
+
+        tokenizer, model = self._load()
+        try:
+            import torch
+
+            tokenizer.src_lang = source.indictrans_code
+            target_token_id = tokenizer.convert_tokens_to_ids(target.indictrans_code)
+            if target_token_id in {None, tokenizer.unk_token_id}:
+                raise TranslationError(f"NLLB does not expose target language token: {target.indictrans_code}")
+
+            translated: list[str] = []
+            batch_size = max(1, min(TRANSLATION_BATCH_SIZE, 4))
+            for start in range(0, len(cleaned), batch_size):
+                batch = cleaned[start : start + batch_size]
+                inputs = tokenizer(
+                    batch,
+                    truncation=True,
+                    padding=True,
+                    return_tensors="pt",
+                    max_length=512,
+                )
+                if torch.cuda.is_available():
+                    inputs = {key: value.to("cuda") for key, value in inputs.items()}
+                with torch.inference_mode():
+                    generated = model.generate(
+                        **inputs,
+                        forced_bos_token_id=target_token_id,
+                        max_new_tokens=256,
+                        num_beams=max(1, TRANSLATION_BEAM_SIZE),
+                    )
+                translated.extend(tokenizer.batch_decode(generated, skip_special_tokens=True))
+            return TranslationResult(text="\n".join(translated), backend="NLLB-200 local")
+        except TranslationError:
+            raise
+        except Exception as exc:
+            raise TranslationError(f"NLLB translation failed: {exc}") from exc
+
+
+class CTranslate2NllbTranslator:
+    """INT8 NLLB runtime optimized for CPU-only BAIF workers."""
+
+    def __init__(self):
+        self._loaded: tuple[object, object] | None = None
+
+    def _load(self):
+        if self._loaded:
+            return self._loaded
+        from pathlib import Path
+
+        model_path = Path(NLLB_CT2_MODEL)
+        tokenizer_path = Path(NLLB_MODEL)
+        if not (model_path / "model.bin").exists() or not (tokenizer_path / "tokenizer.json").exists():
+            raise TranslationError("The optimized NLLB model has not been prepared on this worker.")
+        try:
+            import ctranslate2
+            from transformers import AutoTokenizer
+
+            translator = ctranslate2.Translator(
+                str(model_path),
+                device="cpu",
+                compute_type="int8",
+                inter_threads=1,
+                intra_threads=TRANSLATION_CPU_THREADS,
+            )
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, local_files_only=True)
+        except Exception as exc:
+            raise TranslationError(f"Optimized NLLB could not be loaded: {exc}") from exc
+        self._loaded = (translator, tokenizer)
+        return self._loaded
+
+    def translate_many(self, texts: list[str], source_name: str, target_name: str) -> TranslationResult:
+        source = get_language(source_name)
+        target = get_language(target_name)
+        cleaned = [text.strip() for text in texts]
+        if source.code == target.code:
+            return TranslationResult(text="\n".join(cleaned), backend="same-language")
+
+        translator, tokenizer = self._load()
+        try:
+            tokenizer.src_lang = source.indictrans_code
+            translated: list[str] = []
+            batch_size = max(1, min(TRANSLATION_BATCH_SIZE, 8))
+            for start in range(0, len(cleaned), batch_size):
+                batch = cleaned[start : start + batch_size]
+                source_tokens = [
+                    tokenizer.convert_ids_to_tokens(tokenizer.encode(text))
+                    for text in batch
+                ]
+                prefixes = [[target.indictrans_code] for _ in batch]
+                results = translator.translate_batch(
+                    source_tokens,
+                    target_prefix=prefixes,
+                    beam_size=max(1, TRANSLATION_BEAM_SIZE),
+                    max_decoding_length=256,
+                )
+                for result in results:
+                    target_tokens = result.hypotheses[0][1:]
+                    target_ids = tokenizer.convert_tokens_to_ids(target_tokens)
+                    translated.append(tokenizer.decode(target_ids, skip_special_tokens=True))
+            return TranslationResult(text="\n".join(translated), backend="NLLB-200 CTranslate2 INT8")
+        except Exception as exc:
+            raise TranslationError(f"Optimized NLLB translation failed: {exc}") from exc
+
+
 class PreviewPhrasebookTranslator:
     """Small deterministic fallback for setup validation, not production translation."""
 
@@ -314,8 +480,7 @@ class PreviewPhrasebookTranslator:
             text="\n".join(translated_lines),
             backend="preview-phrasebook",
             warning=(
-                "Setup preview phrasebook was used. This is not production translation. "
-                "Install the local IndicTrans2 model for real output."
+                "Preview mode is active so you can keep testing while the final quality models finish setup."
             ),
         )
 
@@ -350,6 +515,8 @@ def get_translator(
 class AutoTranslator:
     def __init__(self, allow_preview: bool = False, allow_model_download: bool = ALLOW_MODEL_DOWNLOAD):
         self.indictrans = IndicTrans2Translator(allow_model_download=allow_model_download)
+        self.nllb_ct2 = CTranslate2NllbTranslator()
+        self.nllb = NllbTranslator(allow_model_download=allow_model_download)
         self.hosted = HostedHttpTranslator()
         self.preview = PreviewPhrasebookTranslator()
         self.allow_preview = allow_preview
@@ -359,6 +526,13 @@ class AutoTranslator:
             return self.indictrans.translate_many(texts, source_name, target_name)
         except TranslationError as exc:
             indic_error = exc
+            try:
+                return self.nllb_ct2.translate_many(texts, source_name, target_name)
+            except TranslationError:
+                try:
+                    return self.nllb.translate_many(texts, source_name, target_name)
+                except TranslationError:
+                    pass
             if ENABLE_HOSTED_TRANSLATION:
                 try:
                     return self.hosted.translate_many(texts, source_name, target_name)
@@ -366,13 +540,11 @@ class AutoTranslator:
                     pass
             if not self.allow_preview:
                 raise TranslationError(
-                    "The provider translation backend is temporarily unavailable. Please try again in a moment."
+                    "The local translation model is not ready for this language direction. "
+                    "Complete model setup and try again."
                 ) from indic_error
             fallback = self.preview.translate_many(texts, source_name, target_name)
-            detail = str(indic_error).strip()
             warning = fallback.warning or "Setup preview phrasebook was used."
-            if detail:
-                warning = f"{warning} IndicTrans2 was unavailable: {detail}"
             return TranslationResult(text=fallback.text, backend=fallback.backend, warning=warning)
 
 

@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from config.settings import AUDIO_EXTENSIONS, FFMPEG_BINARY, FFPROBE_BINARY, TEXT_EXTENSIONS, VIDEO_EXTENSIONS
+from config.settings import AUDIO_EXTENSIONS, DOCUMENT_EXTENSIONS, FFMPEG_BINARY, FFPROBE_BINARY, TEXT_EXTENSIONS, VIDEO_EXTENSIONS
 
 
 class MediaError(RuntimeError):
@@ -30,6 +30,8 @@ def detect_input_type(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix in TEXT_EXTENSIONS:
         return "text"
+    if suffix in DOCUMENT_EXTENSIONS:
+        return "document"
     if suffix in AUDIO_EXTENSIONS:
         return "audio"
     if suffix in VIDEO_EXTENSIONS:

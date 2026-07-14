@@ -13,6 +13,8 @@ from config.settings import (
     ALLOWED_EXTENSIONS,
     COMPRESSED_AUDIO_EXTENSIONS,
     COMPRESSED_AUDIO_MAX_UPLOAD_MB,
+    DOCUMENT_EXTENSIONS,
+    DOCUMENT_MAX_UPLOAD_MB,
     TEXT_EXTENSIONS,
     TEXT_MAX_UPLOAD_MB,
     UNCOMPRESSED_AUDIO_EXTENSIONS,
@@ -60,6 +62,8 @@ def max_upload_bytes_for_extension(suffix: str) -> int:
         return VIDEO_MAX_UPLOAD_MB * 1024 * 1024
     if suffix in TEXT_EXTENSIONS:
         return TEXT_MAX_UPLOAD_MB * 1024 * 1024
+    if suffix in DOCUMENT_EXTENSIONS:
+        return DOCUMENT_MAX_UPLOAD_MB * 1024 * 1024
     return max(VIDEO_MAX_UPLOAD_MB, UNCOMPRESSED_AUDIO_MAX_UPLOAD_MB) * 1024 * 1024
 
 
@@ -72,6 +76,8 @@ def upload_limit_label(suffix: str) -> str:
         return f"{VIDEO_MAX_UPLOAD_MB} MB for video"
     if suffix in TEXT_EXTENSIONS:
         return f"{TEXT_MAX_UPLOAD_MB} MB for text"
+    if suffix in DOCUMENT_EXTENSIONS:
+        return f"{DOCUMENT_MAX_UPLOAD_MB} MB for documents"
     return "the configured upload limit"
 
 
