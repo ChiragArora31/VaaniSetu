@@ -7,6 +7,7 @@ Run from the project root:
 from __future__ import annotations
 
 import argparse
+import shutil
 from pathlib import Path
 
 from huggingface_hub import snapshot_download
@@ -32,13 +33,25 @@ MODELS = {
         "ai4bharat/indictrans2-en-indic-1B",
         ROOT / "models" / "indictrans2" / "indictrans2-en-indic-1B",
     ),
+    "indictrans-en-indic-dist": (
+        "ai4bharat/indictrans2-en-indic-dist-200M",
+        ROOT / "models" / "indictrans2" / "indictrans2-en-indic-dist-200M",
+    ),
     "indictrans-indic-en": (
         "ai4bharat/indictrans2-indic-en-1B",
         ROOT / "models" / "indictrans2" / "indictrans2-indic-en-1B",
     ),
+    "indictrans-indic-en-dist": (
+        "ai4bharat/indictrans2-indic-en-dist-200M",
+        ROOT / "models" / "indictrans2" / "indictrans2-indic-en-dist-200M",
+    ),
     "indictrans-indic-indic": (
         "ai4bharat/indictrans2-indic-indic-1B",
         ROOT / "models" / "indictrans2" / "indictrans2-indic-indic-1B",
+    ),
+    "indictrans-indic-indic-dist": (
+        "ai4bharat/indictrans2-indic-indic-dist-320M",
+        ROOT / "models" / "indictrans2" / "indictrans2-indic-indic-dist-320M",
     ),
     "indic-parler-tts": (
         "ai4bharat/indic-parler-tts",
@@ -47,6 +60,10 @@ MODELS = {
     "indic-conformer": (
         "ai4bharat/indic-conformer-600m-multilingual",
         ROOT / "models" / "indic-conformer-600m-multilingual",
+    ),
+    "nllb": (
+        "facebook/nllb-200-distilled-600M",
+        ROOT / "models" / "nllb" / "nllb-200-distilled-600M",
     ),
 }
 
@@ -61,6 +78,18 @@ CORE_TRANSLATION_MODELS = [
     "indictrans-indic-en",
     "indictrans-indic-indic",
 ]
+
+DIST_TRANSLATION_MODELS = [
+    "indictrans-en-indic-dist",
+    "indictrans-indic-en-dist",
+    "indictrans-indic-indic-dist",
+]
+
+GATED_OPTIONAL_MODELS = set(
+    CORE_TRANSLATION_MODELS
+    + DIST_TRANSLATION_MODELS
+    + ["indic-parler-tts", "indic-conformer"]
+)
 
 
 def main() -> None:
@@ -99,23 +128,36 @@ def main() -> None:
     else:
         selected = list(PROFILE_MODELS[args.profile])
         if args.with_translation:
-            selected.extend(CORE_TRANSLATION_MODELS)
+            selected.append("nllb")
+            selected.extend(CORE_TRANSLATION_MODELS if args.profile == "quality" else DIST_TRANSLATION_MODELS)
         if args.with_tts:
             selected.append("indic-parler-tts")
         if args.with_indic_asr:
             selected.append("indic-conformer")
 
-    for name in selected:
+    failures: list[str] = []
+    for name in dict.fromkeys(selected):
         repo_id, target = MODELS[name]
         target.mkdir(parents=True, exist_ok=True)
         print(f"Downloading {repo_id} -> {target}")
-        snapshot_download(
-            repo_id=repo_id,
-            local_dir=str(target),
-            local_dir_use_symlinks=False,
-            resume_download=True,
-        )
+        try:
+            snapshot_download(
+                repo_id=repo_id,
+                local_dir=str(target),
+                local_dir_use_symlinks=False,
+            )
+        except Exception as exc:
+            if not (target / "config.json").exists():
+                shutil.rmtree(target, ignore_errors=True)
+            if name not in GATED_OPTIONAL_MODELS:
+                raise
+            failures.append(name)
+            print(f"Optional model unavailable: {name} ({exc.__class__.__name__})")
+            print("Accept its Hugging Face access conditions and set HF_TOKEN, then rerun setup.")
     print("Model setup complete.")
+    if failures:
+        print("The local NLLB translation fallback remains available.")
+        print("Quality upgrades still pending: " + ", ".join(failures))
 
 
 if __name__ == "__main__":
