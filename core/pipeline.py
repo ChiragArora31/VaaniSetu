@@ -233,6 +233,50 @@ class TranslationPipeline:
         _status(status, "Done.", 1.0)
         return result
 
+    def process_approved_memory(
+        self,
+        source_text: str,
+        translated_text: str,
+        source_language: str,
+        target_language: str,
+        provenance: dict[str, str | int],
+        options: ProcessingOptions,
+        status: StatusCallback | None = None,
+    ) -> PipelineResult:
+        job_id, _temp_dir, output_dir = create_job_dirs(TEMP_DIR, OUTPUT_DIR)
+        result = PipelineResult(
+            job_id=job_id,
+            input_type="text",
+            source_language=source_language,
+            target_language=target_language,
+            original_text=normalize_text(source_text),
+            translated_text=normalize_text(translated_text),
+        )
+        if not result.original_text or not result.translated_text:
+            raise PipelineError("Approved translation memory entry is incomplete.")
+        result.metadata["translation_backend"] = "approved-memory"
+        result.metadata["model_download"] = "disabled"
+        result.metadata["model_profile"] = MODEL_PROFILE
+        for key, value in provenance.items():
+            result.metadata[f"translation_memory_{key}"] = value
+        result.warnings.append(
+            "This output reused an exact approved correction from the local translation memory."
+        )
+
+        _status(status, "Reusing approved local correction...", 0.7)
+        result.artifacts["translated_txt"] = write_text(output_dir / "translated_text.txt", result.translated_text)
+        result.artifacts["source_txt"] = write_text(output_dir / "source_text.txt", result.original_text)
+        if options.make_subtitles:
+            segments = segments_from_text(result.translated_text) or normalize_segments([], result.translated_text)
+            result.translated_segments = segments
+            result.artifacts["srt"] = write_text(output_dir / "translated_subtitles.srt", render_srt(segments))
+            result.artifacts["vtt"] = write_text(output_dir / "translated_subtitles.vtt", render_vtt(segments))
+        if options.make_tts:
+            self._maybe_make_tts(result, output_dir)
+        _finalize_artifacts(result, output_dir)
+        _status(status, "Done.", 1.0)
+        return result
+
     def process_file(
         self,
         input_path: Path,

@@ -14,6 +14,8 @@ const state = {
     csrfToken: "",
     mode: "login",
   },
+  currentJobId: "",
+  currentReviewVersion: null,
 };
 
 const els = {
@@ -53,6 +55,11 @@ const els = {
   zipDownload: document.querySelector("#zipDownload"),
   originalText: document.querySelector("#originalText"),
   translatedText: document.querySelector("#translatedText"),
+  correctedText: document.querySelector("#correctedText"),
+  saveCorrection: document.querySelector("#saveCorrection"),
+  approveCorrection: document.querySelector("#approveCorrection"),
+  reviewStatus: document.querySelector("#reviewStatus"),
+  reviewMessage: document.querySelector("#reviewMessage"),
   errorPanel: document.querySelector("#errorPanel"),
   errorText: document.querySelector("#errorText"),
   meterCanvas: document.querySelector("#meterCanvas"),
@@ -61,6 +68,7 @@ const els = {
   readinessList: document.querySelector("#readinessList"),
   recentCount: document.querySelector("#recentCount"),
   recentList: document.querySelector("#recentList"),
+  librarySearch: document.querySelector("#librarySearch"),
   outputSummary: document.querySelector("#outputSummary"),
   makeTts: document.querySelector("#makeTts"),
   makeSubtitles: document.querySelector("#makeSubtitles"),
@@ -458,6 +466,11 @@ function resetResult() {
   els.warningList.innerHTML = "";
   els.originalText.textContent = "";
   els.translatedText.textContent = "";
+  els.correctedText.value = "";
+  els.reviewStatus.textContent = "Not approved";
+  els.reviewMessage.textContent = "";
+  state.currentJobId = "";
+  state.currentReviewVersion = null;
 }
 
 function resetRecording() {
@@ -632,9 +645,16 @@ function renderDownloads(artifacts) {
     srt: "SRT",
     vtt: "VTT",
     job_report: "Details",
+    approved_corrected_package: "Approved package",
   };
   els.downloadActions.innerHTML = "";
-  ["tts_mp3", "tts_wav", "captioned_video", "translated_video", "translated_txt", "translated_markdown", "translated_table", "source_txt", "srt", "vtt", "job_report"].forEach((key) => {
+  Object.keys(artifacts)
+    .filter((key) => key.startsWith("corrected_txt_v"))
+    .sort()
+    .forEach((key) => {
+      labels[key] = `Correction ${key.replace("corrected_txt_v", "v")}`;
+    });
+  ["approved_corrected_package", "tts_mp3", "tts_wav", "captioned_video", "translated_video", "translated_txt", "translated_markdown", "translated_table", "source_txt", "srt", "vtt", "job_report", ...Object.keys(artifacts).filter((key) => key.startsWith("corrected_txt_v")).sort()].forEach((key) => {
     if (!artifacts[key]) return;
     const link = document.createElement("a");
     link.className = "download-pill";
@@ -661,6 +681,8 @@ function renderWarnings(warnings) {
 
 function renderResult(payload) {
   els.progressPanel.classList.add("hidden");
+  state.currentJobId = payload.job_id || "";
+  state.currentReviewVersion = null;
   const artifacts = artifactMap(payload.artifacts || []);
   const voice = artifacts.tts_mp3 || artifacts.tts_wav;
   if (voice) {
@@ -679,9 +701,13 @@ function renderResult(payload) {
   els.resultTitle.textContent = `${payload.source_language} to ${payload.target_language}`;
   els.originalText.textContent = payload.original_text || "No transcript returned.";
   els.translatedText.textContent = payload.translated_text || "No translation returned.";
+  els.correctedText.value = payload.translated_text || "";
+  els.reviewStatus.textContent = "Checking";
+  els.reviewMessage.textContent = "";
   renderWarnings(payload.warnings || []);
   renderDownloads(artifacts);
   els.resultPanel.classList.remove("hidden");
+  loadReview(payload.job_id);
   loadHistory();
 }
 
@@ -695,26 +721,38 @@ function renderHistory(items) {
     els.recentList.appendChild(empty);
     return;
   }
-  items.slice(0, 6).forEach((item) => {
+  items.slice(0, 10).forEach((item) => {
+    const result = item.result || item;
     const row = document.createElement("article");
     row.className = "recent-item";
 
     const copy = document.createElement("div");
     const title = document.createElement("strong");
-    title.textContent = `${item.source_language} to ${item.target_language}`;
+    title.textContent = `${result.source_language} to ${result.target_language}`;
     const meta = document.createElement("span");
-    meta.textContent = `${item.input_type} · ${new Date(item.created_at).toLocaleString()}`;
+    const createdAt = item.created_at || result.created_at || "";
+    meta.textContent = `${result.input_type || item.kind} · ${item.status || "saved"}${createdAt ? ` · ${new Date(createdAt).toLocaleString()}` : ""}`;
     copy.append(title, meta);
     row.appendChild(copy);
 
-    if (item.artifacts?.bundle_zip) {
+    const actions = document.createElement("div");
+    actions.className = "recent-actions";
+    const review = document.createElement("button");
+    review.className = "secondary-action compact";
+    review.type = "button";
+    review.textContent = "Review";
+    review.addEventListener("click", () => openLibraryJob(item.job_id || result.job_id));
+    actions.appendChild(review);
+    const bundle = (result.artifacts || []).find?.((artifact) => artifact.key === "bundle_zip") || null;
+    if (bundle || item.artifacts?.bundle_zip) {
       const link = document.createElement("a");
       link.className = "download-pill";
-      link.href = artifactDownloadUrl(item.job_id, "bundle_zip");
-      link.download = "vaanisetu_outputs.zip";
+      link.href = artifactDownloadUrl(item.job_id || result.job_id, "bundle_zip");
+      link.download = bundle?.filename || "vaanisetu_outputs.zip";
       link.textContent = "Package";
-      row.appendChild(link);
+      actions.appendChild(link);
     }
+    row.appendChild(actions);
     els.recentList.appendChild(row);
   });
 }
@@ -722,12 +760,82 @@ function renderHistory(items) {
 async function loadHistory() {
   if (!state.auth.user) return;
   try {
-    const response = await apiFetch("/history?limit=6");
+    const params = new URLSearchParams({ limit: "50" });
+    const query = els.librarySearch?.value.trim();
+    if (query) params.set("q", query);
+    const response = await apiFetch(`/library?${params.toString()}`);
     if (!response.ok) return;
     const payload = await response.json();
     renderHistory(payload.items || []);
   } catch {
     renderHistory([]);
+  }
+}
+
+async function openLibraryJob(jobId) {
+  if (!jobId) return;
+  clearError();
+  try {
+    const response = await apiFetch(`/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Could not open this job.");
+    if (!payload.result) throw new Error("This job is not ready for review.");
+    renderResult(payload.result);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (error) {
+    showError(error.message || "Could not open this job.");
+  }
+}
+
+async function loadReview(jobId) {
+  if (!jobId) return;
+  try {
+    const response = await apiFetch(`/jobs/${encodeURIComponent(jobId)}/review`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Review unavailable");
+    const review = await response.json();
+    state.currentReviewVersion = review.versions?.at(-1)?.version || null;
+    els.reviewStatus.textContent = review.status === "approved" ? `Approved v${review.approved_version}` : `${review.versions?.length || 0} corrections`;
+  } catch {
+    els.reviewStatus.textContent = "Not approved";
+  }
+}
+
+async function saveCorrection() {
+  if (!state.currentJobId) return;
+  els.reviewMessage.textContent = "";
+  try {
+    const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentJobId)}/review/corrections`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ corrected_text: els.correctedText.value }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Could not save correction.");
+    state.currentReviewVersion = payload.versions?.at(-1)?.version || null;
+    els.reviewStatus.textContent = `${payload.versions.length} corrections`;
+    els.reviewMessage.textContent = "Correction saved. Approve it when reviewed.";
+    openLibraryJob(state.currentJobId);
+  } catch (error) {
+    els.reviewMessage.textContent = error.message || "Could not save correction.";
+  }
+}
+
+async function approveCorrection() {
+  if (!state.currentJobId) return;
+  els.reviewMessage.textContent = "";
+  try {
+    const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentJobId)}/review/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: state.currentReviewVersion }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Could not approve correction.");
+    els.reviewStatus.textContent = `Approved v${payload.approved_version}`;
+    els.reviewMessage.textContent = "Approved package and translation memory updated.";
+    openLibraryJob(state.currentJobId);
+  } catch (error) {
+    els.reviewMessage.textContent = error.message || "Could not approve correction.";
   }
 }
 
@@ -917,6 +1025,12 @@ els.modeTabs.forEach((tab) => {
 });
 
 els.translateText.addEventListener("click", processTextInput);
+els.saveCorrection.addEventListener("click", saveCorrection);
+els.approveCorrection.addEventListener("click", approveCorrection);
+els.librarySearch.addEventListener("input", () => {
+  window.clearTimeout(state.libraryTimer);
+  state.libraryTimer = window.setTimeout(loadHistory, 250);
+});
 
 els.fileInput.addEventListener("change", () => {
   clearError();

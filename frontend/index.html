@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css?v=20260715-auth-1" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260715-review-1" />
   </head>
   <body>
     <main class="shell">
@@ -193,6 +193,22 @@
               </article>
             </div>
           </details>
+
+          <details class="review-box">
+            <summary>
+              <span>Human review</span>
+              <span id="reviewStatus">Not approved</span>
+            </summary>
+            <label for="correctedText">
+              <span>Corrected translation</span>
+              <textarea id="correctedText" rows="7" placeholder="Edit the translated text here after review"></textarea>
+            </label>
+            <div class="review-actions">
+              <button class="secondary-action" id="saveCorrection" type="button">Save correction</button>
+              <button class="translate-action" id="approveCorrection" type="button">Approve final</button>
+            </div>
+            <p class="review-message" id="reviewMessage"></p>
+          </details>
         </section>
 
         <section class="error-panel hidden" id="errorPanel" aria-live="assertive">
@@ -202,9 +218,13 @@
 
       <details class="recent-panel hidden" data-auth-required>
         <summary>
-          <span>Recent translations</span>
+          <span>Reusable library</span>
           <span id="recentCount">0 saved</span>
         </summary>
+        <label class="library-search">
+          <span>Search</span>
+          <input id="librarySearch" placeholder="Search language, filename, text, or status" />
+        </label>
         <div class="recent-list" id="recentList"></div>
       </details>
 
@@ -244,6 +264,6 @@
       </details>
     </main>
 
-    <script src="/static/app.js?v=20260715-auth-1"></script>
+    <script src="/static/app.js?v=20260715-review-1"></script>
   </body>
 </html>

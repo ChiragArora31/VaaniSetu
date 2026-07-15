@@ -38,6 +38,7 @@ from core.health import collect_health_checks
 from core.job_manager import JobManager, JobQueueFullError
 from core.observability import configure_logging
 from core.pipeline import PipelineError, PipelineResult, ProcessingOptions, TranslationPipeline
+from core.review_store import ReviewRecord, ReviewStore
 from core.user_messages import user_safe_error
 
 
@@ -95,6 +96,7 @@ job_manager = JobManager(
     max_pending=MAX_PENDING_JOBS,
 )
 auth_store = AuthStore(OUTPUT_DIR / ".auth" / "auth.json")
+review_store = ReviewStore(OUTPUT_DIR / ".reviews")
 FRONTEND_DIR = BASE_DIR / "frontend"
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -108,6 +110,7 @@ class TextRequest(BaseModel):
     make_tts: bool = False
     allow_preview_translation: bool = False
     allow_model_download: bool = False
+    use_translation_memory: bool = True
 
 
 class AuthRequest(BaseModel):
@@ -168,6 +171,29 @@ class HistoryResponse(BaseModel):
     items: list[HistoryItem]
 
 
+class ReviewVersionResponse(BaseModel):
+    version: int
+    created_at: str
+    created_by: str
+    artifact_key: str
+
+
+class ReviewResponse(BaseModel):
+    status: str
+    versions: list[ReviewVersionResponse]
+    approved_version: int | None = None
+    approved_at: str | None = None
+    approved_by: str | None = None
+
+
+class CorrectionRequest(BaseModel):
+    corrected_text: str = Field(min_length=1)
+
+
+class ApprovalRequest(BaseModel):
+    version: int | None = None
+
+
 class JobAccepted(BaseModel):
     job_id: str
     status: str
@@ -185,6 +211,11 @@ class JobStatusResponse(BaseModel):
     completed_at: str | None = None
     result: JobResponse | None = None
     error: str | None = None
+
+
+class LibraryResponse(BaseModel):
+    items: list[JobStatusResponse]
+    storage_bytes: int
 
 
 def _public_user(user: UserRecord) -> UserPublic:
@@ -480,9 +511,111 @@ def _job_status(record) -> JobStatusResponse:
         created_at=record.created_at,
         started_at=record.started_at,
         completed_at=record.completed_at,
-        result=JobResponse.model_validate(record.result) if record.result else None,
+        result=_fresh_job_response(record) if record.result else None,
         error=user_safe_error(record.error) if record.error else None,
     )
+
+
+def _fresh_job_response(record) -> JobResponse:
+    response = JobResponse.model_validate(record.result)
+    output_job_id = response.job_id
+    report_path = OUTPUT_DIR / output_job_id / "job_report.json"
+    if not report_path.exists():
+        return response
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return response
+    artifacts = []
+    for key, filename in sorted(report.get("artifacts", {}).items()):
+        path = OUTPUT_DIR / output_job_id / str(filename)
+        if path.exists():
+            artifacts.append(
+                Artifact(
+                    key=str(key),
+                    filename=path.name,
+                    download_url=f"/jobs/{output_job_id}/artifacts/{key}",
+                )
+            )
+    if artifacts:
+        response.artifacts = artifacts
+    return response
+
+
+def _record_for_job_id(job_id: str):
+    record = job_manager.get(job_id)
+    if record:
+        return record
+    for candidate in job_manager.recent(1000):
+        result = candidate.result or {}
+        if str(result.get("job_id", "")) == job_id:
+            return candidate
+    return None
+
+
+def _review_response(review: ReviewRecord) -> ReviewResponse:
+    return ReviewResponse(
+        status=review.status,
+        versions=[
+            ReviewVersionResponse(
+                version=item.version,
+                created_at=item.created_at,
+                created_by=item.created_by,
+                artifact_key=item.artifact_key,
+            )
+            for item in review.versions
+        ],
+        approved_version=review.approved_version,
+        approved_at=review.approved_at,
+        approved_by=review.approved_by,
+    )
+
+
+def _job_result_or_404(job_id: str) -> JobResponse:
+    record = _record_for_job_id(job_id)
+    if not record or not record.result:
+        raise HTTPException(status_code=404, detail="Completed job not found")
+    return _fresh_job_response(record)
+
+
+def _storage_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+    total = 0
+    for item in path.rglob("*"):
+        try:
+            if item.is_file():
+                total += item.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def _matches_filter(record, query: str, input_type: str, source_language: str, target_language: str, status: str) -> bool:
+    if status and record.status != status:
+        return False
+    result = record.result or {}
+    if input_type and str(result.get("input_type", record.kind)) != input_type:
+        return False
+    if source_language and str(result.get("source_language", "")) != source_language:
+        return False
+    if target_language and str(result.get("target_language", "")) != target_language:
+        return False
+    if query:
+        haystack = " ".join(
+            [
+                record.job_id,
+                record.kind,
+                str(result.get("input_type", "")),
+                str(result.get("source_language", "")),
+                str(result.get("target_language", "")),
+                str(result.get("original_text", ""))[:500],
+                str(result.get("translated_text", ""))[:500],
+                " ".join(str(value) for value in result.get("metadata", {}).values()),
+            ]
+        ).lower()
+        return query.lower() in haystack
+    return True
 
 
 @app.get("/jobs", response_model=list[JobStatusResponse])
@@ -498,10 +631,138 @@ def queued_job(
     job_id: str,
     _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
 ):
-    record = job_manager.get(job_id)
+    record = _record_for_job_id(job_id)
     if not record:
         raise HTTPException(status_code=404, detail="Job not found")
     return _job_status(record)
+
+
+@app.get("/library", response_model=LibraryResponse)
+def library(
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
+    q: str = "",
+    input_type: str = "",
+    source_language: str = "",
+    target_language: str = "",
+    status: str = "",
+    limit: int = 50,
+):
+    records = [
+        record
+        for record in job_manager.recent(max(1, min(limit, 200)))
+        if _matches_filter(record, q.strip(), input_type, source_language, target_language, status)
+    ]
+    return LibraryResponse(items=[_job_status(record) for record in records], storage_bytes=_storage_bytes(OUTPUT_DIR))
+
+
+@app.post("/jobs/{job_id}/cancel", response_model=JobStatusResponse)
+def cancel_job(
+    job_id: str,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
+    existing = _record_for_job_id(job_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Job not found")
+    record = job_manager.cancel(existing.job_id)
+    return _job_status(record)
+
+
+@app.post("/jobs/{job_id}/retry", response_model=JobAccepted, status_code=202)
+def retry_job(
+    job_id: str,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
+    previous = _job_result_or_404(job_id)
+    if not previous.original_text.strip():
+        raise HTTPException(status_code=422, detail="This job does not have reusable source text.")
+
+    def task(status):
+        with pipeline_lock:
+            result = pipeline.process_text(
+                previous.original_text,
+                previous.source_language,
+                previous.target_language,
+                ProcessingOptions(
+                    make_subtitles=any(artifact.key in {"srt", "vtt"} for artifact in previous.artifacts),
+                    make_tts=False,
+                    allow_preview_translation=False,
+                    allow_model_download=False,
+                ),
+                status,
+            )
+        return _response(result).model_dump()
+
+    try:
+        return _accepted(job_manager.submit("retry", task))
+    except JobQueueFullError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+
+
+@app.delete("/jobs/{job_id}", response_model=AuthMessage)
+def delete_job(
+    job_id: str,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
+    record = _record_for_job_id(job_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Job not found")
+    output_job_id = str((record.result or {}).get("job_id") or record.job_id)
+    try:
+        deleted = job_manager.delete(record.job_id, None)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Job not found")
+    import shutil
+
+    shutil.rmtree(OUTPUT_DIR / output_job_id, ignore_errors=True)
+    review_store.delete(output_job_id)
+    return AuthMessage(message="Job deleted.")
+
+
+@app.get("/jobs/{job_id}/review", response_model=ReviewResponse)
+def get_review(
+    job_id: str,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
+):
+    job = _job_result_or_404(job_id)
+    return _review_response(review_store.get_review(job.job_id))
+
+
+@app.post("/jobs/{job_id}/review/corrections", response_model=ReviewResponse)
+def save_correction(
+    job_id: str,
+    request: CorrectionRequest,
+    auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
+    job = _job_result_or_404(job_id)
+    try:
+        review = review_store.save_correction(job.job_id, request.corrected_text, auth[0].username, OUTPUT_DIR / job.job_id)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _review_response(review)
+
+
+@app.post("/jobs/{job_id}/review/approve", response_model=ReviewResponse)
+def approve_correction(
+    job_id: str,
+    request: ApprovalRequest,
+    auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
+    job = _job_result_or_404(job_id)
+    try:
+        review = review_store.approve(
+            job.job_id,
+            request.version,
+            auth[0].username,
+            job.original_text,
+            job.source_language,
+            job.target_language,
+            OUTPUT_DIR / job.job_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _review_response(review)
 
 
 @app.post("/jobs/text", response_model=JobAccepted, status_code=202)
@@ -514,18 +775,37 @@ def queue_text_translation(
 
     def task(status):
         with pipeline_lock:
-            result = pipeline.process_text(
-                request.text,
-                request.source_language,
-                request.target_language,
-                _options(
-                    make_subtitles=request.make_subtitles,
-                    make_tts=request.make_tts,
-                    allow_preview_translation=request.allow_preview_translation,
-                    allow_model_download=request.allow_model_download,
-                ),
-                status,
+            options = _options(
+                make_subtitles=request.make_subtitles,
+                make_tts=request.make_tts,
+                allow_preview_translation=request.allow_preview_translation,
+                allow_model_download=request.allow_model_download,
             )
+            memory = None
+            if request.use_translation_memory and request.source_language != "Auto detect":
+                memory = review_store.find_memory(request.text, request.source_language, request.target_language)
+            if memory:
+                result = pipeline.process_approved_memory(
+                    request.text,
+                    memory.corrected_text,
+                    request.source_language,
+                    request.target_language,
+                    {
+                        "job_id": memory.job_id,
+                        "version": memory.version,
+                        "approved_at": memory.approved_at,
+                    },
+                    options,
+                    status,
+                )
+            else:
+                result = pipeline.process_text(
+                    request.text,
+                    request.source_language,
+                    request.target_language,
+                    options,
+                    status,
+                )
         return _response(result).model_dump()
 
     try:
@@ -654,17 +934,35 @@ def translate_text(
     _validate_target_language(request.target_language)
     try:
         with pipeline_lock:
-            result = pipeline.process_text(
-                request.text,
-                request.source_language,
-                request.target_language,
-                _options(
-                    make_subtitles=request.make_subtitles,
-                    make_tts=request.make_tts,
-                    allow_preview_translation=request.allow_preview_translation,
-                    allow_model_download=request.allow_model_download,
-                ),
+            options = _options(
+                make_subtitles=request.make_subtitles,
+                make_tts=request.make_tts,
+                allow_preview_translation=request.allow_preview_translation,
+                allow_model_download=request.allow_model_download,
             )
+            memory = None
+            if request.use_translation_memory and request.source_language != "Auto detect":
+                memory = review_store.find_memory(request.text, request.source_language, request.target_language)
+            if memory:
+                result = pipeline.process_approved_memory(
+                    request.text,
+                    memory.corrected_text,
+                    request.source_language,
+                    request.target_language,
+                    {
+                        "job_id": memory.job_id,
+                        "version": memory.version,
+                        "approved_at": memory.approved_at,
+                    },
+                    options,
+                )
+            else:
+                result = pipeline.process_text(
+                    request.text,
+                    request.source_language,
+                    request.target_language,
+                    options,
+                )
     except PipelineError as exc:
         raise HTTPException(status_code=422, detail=user_safe_error(str(exc))) from exc
     return _response(result)

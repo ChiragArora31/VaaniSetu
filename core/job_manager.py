@@ -6,6 +6,7 @@ import json
 import logging
 import threading
 import uuid
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -22,6 +23,10 @@ class JobQueueFullError(RuntimeError):
     """Raised when the worker cannot safely accept more queued work."""
 
 
+class JobCancelledError(RuntimeError):
+    """Raised when a queued or running job is cooperatively cancelled."""
+
+
 @dataclass
 class JobRecord:
     job_id: str
@@ -34,6 +39,7 @@ class JobRecord:
     completed_at: str | None = None
     result: dict | None = None
     error: str | None = None
+    cancel_requested: bool = False
 
 
 class JobManager:
@@ -89,6 +95,13 @@ class JobManager:
     def _run(self, job_id: str, task: JobTask) -> None:
         with self._lock:
             record = self._jobs[job_id]
+            if record.cancel_requested:
+                record.status = "cancelled"
+                record.progress = 0.0
+                record.message = "Cancelled"
+                record.completed_at = datetime.now(timezone.utc).isoformat()
+                self._persist(record)
+                return
             record.status = "running"
             record.progress = max(record.progress, 0.01)
             record.message = "Starting processing..."
@@ -102,12 +115,27 @@ class JobManager:
         def update(message: str, progress: float) -> None:
             with self._lock:
                 current = self._jobs[job_id]
+                if current.cancel_requested:
+                    raise JobCancelledError("Translation was cancelled.")
                 current.progress = max(current.progress, min(0.99, max(0.0, float(progress))))
                 current.message = message
                 self._persist(current)
 
         try:
             result = task(update)
+        except JobCancelledError as exc:
+            with self._lock:
+                record = self._jobs[job_id]
+                record.status = "cancelled"
+                record.message = "Cancelled"
+                record.error = str(exc)
+                record.completed_at = datetime.now(timezone.utc).isoformat()
+                self._persist(record)
+                logger.info(
+                    "Job cancelled",
+                    extra={"event": "job_cancelled", "job_id": record.job_id, "kind": record.kind},
+                )
+            return
         except Exception as exc:
             with self._lock:
                 record = self._jobs[job_id]
@@ -145,12 +173,40 @@ class JobManager:
 
     def summary(self) -> dict[str, int]:
         with self._lock:
-            counts = {"queued": 0, "running": 0, "succeeded": 0, "failed": 0}
+            counts = {"queued": 0, "running": 0, "succeeded": 0, "failed": 0, "cancelled": 0}
             for record in self._jobs.values():
                 if record.status in counts:
                     counts[record.status] += 1
             counts["capacity"] = self.max_pending
             return counts
+
+    def cancel(self, job_id: str) -> JobRecord | None:
+        with self._lock:
+            record = self._jobs.get(job_id)
+            if not record:
+                return None
+            if record.status in {"succeeded", "failed", "cancelled"}:
+                return record
+            record.cancel_requested = True
+            record.message = "Cancellation requested"
+            if record.status == "queued":
+                record.status = "cancelled"
+                record.completed_at = datetime.now(timezone.utc).isoformat()
+            self._persist(record)
+            return record
+
+    def delete(self, job_id: str, output_dir: Path | None = None) -> bool:
+        with self._lock:
+            record = self._jobs.get(job_id)
+            if not record:
+                return False
+            if record.status in {"queued", "running"}:
+                raise RuntimeError("Cancel the active job before deleting it.")
+            self._jobs.pop(job_id, None)
+            self._path(job_id).unlink(missing_ok=True)
+        if output_dir:
+            shutil.rmtree(output_dir / job_id, ignore_errors=True)
+        return True
 
     def shutdown(self) -> None:
         self._executor.shutdown(wait=True, cancel_futures=False)

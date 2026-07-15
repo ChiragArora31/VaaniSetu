@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -23,6 +24,7 @@ from core.asr_cleanup import clean_indic_asr_text
 from core.document_processor import extract_document_text
 from core.media_utils import MediaInfo
 from core.pipeline import ProcessingOptions, TranslationPipeline, _validate_media_constraints
+from core.review_store import ReviewStore
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
 from core.text_utils import detect_language_name, normalize_text, split_for_translation
 from core.translator import HostedHttpTranslator, TranslationError
@@ -159,6 +161,22 @@ class PipelineTest(unittest.TestCase):
             self.assertIn("translated_txt", result.artifacts)
             self.assertIn("translated_markdown", result.artifacts)
             self.assertIn("translated_table", result.artifacts)
+
+    def test_approved_memory_pipeline_generates_auditable_package(self):
+        pipeline = TranslationPipeline()
+        result = pipeline.process_approved_memory(
+            "hello farmer water",
+            "सुधारित अनुवाद",
+            "English",
+            "Hindi",
+            {"job_id": "reviewed123", "version": 2, "approved_at": "2026-07-15T00:00:00+00:00"},
+            ProcessingOptions(make_subtitles=True, allow_model_download=False),
+        )
+        self.assertEqual(result.metadata["translation_backend"], "approved-memory")
+        self.assertEqual(result.metadata["translation_memory_job_id"], "reviewed123")
+        self.assertIn("exact approved correction", result.warnings[0])
+        self.assertIn("bundle_zip", result.artifacts)
+        self.assertTrue(result.artifacts["bundle_zip"].exists())
 
 
 class DocumentProcessorTest(unittest.TestCase):
@@ -361,6 +379,137 @@ class ApiAuthTest(unittest.TestCase):
                 self.assertEqual(user_client.get("/history").status_code, 401)
             finally:
                 api_module.auth_store = previous_store
+
+
+class ReviewWorkflowTest(unittest.TestCase):
+    def test_review_store_versions_approval_memory_and_delete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job_dir = root / "job123"
+            job_dir.mkdir()
+            (job_dir / "job_report.json").write_text(
+                json.dumps({"artifacts": {"translated_txt": "translated_text.txt"}}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            store = ReviewStore(root / ".reviews")
+
+            draft = store.save_correction("job123", "सुधारित अनुवाद", "trainer", job_dir)
+            self.assertEqual(len(draft.versions), 1)
+            self.assertTrue((job_dir / "corrected_translation_v1.txt").exists())
+
+            approved = store.approve(
+                "job123",
+                None,
+                "trainer",
+                "hello farmer water",
+                "English",
+                "Hindi",
+                job_dir,
+            )
+            self.assertEqual(approved.status, "approved")
+            memory = store.find_memory("hello farmer water", "English", "Hindi")
+            self.assertIsNotNone(memory)
+            self.assertEqual(memory.corrected_text, "सुधारित अनुवाद")
+            self.assertTrue((job_dir / "approved_corrected_package.zip").exists())
+
+            store.delete("job123")
+            self.assertIsNone(store.find_memory("hello farmer water", "English", "Hindi"))
+
+    def test_api_review_library_and_safe_delete_flow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output_dir = root / "outputs"
+            job_dir = output_dir / "job123"
+            job_dir.mkdir(parents=True)
+            (job_dir / "translated_text.txt").write_text("मशीन अनुवाद", encoding="utf-8")
+            (job_dir / "source_text.txt").write_text("hello farmer water", encoding="utf-8")
+            (job_dir / "job_report.json").write_text(
+                json.dumps(
+                    {
+                        "artifacts": {
+                            "translated_txt": "translated_text.txt",
+                            "source_txt": "source_text.txt",
+                            "job_report": "job_report.json",
+                        }
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            previous_auth = api_module.auth_store
+            previous_jobs = api_module.job_manager
+            previous_reviews = api_module.review_store
+            previous_output = api_module.OUTPUT_DIR
+            api_module.auth_store = AuthStore(root / "auth.json")
+            api_module.job_manager = JobManager(root / ".jobs", max_workers=1)
+            api_module.review_store = ReviewStore(output_dir / ".reviews")
+            api_module.OUTPUT_DIR = output_dir
+            try:
+                from core.job_manager import JobRecord
+
+                api_module.job_manager._jobs["queue123"] = JobRecord(
+                    job_id="queue123",
+                    kind="text",
+                    status="succeeded",
+                    progress=1.0,
+                    message="Translation ready",
+                    result={
+                        "job_id": "job123",
+                        "input_type": "text",
+                        "source_language": "English",
+                        "target_language": "Hindi",
+                        "original_text": "hello farmer water",
+                        "translated_text": "मशीन अनुवाद",
+                        "warnings": [],
+                        "metadata": {"source_filename": "farmer.txt"},
+                        "artifacts": [
+                            {"key": "translated_txt", "filename": "translated_text.txt", "download_url": "/jobs/job123/artifacts/translated_txt"},
+                            {"key": "source_txt", "filename": "source_text.txt", "download_url": "/jobs/job123/artifacts/source_txt"},
+                            {"key": "job_report", "filename": "job_report.json", "download_url": "/jobs/job123/artifacts/job_report"},
+                        ],
+                    },
+                )
+
+                client = TestClient(api_module.app)
+                setup = client.post(
+                    "/auth/setup",
+                    json={"username": "admin", "password": "correct horse battery", "display_name": "Admin"},
+                )
+                csrf = setup.json()["csrf_token"]
+
+                library = client.get("/library?q=farmer")
+                self.assertEqual(library.status_code, 200)
+                self.assertEqual(library.json()["items"][0]["job_id"], "queue123")
+                self.assertEqual(client.get("/jobs/job123").status_code, 200)
+
+                correction = client.post(
+                    "/jobs/queue123/review/corrections",
+                    headers={"X-CSRF-Token": csrf},
+                    json={"corrected_text": "सुधारित अनुवाद"},
+                )
+                self.assertEqual(correction.status_code, 200)
+                self.assertEqual(correction.json()["versions"][0]["version"], 1)
+
+                approval = client.post(
+                    "/jobs/job123/review/approve",
+                    headers={"X-CSRF-Token": csrf},
+                    json={},
+                )
+                self.assertEqual(approval.status_code, 200)
+                self.assertEqual(approval.json()["status"], "approved")
+                self.assertIsNotNone(api_module.review_store.find_memory("hello farmer water", "English", "Hindi"))
+
+                delete = client.delete("/jobs/job123", headers={"X-CSRF-Token": csrf})
+                self.assertEqual(delete.status_code, 200)
+                self.assertIsNone(api_module.review_store.find_memory("hello farmer water", "English", "Hindi"))
+                self.assertFalse(job_dir.exists())
+            finally:
+                api_module.auth_store = previous_auth
+                api_module.job_manager.shutdown()
+                api_module.job_manager = previous_jobs
+                api_module.review_store = previous_reviews
+                api_module.OUTPUT_DIR = previous_output
 
 
 class TranscriberSelectionTest(unittest.TestCase):

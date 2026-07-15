@@ -2,7 +2,7 @@
 
 Sprint window: Wednesday 15 July 2026, 08:00 IST to Friday 17 July 2026, end of day
 
-Last updated: Wednesday 15 July 2026, 01:39 IST
+Last updated: Wednesday 15 July 2026, 14:01 IST
 
 ## Mission
 
@@ -10,17 +10,19 @@ Ship a release candidate that a BAIF trainer can use to turn English, Hindi, or 
 
 Speed matters. So do evidence, privacy, license compliance, and honest readiness. A feature counts as complete only when its acceptance checks pass and the result is pushed to `origin/main` with green CI.
 
+Organiser implementation-phase guidance received on 15 July adds an explicit assessment lens: the submission must be a production-ready web application deployable in the BAIF environment, aligned to agreed access, dependency, and operational constraints, plus a handover pack covering solution overview, assumptions/scope, architecture or process flow, setup/install, access/dependencies, operating guide including support model, and known limitations/risks.
+
 ## Live Scoreboard
 
 | Workstream | Start | Friday target | Current evidence |
 | --- | ---: | ---: | --- |
 | Local translation and media foundation | 85% | 100% | Durable queue, OCR, six directions, TTS, subtitles, captioned/dubbed video, offline ZIP |
 | Judged translation quality | 20% | 90%* | Fast local NLLB evaluation fallback; IndicTrans2 access and reviewed corpus pending |
-| Access, review, and reusable library | 5% | 100% | First-run admin, sessions, CSRF, approval/deactivation, route enforcement, and protected UI |
+| Access, review, and reusable library | 55% | 100% | First-run admin, sessions, CSRF, approval/deactivation, protected UI, searchable library API/UI, corrected-output versioning, approval, safe delete, retry, and exact approved-memory reuse |
 | Production and Windows hardening | 35% | 90%* | Setup scripts, health checks, logs, metrics; clean Windows proof pending |
 | UX, accessibility, and field handoff | 60% | 100% | Responsive primary workflow and offline downloads verified |
-| Evidence, documentation, and handover | 45% | 100% | CI, architecture, compliance, delivery notes, roadmap |
-| Overall release readiness | 48% | 95%* | 32 tests, secure-access smoke, real media E2E, GitHub CI pending for latest push |
+| Evidence, documentation, and handover | 50% | 100% | CI, architecture, compliance, delivery notes, roadmap, organiser handover criteria captured |
+| Overall release readiness | 56% | 95%* | 35 tests, secure-access smoke, review-library HTTP smoke, real media E2E from prior run, GitHub CI pending for latest push |
 
 `*` External acceptance can only reach 100% after the team accepts the official model terms, bilingual reviewers approve quality, and a clean Windows 11 machine is available. Everything not dependent on those people or machines is targeted for completion by Friday night.
 
@@ -138,6 +140,7 @@ Every 08:00 and 20:00 session appends an entry here before pushing:
 | --- | --- | --- | --- | --- | ---: |
 | 15 Jul 01:13 planning reset | Compressed roadmap to 72 hours; created twice-daily execution automation; established hard exit gates and external blocker lane | Automation scheduled for 08:00/20:00 IST through Friday; `main` began synchronized with green CI | IndicTrans2 acceptance, bilingual reviewers, Windows machine | Auth/RBAC; review library; quality harness | 42% |
 | 15 Jul 01:39 secure access slice | Added no-default first-run admin setup, PBKDF2 password hashes, HttpOnly local sessions, session expiry, CSRF checks, login throttling, pending user registration, admin approval/deactivation, protected content routes, admin metrics gate, and simple role-aware UI | `python -m py_compile` for tracked Python passed; `node --check frontend/app.js` passed; full unittest suite passed 32 tests; HTTP smoke on `127.0.0.1:8787` verified setup, 401 unauthenticated job, 403 missing CSRF, pending login block, approval, authorised login, and protected history | Browser screenshot tooling unavailable in this runtime; Tesseract integration test skipped locally; CI still pending after push; external IndicTrans2 acceptance, bilingual reviewers, and Windows machine remain | Reusable library and review workflow; retry/cancel/delete controls; corrected-output approval and translation memory | 48% |
+| 15 Jul 14:01 review-library slice | Captured organiser implementation/handover guidance; added durable review store, corrected translation versions, approval state, approved corrected package, exact approved-translation memory reuse with opt-out request flag, searchable library endpoint, storage usage, retry, cooperative cancel, safe delete including memory cleanup, queue/output-ID resolution, and minimal UI for searchable library plus human review | `.venv/bin/python -m py_compile api.py app.py core/*.py scripts/*.py` passed; `node --check frontend/app.js` passed; full unittest suite passed 35 tests with 1 OCR dependency skip; HTTP smoke on isolated `127.0.0.1:8791` verified first admin setup, queued preview text job, queue/output job lookup, library search, correction save, approval, and approved package artifact visibility | Tesseract/PDF OCR integration dependency still skipped locally; browser screenshot/mobile verification still not available in this runtime; GitHub CI pending after push; external IndicTrans2 acceptance, bilingual reviewers, and Windows machine remain | Finish review UX edge cases and delete/retry controls in UI; start judged quality glossary/protection/benchmark gate; draft handover pack aligned to organiser criteria | 56% |
 
 ## Operating Rules
 
