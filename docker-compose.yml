@@ -5,20 +5,7 @@ services:
       - "8501:8501"
     environment:
       BAIF_MODEL_PROFILE: "quality"
-      BAIF_ALLOW_MODEL_DOWNLOAD: "1"
-    volumes:
-      - ./models:/app/models
-      - ./outputs:/app/outputs
-      - ./temp:/app/temp
-
-  api:
-    build: .
-    command: uvicorn api:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
-    environment:
-      BAIF_MODEL_PROFILE: "quality"
-      BAIF_ALLOW_MODEL_DOWNLOAD: "1"
+      BAIF_ALLOW_MODEL_DOWNLOAD: "0"
     volumes:
       - ./models:/app/models
       - ./outputs:/app/outputs

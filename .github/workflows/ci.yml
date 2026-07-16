@@ -43,6 +43,9 @@ jobs:
       - name: Check frontend syntax
         run: node --check frontend/app.js
 
+      - name: Check release and secret policy
+        run: python scripts/release_check.py
+
       - name: Run test suite
         env:
           BAIF_ALLOW_MODEL_DOWNLOAD: "0"

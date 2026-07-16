@@ -15,6 +15,7 @@ from config.settings import (
     COMPRESSED_AUDIO_MAX_UPLOAD_MB,
     DOCUMENT_EXTENSIONS,
     DOCUMENT_MAX_UPLOAD_MB,
+    MIN_FREE_DISK_GB,
     TEXT_EXTENSIONS,
     TEXT_MAX_UPLOAD_MB,
     UNCOMPRESSED_AUDIO_EXTENSIONS,
@@ -90,6 +91,12 @@ def validate_size(size_bytes: int, suffix: str) -> None:
 
 
 def create_job_dirs(temp_root: Path, output_root: Path) -> tuple[str, Path, Path]:
+    output_root.mkdir(parents=True, exist_ok=True)
+    if shutil.disk_usage(output_root).free < MIN_FREE_DISK_GB * 1024**3:
+        raise ValidationError(
+            f"The worker has less than {MIN_FREE_DISK_GB} GB free. "
+            "Ask an administrator to archive old jobs or run cleanup before retrying."
+        )
     job_id = uuid.uuid4().hex[:12]
     temp_dir = temp_root / job_id
     output_dir = output_root / job_id

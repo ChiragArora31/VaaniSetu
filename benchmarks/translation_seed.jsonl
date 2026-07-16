@@ -4,3 +4,9 @@
 {"id":"hi-mr-001","source_language":"Hindi","target_language":"Marathi","source":"गांव में स्वच्छ पानी उपलब्ध है।","reference":"गावात स्वच्छ पाणी उपलब्ध आहे."}
 {"id":"mr-en-001","source_language":"Marathi","target_language":"English","source":"शेतकरी नवीन सिंचन पद्धतीचा वापर करत आहेत.","reference":"The farmers are using a new irrigation method."}
 {"id":"mr-hi-001","source_language":"Marathi","target_language":"Hindi","source":"महिला बचत गटाची बैठक आज आहे.","reference":"महिला स्वयं सहायता समूह की बैठक आज है।"}
+{"id":"en-hi-002","source_language":"English","target_language":"Hindi","source":"Apply 25 kg compost on 2 acres.","reference":"2 एकड़ में 25 kg खाद डालें।"}
+{"id":"en-mr-002","source_language":"English","target_language":"Marathi","source":"Visit https://baif.org before the irrigation meeting.","reference":"सिंचन बैठकीपूर्वी https://baif.org ला भेट द्या."}
+{"id":"hi-en-002","source_language":"Hindi","target_language":"English","source":"2 हेक्टर खेत में 15 kg बीज डालें।","reference":"Apply 15 kg of seed in the 2 hectare field."}
+{"id":"hi-mr-002","source_language":"Hindi","target_language":"Marathi","source":"टपक सिंचाई से 30% पानी बचता है।","reference":"ठिबक सिंचनामुळे 30% पाण्याची बचत होते."}
+{"id":"mr-en-002","source_language":"Marathi","target_language":"English","source":"1 हेक्टरसाठी 20 kg बियाणे वापरा.","reference":"Use 20 kg of seed for 1 hectare."}
+{"id":"mr-hi-002","source_language":"Marathi","target_language":"Hindi","source":"बैठकीसाठी field@example.org वर संदेश पाठवा.","reference":"बैठक के लिए field@example.org पर संदेश भेजें।"}

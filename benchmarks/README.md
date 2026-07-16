@@ -10,7 +10,9 @@ Quality claims for VaaniSetu must be backed by reviewed examples that represent 
 python scripts/evaluate_quality.py
 ```
 
-Higher chrF++ is better.
+Higher chrF++ is better. The report also records per-direction terminology accuracy, preservation/script/untranslated failures, latency, peak memory, and backend provenance. It exits non-zero if any supported direction is absent, a preservation/script/backend critical occurs, or a direction misses the engineering chrF++ floor. A UTF-8 reviewer worksheet is generated beside the report with severity/category/correction fields.
+
+The checked-in seed covers all six directions and includes agriculture terminology, numbers, units, a URL, and an email address. It is an engineering regression corpus, not BAIF linguistic approval. Reviewers should add representative dialect, names, safety instructions, measurements, and unchanged-text cases rather than editing predictions to make the gate pass.
 
 ## Speech recognition
 

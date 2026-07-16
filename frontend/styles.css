@@ -165,6 +165,19 @@ summary:focus-visible {
   outline: none;
 }
 
+.danger-action {
+  color: #8b1e1e;
+  border-color: #c98b8b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .icon-button,
 .secondary-action,
 .download-pill {
@@ -916,6 +929,9 @@ summary {
 }
 
 @media (max-width: 760px) {
+  .compact {
+    min-height: 44px;
+  }
   .shell {
     width: min(100% - 20px, 720px);
     padding: 14px 0 26px;

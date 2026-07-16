@@ -7,10 +7,13 @@ Run from the project root:
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
-from huggingface_hub import snapshot_download
+from huggingface_hub import HfApi, snapshot_download
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +94,16 @@ GATED_OPTIONAL_MODELS = set(
     + ["indic-parler-tts", "indic-conformer"]
 )
 
+REVISION_ENV = {
+    "whisper-quality": "BAIF_WHISPER_REVISION",
+    "indictrans-en-indic": "BAIF_INDICTRANS_EN_INDIC_REVISION",
+    "indictrans-indic-en": "BAIF_INDICTRANS_INDIC_EN_REVISION",
+    "indictrans-indic-indic": "BAIF_INDICTRANS_INDIC_INDIC_REVISION",
+    "indic-parler-tts": "BAIF_INDIC_PARLER_REVISION",
+    "indic-conformer": "BAIF_INDIC_CONFORMER_REVISION",
+    "nllb": "BAIF_NLLB_REVISION",
+}
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Download open-source VaaniSetu model assets.")
@@ -136,16 +149,25 @@ def main() -> None:
             selected.append("indic-conformer")
 
     failures: list[str] = []
+    lock_records: list[dict] = []
+    api = HfApi()
     for name in dict.fromkeys(selected):
         repo_id, target = MODELS[name]
+        requested_revision = os.getenv(REVISION_ENV.get(name, ""), "main")
         target.mkdir(parents=True, exist_ok=True)
         print(f"Downloading {repo_id} -> {target}")
         try:
             snapshot_download(
                 repo_id=repo_id,
+                revision=requested_revision,
                 local_dir=str(target),
                 local_dir_use_symlinks=False,
             )
+            try:
+                resolved_revision = api.model_info(repo_id, revision=requested_revision).sha
+            except Exception:
+                resolved_revision = requested_revision
+            lock_records.append({"name": name, "repo_id": repo_id, "requested_revision": requested_revision, "resolved_revision": resolved_revision, "local_dir": str(target.relative_to(ROOT))})
         except Exception as exc:
             if not (target / "config.json").exists():
                 shutil.rmtree(target, ignore_errors=True)
@@ -155,6 +177,15 @@ def main() -> None:
             print(f"Optional model unavailable: {name} ({exc.__class__.__name__})")
             print("Accept its Hugging Face access conditions and set HF_TOKEN, then rerun setup.")
     print("Model setup complete.")
+    lock_path = ROOT / "models" / "model-lock.json"
+    existing = []
+    if lock_path.exists():
+        try:
+            existing = json.loads(lock_path.read_text(encoding="utf-8")).get("models", [])
+        except (OSError, json.JSONDecodeError):
+            existing = []
+    merged = {item["name"]: item for item in existing + lock_records}
+    lock_path.write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "models": list(merged.values())}, indent=2), encoding="utf-8")
     if failures:
         print("The local NLLB translation fallback remains available.")
         print("Quality upgrades still pending: " + ", ".join(failures))

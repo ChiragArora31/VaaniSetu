@@ -39,6 +39,7 @@ The judged production path must use locally hosted open-source models on the BAI
 
 BAIF delivery limits and handover expectations are documented in [DELIVERY_COMPATIBILITY.md](DELIVERY_COMPATIBILITY.md).
 The install-versus-web/API delivery decision is explained in [BAIF_ARCHITECTURE_NOTE.md](BAIF_ARCHITECTURE_NOTE.md).
+The complete operator handover index is [HANDOVER.md](HANDOVER.md); trainer, administrator, privacy, recovery, support, UAT, and release guides are linked there.
 
 Model profile is controlled by `BAIF_MODEL_PROFILE`:
 
@@ -289,11 +290,10 @@ Run the full stack with Docker:
 docker compose up --build
 ```
 
-Then expose:
+Then expose the single worker (it serves both UI and API routes):
 
 ```text
-Web app: http://server:8501
-API:     http://server:8000
+Web app and API: http://server:8501
 ```
 
 The Docker image installs system dependencies and Python libraries once. Model weights are cached in the mounted `models/` volume so the first server run prepares them and later runs reuse them.
@@ -307,15 +307,15 @@ docker compose run --rm web python scripts/setup_models.py --profile quality --w
 docker compose up --build
 ```
 
-## Vercel Deployment
+## Vercel Preview Shell
 
-Vercel serves the modern web UI and FastAPI endpoints using the lightweight serverless profile:
+Vercel may serve the lightweight web/API shell for interface review:
 
 ```bash
 vercel --prod
 ```
 
-The Vercel profile uses `/tmp/vaanisetu` for runtime files and the `fast` model profile. Full offline/on-prem media processing with large local model weights is best deployed with Docker or a GPU-backed VM because Vercel Functions have bundle and runtime limits.
+The Vercel profile disables hosted translation and runtime model downloads, so it is not a production translation deployment. Full local media/translation requires the BAIF worker or Docker deployment; do not present a Vercel preview as field-ready processing.
 
 ## Validation
 
@@ -324,6 +324,7 @@ Run the local checks before a release:
 ```bash
 python -m py_compile $(git ls-files '*.py')
 python -m unittest discover -s tests
+python scripts/release_check.py
 ```
 
 The tests do not require large ML models; they verify import safety, text processing, subtitle formatting, upload validation, and the text-output pipeline.
@@ -335,6 +336,19 @@ python scripts/evaluate_quality.py
 ```
 
 The generated `outputs/quality_report.json` records per-sample predictions, backend names, and chrF++ scores. Expand the benchmark with BAIF-reviewed field language before final judging.
+
+Run operational and offline-proof checks before handover:
+
+```bash
+python scripts/operations.py migrate
+python scripts/operations.py preflight
+python scripts/operations.py model-inventory
+python scripts/stress_test.py --profile full
+python scripts/verify_package.py outputs/JOB_ID/vaanisetu_outputs.zip
+python scripts/release_evidence.py
+```
+
+The quality report distinguishes the engineering gate from external bilingual approval. A green fallback benchmark is not permission to claim IndicTrans2 production readiness.
 
 ## Assumptions and Limitations
 

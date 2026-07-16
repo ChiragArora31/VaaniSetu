@@ -1,0 +1,22 @@
+{
+  "name": "VaaniSetu agriculture glossary",
+  "version": "1.0.0",
+  "review_status": "engineering seed; bilingual BAIF review required",
+  "terms": [
+    {"category":"people","English":"farmer","Hindi":"किसान","Marathi":"शेतकरी"},
+    {"category":"crops","English":"millet","Hindi":"बाजरा","Marathi":"बाजरी"},
+    {"category":"crops","English":"soybean","Hindi":"सोयाबीन","Marathi":"सोयाबीन"},
+    {"category":"livestock","English":"livestock","Hindi":"पशुधन","Marathi":"पशुधन"},
+    {"category":"livestock","English":"fodder","Hindi":"चारा","Marathi":"चारा"},
+    {"category":"soil","English":"soil","Hindi":"मिट्टी","Marathi":"माती"},
+    {"category":"soil","English":"compost","Hindi":"खाद","Marathi":"कंपोस्ट"},
+    {"category":"irrigation","English":"irrigation","Hindi":"सिंचाई","Marathi":"सिंचन"},
+    {"category":"irrigation","English":"drip irrigation","Hindi":"टपक सिंचाई","Marathi":"ठिबक सिंचन"},
+    {"category":"safety","English":"protective equipment","Hindi":"सुरक्षा उपकरण","Marathi":"संरक्षक उपकरणे"},
+    {"category":"safety","English":"pesticide","Hindi":"कीटनाशक","Marathi":"कीटकनाशक"},
+    {"category":"measurements","English":"hectare","Hindi":"हेक्टर","Marathi":"हेक्टर"},
+    {"category":"water","English":"clean water","Hindi":"स्वच्छ पानी","Marathi":"स्वच्छ पाणी"},
+    {"category":"BAIF","English":"self-help group","Hindi":"स्वयं सहायता समूह","Marathi":"स्वयंसहायता गट"},
+    {"category":"BAIF","English":"watershed","Hindi":"जलागम क्षेत्र","Marathi":"पाणलोट क्षेत्र"}
+  ]
+}

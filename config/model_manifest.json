@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "policy": "Every production model must be locally cached and recorded in outputs/model_inventory.json before release.",
+  "models": [
+    {"capability":"ASR","name":"faster-whisper-large-v3","source":"https://huggingface.co/Systran/faster-whisper-large-v3","license":"MIT","revision_env":"BAIF_WHISPER_REVISION","production_required":true},
+    {"capability":"ASR alternative","name":"indic-conformer-600m-multilingual","source":"https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual","license":"MIT","revision_env":"BAIF_INDIC_CONFORMER_REVISION","production_required":false},
+    {"capability":"Translation English to Indic","name":"indictrans2-en-indic-1B","source":"https://huggingface.co/ai4bharat/indictrans2-en-indic-1B","license":"MIT","revision_env":"BAIF_INDICTRANS_EN_INDIC_REVISION","production_required":true},
+    {"capability":"Translation Indic to English","name":"indictrans2-indic-en-1B","source":"https://huggingface.co/ai4bharat/indictrans2-indic-en-1B","license":"MIT","revision_env":"BAIF_INDICTRANS_INDIC_EN_REVISION","production_required":true},
+    {"capability":"Translation Indic to Indic","name":"indictrans2-indic-indic-1B","source":"https://huggingface.co/ai4bharat/indictrans2-indic-indic-1B","license":"MIT","revision_env":"BAIF_INDICTRANS_INDIC_INDIC_REVISION","production_required":true},
+    {"capability":"Translation fallback","name":"nllb-200-distilled-600M","source":"https://huggingface.co/facebook/nllb-200-distilled-600M","license":"CC-BY-NC-4.0","revision_env":"BAIF_NLLB_REVISION","production_required":false},
+    {"capability":"TTS","name":"indic-parler-tts","source":"https://huggingface.co/ai4bharat/indic-parler-tts","license":"Apache-2.0","revision_env":"BAIF_INDIC_PARLER_REVISION","production_required":true}
+  ]
+}

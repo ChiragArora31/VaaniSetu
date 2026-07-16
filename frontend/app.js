@@ -15,6 +15,7 @@ const state = {
     mode: "login",
   },
   currentJobId: "",
+  currentQueueJobId: "",
   currentReviewVersion: null,
 };
 
@@ -46,6 +47,7 @@ const els = {
   progressPercent: document.querySelector("#progressPercent"),
   progressBar: document.querySelector("#progressBar"),
   progressCopy: document.querySelector("#progressCopy"),
+  cancelJob: document.querySelector("#cancelJob"),
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
   warningList: document.querySelector("#warningList"),
@@ -60,6 +62,8 @@ const els = {
   approveCorrection: document.querySelector("#approveCorrection"),
   reviewStatus: document.querySelector("#reviewStatus"),
   reviewMessage: document.querySelector("#reviewMessage"),
+  retryJob: document.querySelector("#retryJob"),
+  deleteJob: document.querySelector("#deleteJob"),
   errorPanel: document.querySelector("#errorPanel"),
   errorText: document.querySelector("#errorText"),
   meterCanvas: document.querySelector("#meterCanvas"),
@@ -609,6 +613,7 @@ async function waitForJob(statusUrl) {
     setProgress((payload.progress || 0) * 100, payload.message || "Processing...");
     if (payload.status === "succeeded") return payload.result;
     if (payload.status === "failed") throw new Error(payload.error || "Translation could not be completed.");
+    if (payload.status === "cancelled") throw new Error("Translation was cancelled.");
     await new Promise((resolve) => window.setTimeout(resolve, 800));
   }
 }
@@ -617,6 +622,7 @@ async function submitJob(url, options) {
   const response = await apiFetch(url, options);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.detail || "Translation could not be queued.");
+  state.currentQueueJobId = payload.job_id;
   return waitForJob(payload.status_url);
 }
 
@@ -743,6 +749,14 @@ function renderHistory(items) {
     review.textContent = "Review";
     review.addEventListener("click", () => openLibraryJob(item.job_id || result.job_id));
     actions.appendChild(review);
+    if (["succeeded", "failed", "cancelled"].includes(item.status)) {
+      const remove = document.createElement("button");
+      remove.className = "secondary-action compact";
+      remove.type = "button";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", () => deleteSavedJob(item.job_id || result.job_id));
+      actions.appendChild(remove);
+    }
     const bundle = (result.artifacts || []).find?.((artifact) => artifact.key === "bundle_zip") || null;
     if (bundle || item.artifacts?.bundle_zip) {
       const link = document.createElement("a");
@@ -755,6 +769,36 @@ function renderHistory(items) {
     row.appendChild(actions);
     els.recentList.appendChild(row);
   });
+}
+
+async function retrySavedJob(jobId) {
+  clearError();
+  try {
+    const response = await apiFetch(`/jobs/${encodeURIComponent(jobId)}/retry`, { method: "POST" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Could not run this job again.");
+    state.currentQueueJobId = payload.job_id;
+    beginProgress("text");
+    renderResult(await waitForJob(payload.status_url));
+  } catch (error) {
+    showError(error.message || "Could not run this job again.");
+  }
+}
+
+async function deleteSavedJob(jobId) {
+  if (!jobId || !window.confirm("Delete this job and all of its local outputs? This cannot be undone.")) return;
+  try {
+    const response = await apiFetch(`/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Could not delete this job.");
+    if (state.currentJobId === jobId) {
+      state.currentJobId = "";
+      els.resultPanel.classList.add("hidden");
+    }
+    loadHistory();
+  } catch (error) {
+    showError(error.message || "Could not delete this job.");
+  }
 }
 
 async function loadHistory() {
@@ -795,6 +839,11 @@ async function loadReview(jobId) {
     const review = await response.json();
     state.currentReviewVersion = review.versions?.at(-1)?.version || null;
     els.reviewStatus.textContent = review.status === "approved" ? `Approved v${review.approved_version}` : `${review.versions?.length || 0} corrections`;
+    const latest = review.versions?.at(-1);
+    if (latest?.artifact_key) {
+      const correction = await apiFetch(`/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(latest.artifact_key)}`, { cache: "no-store" });
+      if (correction.ok) els.correctedText.value = await correction.text();
+    }
   } catch {
     els.reviewStatus.textContent = "Not approved";
   }
@@ -803,18 +852,21 @@ async function loadReview(jobId) {
 async function saveCorrection() {
   if (!state.currentJobId) return;
   els.reviewMessage.textContent = "";
+  const savedText = els.correctedText.value;
   try {
     const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentJobId)}/review/corrections`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ corrected_text: els.correctedText.value }),
+      body: JSON.stringify({ corrected_text: savedText }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not save correction.");
     state.currentReviewVersion = payload.versions?.at(-1)?.version || null;
     els.reviewStatus.textContent = `${payload.versions.length} corrections`;
     els.reviewMessage.textContent = "Correction saved. Approve it when reviewed.";
-    openLibraryJob(state.currentJobId);
+    await openLibraryJob(state.currentJobId);
+    els.correctedText.value = savedText;
+    els.reviewMessage.textContent = "Correction saved. Approve it when reviewed.";
   } catch (error) {
     els.reviewMessage.textContent = error.message || "Could not save correction.";
   }
@@ -823,6 +875,7 @@ async function saveCorrection() {
 async function approveCorrection() {
   if (!state.currentJobId) return;
   els.reviewMessage.textContent = "";
+  const approvedText = els.correctedText.value;
   try {
     const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentJobId)}/review/approve`, {
       method: "POST",
@@ -833,7 +886,9 @@ async function approveCorrection() {
     if (!response.ok) throw new Error(payload.detail || "Could not approve correction.");
     els.reviewStatus.textContent = `Approved v${payload.approved_version}`;
     els.reviewMessage.textContent = "Approved package and translation memory updated.";
-    openLibraryJob(state.currentJobId);
+    await openLibraryJob(state.currentJobId);
+    els.correctedText.value = approvedText;
+    els.reviewMessage.textContent = "Approved package and translation memory updated.";
   } catch (error) {
     els.reviewMessage.textContent = error.message || "Could not approve correction.";
   }
@@ -1121,6 +1176,15 @@ els.authSwitch.addEventListener("click", () => {
 });
 
 els.logoutButton.addEventListener("click", logout);
+
+els.cancelJob.addEventListener("click", async () => {
+  if (!state.currentQueueJobId) return;
+  const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentQueueJobId)}/cancel`, { method: "POST" });
+  if (!response.ok) showError("Could not cancel this job.");
+});
+
+els.retryJob.addEventListener("click", () => retrySavedJob(state.currentQueueJobId || state.currentJobId));
+els.deleteJob.addEventListener("click", () => deleteSavedJob(state.currentQueueJobId || state.currentJobId));
 
 els.adminPanel.addEventListener("toggle", () => {
   if (els.adminPanel.open) loadUsers();

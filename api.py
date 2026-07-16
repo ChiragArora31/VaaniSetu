@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Annotated, Union
 import json
 import logging
+import shutil
 import threading
 import time
 import uuid
@@ -31,6 +32,7 @@ from config.settings import (
     VIDEO_MAX_DURATION_SECONDS,
     VIDEO_MAX_UPLOAD_MB,
     ensure_directories,
+    SECURE_SESSION_COOKIE,
 )
 from core.auth import AuthError, AuthStore, SESSION_COOKIE_NAME, SESSION_TTL_SECONDS, SessionRecord, UserRecord
 from core.file_utils import ValidationError, save_binary_upload
@@ -76,6 +78,14 @@ async def request_logging(request, call_next):
         raise
     duration_ms = round((time.monotonic() - started) * 1000, 2)
     response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; img-src 'self' data:; media-src 'self' blob:; "
+        "style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+    )
     logger.info(
         "Request completed",
         extra={
@@ -211,6 +221,7 @@ class JobStatusResponse(BaseModel):
     completed_at: str | None = None
     result: JobResponse | None = None
     error: str | None = None
+    stage_timings: dict[str, float] = Field(default_factory=dict)
 
 
 class LibraryResponse(BaseModel):
@@ -242,7 +253,7 @@ def _set_session_cookie(response: Response, session: SessionRecord) -> None:
         max_age=SESSION_TTL_SECONDS,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=SECURE_SESSION_COOKIE,
         path="/",
     )
 
@@ -399,11 +410,12 @@ def health(allow_model_download: bool = False):
 
 @app.get("/metrics")
 def metrics(_auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_admin)]):
+    disk = shutil.disk_usage(OUTPUT_DIR)
     return {
         "uptime_seconds": round(time.monotonic() - started_at, 1),
         "jobs": job_manager.summary(),
         "worker_threads": JOB_WORKERS,
-        "storage": "local",
+        "storage": {"mode": "local", "used_bytes": _storage_bytes(OUTPUT_DIR), "disk_free_bytes": disk.free},
     }
 
 
@@ -513,6 +525,7 @@ def _job_status(record) -> JobStatusResponse:
         completed_at=record.completed_at,
         result=_fresh_job_response(record) if record.result else None,
         error=user_safe_error(record.error) if record.error else None,
+        stage_timings=record.stage_timings,
     )
 
 
@@ -984,6 +997,7 @@ async def translate_file(
     _validate_source_language(source_language)
     _validate_target_language(target_language)
     temp_upload_dir = TEMP_DIR / "api_uploads"
+    saved = None
     try:
         saved = save_binary_upload(file.file, file.filename or "upload", temp_upload_dir)
         with pipeline_lock:
@@ -1004,6 +1018,9 @@ async def translate_file(
         raise HTTPException(status_code=400, detail=user_safe_error(str(exc))) from exc
     except PipelineError as exc:
         raise HTTPException(status_code=422, detail=user_safe_error(str(exc))) from exc
+    finally:
+        if saved is not None:
+            saved.path.unlink(missing_ok=True)
     return _response(result)
 
 

@@ -7,6 +7,7 @@ import logging
 import threading
 import uuid
 import shutil
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -40,6 +41,7 @@ class JobRecord:
     result: dict | None = None
     error: str | None = None
     cancel_requested: bool = False
+    stage_timings: dict[str, float] = field(default_factory=dict)
 
 
 class JobManager:
@@ -93,6 +95,9 @@ class JobManager:
             return record
 
     def _run(self, job_id: str, task: JobTask) -> None:
+        run_started = time.monotonic()
+        stage_started = run_started
+        previous_stage = "startup"
         with self._lock:
             record = self._jobs[job_id]
             if record.cancel_requested:
@@ -113,10 +118,17 @@ class JobManager:
             )
 
         def update(message: str, progress: float) -> None:
+            nonlocal stage_started, previous_stage
             with self._lock:
                 current = self._jobs[job_id]
                 if current.cancel_requested:
                     raise JobCancelledError("Translation was cancelled.")
+                now = time.monotonic()
+                current.stage_timings[previous_stage] = round(
+                    current.stage_timings.get(previous_stage, 0.0) + (now - stage_started), 3
+                )
+                previous_stage = message.rstrip(".")[:80]
+                stage_started = now
                 current.progress = max(current.progress, min(0.99, max(0.0, float(progress))))
                 current.message = message
                 self._persist(current)
@@ -126,6 +138,10 @@ class JobManager:
         except JobCancelledError as exc:
             with self._lock:
                 record = self._jobs[job_id]
+                record.stage_timings[previous_stage] = round(
+                    record.stage_timings.get(previous_stage, 0.0) + (time.monotonic() - stage_started), 3
+                )
+                record.stage_timings["total"] = round(time.monotonic() - run_started, 3)
                 record.status = "cancelled"
                 record.message = "Cancelled"
                 record.error = str(exc)
@@ -139,6 +155,10 @@ class JobManager:
         except Exception as exc:
             with self._lock:
                 record = self._jobs[job_id]
+                record.stage_timings[previous_stage] = round(
+                    record.stage_timings.get(previous_stage, 0.0) + (time.monotonic() - stage_started), 3
+                )
+                record.stage_timings["total"] = round(time.monotonic() - run_started, 3)
                 record.status = "failed"
                 record.message = "Translation could not be completed."
                 record.error = str(exc)
@@ -152,6 +172,10 @@ class JobManager:
 
         with self._lock:
             record = self._jobs[job_id]
+            record.stage_timings[previous_stage] = round(
+                record.stage_timings.get(previous_stage, 0.0) + (time.monotonic() - stage_started), 3
+            )
+            record.stage_timings["total"] = round(time.monotonic() - run_started, 3)
             record.status = "succeeded"
             record.progress = 1.0
             record.message = "Translation ready"

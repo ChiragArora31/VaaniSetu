@@ -49,9 +49,13 @@ def main() -> None:
         run(model_command)
         run([python, "scripts/convert_nllb_ct2.py"])
 
+    run([python, "scripts/operations.py", "migrate"])
+
     print("")
     print("Setup complete.")
     print("Readiness check: http://127.0.0.1:8501/health")
+    print("Production preflight (must be green before handover):")
+    print("  python scripts/operations.py preflight")
     print("Start VaaniSetu with:")
     print("  python -m uvicorn api:app --host 127.0.0.1 --port 8501")
 

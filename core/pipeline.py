@@ -24,7 +24,7 @@ from core.audio_extractor import extract_audio_to_wav
 from core.asr_cleanup import clean_indic_asr_text
 from core.document_processor import DocumentProcessingError, extract_document_text, write_document_exports
 from core.export_utils import create_artifact_zip
-from core.file_utils import create_job_dirs, write_text
+from core.file_utils import ValidationError, create_job_dirs, write_text
 from core.media_utils import MediaError, detect_input_type, inspect_media
 from core.subtitles import Segment, normalize_segments, render_srt, render_vtt, segments_from_text
 from core.text_utils import detect_language_name, enforce_text_limit, normalize_text, split_for_translation
@@ -39,6 +39,13 @@ StatusCallback = Callable[[str, float], None]
 
 class PipelineError(RuntimeError):
     """Raised for recoverable end-to-end processing failures."""
+
+
+def _job_dirs() -> tuple[str, Path, Path]:
+    try:
+        return create_job_dirs(TEMP_DIR, OUTPUT_DIR)
+    except ValidationError as exc:
+        raise PipelineError(str(exc)) from exc
 
 
 @dataclass(frozen=True)
@@ -125,6 +132,8 @@ def _validate_media_constraints(input_type: str, media_info) -> str:
 
 
 def _write_metadata(result: PipelineResult, output_dir: Path) -> None:
+    result.artifacts["job_report"] = output_dir / "job_report.json"
+    result.artifacts["bundle_zip"] = output_dir / "vaanisetu_outputs.zip"
     payload = {
         "job_id": result.job_id,
         "input_type": result.input_type,
@@ -134,15 +143,15 @@ def _write_metadata(result: PipelineResult, output_dir: Path) -> None:
         "metadata": result.metadata,
         "artifacts": {key: path.name for key, path in result.artifacts.items()},
     }
-    result.artifacts["job_report"] = write_text(
-        output_dir / "job_report.json",
+    write_text(
+        result.artifacts["job_report"],
         json.dumps(payload, ensure_ascii=False, indent=2),
     )
 
 
 def _finalize_artifacts(result: PipelineResult, output_dir: Path) -> None:
     _write_metadata(result, output_dir)
-    result.artifacts["bundle_zip"] = create_artifact_zip(result.artifacts, output_dir / "vaanisetu_outputs.zip")
+    create_artifact_zip(result.artifacts, result.artifacts["bundle_zip"])
     _append_reuse_manifest(result, output_dir)
 
 
@@ -180,7 +189,7 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
-        job_id, _temp_dir, output_dir = create_job_dirs(TEMP_DIR, OUTPUT_DIR)
+        job_id, _temp_dir, output_dir = _job_dirs()
         result = PipelineResult(
             job_id=job_id,
             input_type="text",
@@ -243,7 +252,7 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
-        job_id, _temp_dir, output_dir = create_job_dirs(TEMP_DIR, OUTPUT_DIR)
+        job_id, _temp_dir, output_dir = _job_dirs()
         result = PipelineResult(
             job_id=job_id,
             input_type="text",
@@ -285,7 +294,7 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
-        job_id, temp_dir, output_dir = create_job_dirs(TEMP_DIR, OUTPUT_DIR)
+        job_id, temp_dir, output_dir = _job_dirs()
         input_type = detect_input_type(input_path)
         result = PipelineResult(
             job_id=job_id,
@@ -435,7 +444,7 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
-        job_id, _temp_dir, output_dir = create_job_dirs(TEMP_DIR, OUTPUT_DIR)
+        job_id, _temp_dir, output_dir = _job_dirs()
         result = PipelineResult(
             job_id=job_id,
             input_type="document",

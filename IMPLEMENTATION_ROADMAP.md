@@ -2,7 +2,7 @@
 
 Sprint window: Wednesday 15 July 2026, 08:00 IST to Friday 17 July 2026, end of day
 
-Last updated: Wednesday 15 July 2026, 14:01 IST
+Last updated: Thursday 16 July 2026, 09:00 IST
 
 ## Mission
 
@@ -17,14 +17,30 @@ Organiser implementation-phase guidance received on 15 July adds an explicit ass
 | Workstream | Start | Friday target | Current evidence |
 | --- | ---: | ---: | --- |
 | Local translation and media foundation | 85% | 100% | Durable queue, OCR, six directions, TTS, subtitles, captioned/dubbed video, offline ZIP |
-| Judged translation quality | 20% | 90%* | Fast local NLLB evaluation fallback; IndicTrans2 access and reviewed corpus pending |
-| Access, review, and reusable library | 55% | 100% | First-run admin, sessions, CSRF, approval/deactivation, protected UI, searchable library API/UI, corrected-output versioning, approval, safe delete, retry, and exact approved-memory reuse |
-| Production and Windows hardening | 35% | 90%* | Setup scripts, health checks, logs, metrics; clean Windows proof pending |
-| UX, accessibility, and field handoff | 60% | 100% | Responsive primary workflow and offline downloads verified |
-| Evidence, documentation, and handover | 50% | 100% | CI, architecture, compliance, delivery notes, roadmap, organiser handover criteria captured |
-| Overall release readiness | 56% | 95%* | 35 tests, secure-access smoke, review-library HTTP smoke, real media E2E from prior run, GitHub CI pending for latest push |
+| Judged translation quality | 90%* | 90%* | Versioned agriculture glossary, invariant protection, 12-sample/six-direction chrF++/terminology/script/preservation/latency/memory gate passing on local NLLB; bilingual approval and IndicTrans2 access pending |
+| Access, review, and reusable library | 100% | 100% | Roles/auth, durable review/version/approval, safe delete, cooperative cancel, retry, corrected-text persistence, searchable library, exact approved-memory reuse and opt-out |
+| Production and Windows hardening | 90%* | 90%* | Cross-platform preflight, disk guard, stage timings, metrics, cleanup, migration, full backup/restore, redacted support bundle, model inventory; clean Windows proof pending |
+| UX, accessibility, and field handoff | 100% | 100% | Desktop/mobile browser flow, structural accessibility audit, long Indic content, retry/cancel, integrity-signed offline packages, full boundary stress harness and UAT scripts verified |
+| Evidence, documentation, and handover | 100% | 100% | Complete handover index, user/admin/privacy/support/troubleshooting/UAT/release guides, SBOM/source evidence generator and CI release-policy gate |
+| Overall release readiness | 94%* | 95%* | 43 automated tests (OCR runs on Linux CI), real audio/video E2E, 12-sample quality gate, full stress, browser E2E, operations recovery proof; external model/reviewer/Windows evidence remains |
 
 `*` External acceptance can only reach 100% after the team accepts the official model terms, bilingual reviewers approve quality, and a clean Windows 11 machine is available. Everything not dependent on those people or machines is targeted for completion by Friday night.
+
+## Completion Audit — 16 July 2026
+
+- [x] Text, audio, video, TXT, PDF, DOCX, PPTX, XLSX, CSV, and TSV success/failure/limit paths are covered by automated or real E2E evidence; scanned-PDF OCR executes in Linux CI with Tesseract.
+- [x] All six language directions run through a reproducible gate covering chrF++, terminology, invariant preservation, target script, unchanged output, latency, memory, and backend provenance.
+- [x] IndicTrans2 authenticated setup and per-direction readiness are implemented and cannot be confused with NLLB fallback readiness.
+- [ ] External: Hindi and Marathi reviewers approve the seed/corrections and production terminology.
+- [ ] External: the team account accepts and caches all three intended IndicTrans2 checkpoints.
+- [x] Auth/RBAC, review/version/approval, library/search, retry, cooperative cancellation, safe delete, storage visibility, and exact approved-memory reuse/opt-out are implemented and tested.
+- [x] Durable jobs, restart interruption handling, one-worker default, stage timings, failure/queue/disk metrics, no silent model download, and no hosted service by default are implemented.
+- [x] Windows-oriented preflight, pinned dependencies, revision-aware model setup, checksummed inventory, disk guard, cleanup, migration, backup/restore, and privacy-safe support bundle are implemented.
+- [ ] External: clean Windows 11 CPU-only installation/preflight/UAT evidence is recorded.
+- [x] Desktop/mobile/keyboard structure, labelled controls, focus/target rules, reduced motion, long Indic text, loading/error/retry/cancel/empty states, offline integrity and persona UAT are implemented/tested.
+- [x] 30-minute audio and 15-minute 1080p video boundary stress harness passes; real local audio and full video output E2E pass.
+- [x] Dependency/model governance, SBOM/source evidence generation, user/admin/privacy/troubleshooting/support/KT/UAT/release documents, and claim reconciliation are complete.
+- [ ] Release administration: push this slice, confirm GitHub CI, then create the release tag only after external acceptance boxes are complete.
 
 ## Friday Definition Of Done
 
@@ -141,6 +157,7 @@ Every 08:00 and 20:00 session appends an entry here before pushing:
 | 15 Jul 01:13 planning reset | Compressed roadmap to 72 hours; created twice-daily execution automation; established hard exit gates and external blocker lane | Automation scheduled for 08:00/20:00 IST through Friday; `main` began synchronized with green CI | IndicTrans2 acceptance, bilingual reviewers, Windows machine | Auth/RBAC; review library; quality harness | 42% |
 | 15 Jul 01:39 secure access slice | Added no-default first-run admin setup, PBKDF2 password hashes, HttpOnly local sessions, session expiry, CSRF checks, login throttling, pending user registration, admin approval/deactivation, protected content routes, admin metrics gate, and simple role-aware UI | `python -m py_compile` for tracked Python passed; `node --check frontend/app.js` passed; full unittest suite passed 32 tests; HTTP smoke on `127.0.0.1:8787` verified setup, 401 unauthenticated job, 403 missing CSRF, pending login block, approval, authorised login, and protected history | Browser screenshot tooling unavailable in this runtime; Tesseract integration test skipped locally; CI still pending after push; external IndicTrans2 acceptance, bilingual reviewers, and Windows machine remain | Reusable library and review workflow; retry/cancel/delete controls; corrected-output approval and translation memory | 48% |
 | 15 Jul 14:01 review-library slice | Captured organiser implementation/handover guidance; added durable review store, corrected translation versions, approval state, approved corrected package, exact approved-translation memory reuse with opt-out request flag, searchable library endpoint, storage usage, retry, cooperative cancel, safe delete including memory cleanup, queue/output-ID resolution, and minimal UI for searchable library plus human review | `.venv/bin/python -m py_compile api.py app.py core/*.py scripts/*.py` passed; `node --check frontend/app.js` passed; full unittest suite passed 35 tests with 1 OCR dependency skip; HTTP smoke on isolated `127.0.0.1:8791` verified first admin setup, queued preview text job, queue/output job lookup, library search, correction save, approval, and approved package artifact visibility | Tesseract/PDF OCR integration dependency still skipped locally; browser screenshot/mobile verification still not available in this runtime; GitHub CI pending after push; external IndicTrans2 acceptance, bilingual reviewers, and Windows machine remain | Finish review UX edge cases and delete/retry controls in UI; start judged quality glossary/protection/benchmark gate; draft handover pack aligned to organiser criteria | 56% |
+| 16 Jul 09:00 release-engineering slice | Added invariant-safe translation and versioned agriculture glossary; six-direction quality/reviewer gate; integrity ZIP/verifier; retry/cancel/delete UX and corrected-text persistence; stage timings/disk metrics; preflight/cleanup/migrate/backup/restore/support/model inventory; pinned dependencies/revisions; stress harness; security headers; complete handover pack | Python 3.10 compile and frontend syntax passed; 43 tests passed with local OCR skip (Linux CI installs it); 12-sample six-direction NLLB engineering gate passed with no preservation/script/backend failure; real audio and full video E2E passed; 30-minute audio/15-minute 1080p stress passed; desktop/mobile browser auth/text/review/approve/retry/cancel/accessibility checks passed with no console errors; backup/restore/support and offline package verification passed | External IndicTrans2 terms/model cache, bilingual approval, and clean Windows 11 proof remain; this Mac correctly fails production preflight for low disk/missing gated assets | Push and confirm CI; obtain three external acceptances; tag release candidate | 94% |
 
 ## Operating Rules
 

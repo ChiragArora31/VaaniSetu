@@ -30,6 +30,7 @@ from config.settings import (
     TRANSLATION_BEAM_SIZE,
     TRANSLATION_CPU_THREADS,
 )
+from core.quality import protect_invariants, restore_invariants, validate_translation
 
 
 class TranslationError(RuntimeError):
@@ -555,7 +556,7 @@ def translate_text(
     allow_preview: bool = False,
     allow_model_download: bool = ALLOW_MODEL_DOWNLOAD,
 ) -> TranslationResult:
-    return get_translator(allow_preview, allow_model_download).translate_many([text], source_name, target_name)
+    return translate_segments([text], source_name, target_name, allow_preview, allow_model_download)
 
 
 def translate_segments(
@@ -565,4 +566,23 @@ def translate_segments(
     allow_preview: bool = False,
     allow_model_download: bool = ALLOW_MODEL_DOWNLOAD,
 ) -> TranslationResult:
-    return get_translator(allow_preview, allow_model_download).translate_many(texts, source_name, target_name)
+    protected = [protect_invariants(text) for text in texts]
+    result = get_translator(allow_preview, allow_model_download).translate_many(
+        [item.text for item in protected], source_name, target_name
+    )
+    translated_lines = result.text.splitlines()
+    if len(translated_lines) != len(texts):
+        translated_lines = [result.text] if len(texts) == 1 else translated_lines
+    restored: list[str] = []
+    for index, source in enumerate(texts):
+        raw = translated_lines[index] if index < len(translated_lines) else ""
+        output = restore_invariants(raw, protected[index].values)
+        critical = [
+            finding for finding in validate_translation(
+                source, output, source_name, target_name, check_glossary=False
+            ) if finding.severity == "critical"
+        ]
+        if critical and result.backend != "preview-phrasebook":
+            raise TranslationError("Translation safety check failed: " + "; ".join(item.message for item in critical))
+        restored.append(output)
+    return TranslationResult(text="\n".join(restored), backend=result.backend, warning=result.warning)

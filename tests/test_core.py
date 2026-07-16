@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -14,20 +15,24 @@ from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+os.environ.setdefault("BAIF_MIN_FREE_DISK_GB", "1")
 
 import api as api_module
 from core.auth import AuthError, AuthStore
 from core.file_utils import ValidationError, save_binary_upload, validate_size
 from core.job_manager import JobManager
 from core.observability import JsonFormatter
+from core.quality import glossary_findings, protect_invariants, restore_invariants, validate_translation
+from core.export_utils import create_artifact_zip
 from core.asr_cleanup import clean_indic_asr_text
-from core.document_processor import extract_document_text
+from core.document_processor import DocumentProcessingError, extract_document_text
 from core.media_utils import MediaInfo
 from core.pipeline import ProcessingOptions, TranslationPipeline, _validate_media_constraints
 from core.review_store import ReviewStore
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
 from core.text_utils import detect_language_name, normalize_text, split_for_translation
 from core.translator import HostedHttpTranslator, TranslationError
+from scripts.verify_package import verify as verify_package
 from core.user_messages import user_safe_error
 from core.transcriber import WhisperTranscriber, get_transcriber
 
@@ -54,6 +59,26 @@ class TextUtilsTest(unittest.TestCase):
         self.assertEqual(detect_language_name("The farmer needs clean water."), "English")
         self.assertEqual(detect_language_name("किसान खेत में काम कर रहे हैं।"), "Hindi")
         self.assertEqual(detect_language_name("शेतकरी माती आणि पाणी तपासत आहेत."), "Marathi")
+
+
+class TranslationQualityTest(unittest.TestCase):
+    def test_protects_and_restores_numbers_units_urls_and_email(self):
+        source = "Apply 25 kg on 2.5 acres; see https://baif.org or ask field@example.org."
+        protected = protect_invariants(source)
+        self.assertNotIn("25 kg", protected.text)
+        restored = restore_invariants("Translated " + protected.text, protected.values)
+        for value in ("25 kg", "2.5 acres", "https://baif.org", "field@example.org"):
+            self.assertIn(value, restored)
+
+    def test_translation_gate_finds_missing_values_wrong_script_and_glossary(self):
+        findings = validate_translation("Apply 25 kg compost", "apply compost", "English", "Hindi")
+        kinds = {finding.kind for finding in findings}
+        self.assertIn("preservation", kinds)
+        self.assertIn("script", kinds)
+        self.assertIn("terminology", kinds)
+
+    def test_glossary_accepts_expected_term(self):
+        self.assertEqual(glossary_findings("Use drip irrigation", "ठिबक सिंचन वापरा", "English", "Marathi"), [])
 
 
 class SubtitleTest(unittest.TestCase):
@@ -101,6 +126,27 @@ class FileUtilsTest(unittest.TestCase):
         with self.assertRaises(ValidationError):
             validate_size((200 * 1024 * 1024) + 1, ".mp4")
 
+    def test_safe_filename_removes_path_traversal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            saved = save_binary_upload(io.BytesIO(b"safe"), "../../private.txt", Path(directory))
+            self.assertEqual(saved.path.parent, Path(directory))
+            self.assertEqual(saved.path.name, "private.txt")
+
+
+class OfflinePackageTest(unittest.TestCase):
+    def test_integrity_verifier_detects_tampering(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = root / "translation.txt"
+            artifact.write_text("नमस्ते", encoding="utf-8")
+            package = create_artifact_zip({"translated_txt": artifact}, root / "package.zip")
+            self.assertEqual(verify_package(package), [])
+            tampered = root / "tampered.zip"
+            with zipfile.ZipFile(package) as source, zipfile.ZipFile(tampered, "w") as target:
+                for name in source.namelist():
+                    target.writestr(name, "tampered" if name == "translation.txt" else source.read(name))
+            self.assertTrue(any("mismatch" in item.lower() for item in verify_package(tampered)))
+
 
 class MediaConstraintTest(unittest.TestCase):
     def test_audio_duration_limit_is_30_minutes(self):
@@ -144,6 +190,10 @@ class PipelineTest(unittest.TestCase):
         self.assertIn("bundle_zip", result.artifacts)
         for path in result.artifacts.values():
             self.assertTrue(path.exists())
+        self.assertEqual(verify_package(result.artifacts["bundle_zip"]), [])
+        report = json.loads(result.artifacts["job_report"].read_text(encoding="utf-8"))
+        self.assertIn("bundle_zip", report["artifacts"])
+        self.assertIn("job_report", report["artifacts"])
 
     def test_document_pipeline_generates_artifacts_with_auto_detect(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -180,6 +230,26 @@ class PipelineTest(unittest.TestCase):
 
 
 class DocumentProcessorTest(unittest.TestCase):
+    def test_extracts_selectable_pdf_text(self):
+        from pypdf import PdfWriter
+        from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "module.pdf"
+            writer = PdfWriter()
+            page = writer.add_blank_page(width=612, height=792)
+            font = DictionaryObject({NameObject("/Type"): NameObject("/Font"), NameObject("/Subtype"): NameObject("/Type1"), NameObject("/BaseFont"): NameObject("/Helvetica")})
+            font_ref = writer._add_object(font)
+            page[NameObject("/Resources")] = DictionaryObject({NameObject("/Font"): DictionaryObject({NameObject("/F1"): font_ref})})
+            stream = DecodedStreamObject()
+            stream.set_data(b"BT /F1 14 Tf 72 720 Td (Use clean water for the field.) Tj ET")
+            page[NameObject("/Contents")] = writer._add_object(stream)
+            with path.open("wb") as handle:
+                writer.write(handle)
+            extracted = extract_document_text(path)
+            self.assertEqual(extracted.kind, "pdf")
+            self.assertIn("clean water", extracted.text)
+
     def test_extracts_docx_text_without_external_dependency(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "module.docx"
@@ -242,6 +312,19 @@ class DocumentProcessorTest(unittest.TestCase):
                     extracted = extract_document_text(path)
                     self.assertEqual(extracted.kind, kind)
                     self.assertIn("Millet | Water early", extracted.text)
+
+    def test_corrupted_office_and_non_utf8_table_fail_safely(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for suffix in (".docx", ".pptx", ".xlsx"):
+                path = root / f"broken{suffix}"
+                path.write_bytes(b"not a zip")
+                with self.subTest(suffix=suffix), self.assertRaises(DocumentProcessingError):
+                    extract_document_text(path)
+            table = root / "broken.csv"
+            table.write_bytes(b"\xff\xfe\x00")
+            with self.assertRaises(DocumentProcessingError):
+                extract_document_text(table)
 
     @unittest.skipUnless(shutil.which("tesseract"), "Tesseract is required for the OCR integration test")
     def test_extracts_text_from_a_scanned_pdf_with_local_ocr(self):
@@ -335,6 +418,8 @@ class ApiAuthTest(unittest.TestCase):
                     json={"username": "admin", "password": "correct horse battery", "display_name": "Admin"},
                 )
                 self.assertEqual(setup.status_code, 200)
+                self.assertEqual(setup.headers["x-content-type-options"], "nosniff")
+                self.assertIn("frame-ancestors 'none'", setup.headers["content-security-policy"])
                 admin_csrf = setup.json()["csrf_token"]
                 self.assertTrue(admin_csrf)
 
@@ -536,6 +621,18 @@ class JobManagerTest(unittest.TestCase):
             self.assertEqual(completed.result["translated_text"], "नमस्ते")
             self.assertTrue((Path(directory) / f"{record.job_id}.json").exists())
             self.assertEqual(manager.summary()["succeeded"], 1)
+            self.assertIn("total", completed.stage_timings)
+            manager.shutdown()
+
+    def test_restart_marks_interrupted_job_failed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "stuck.json").write_text(
+                json.dumps({"job_id": "stuck", "kind": "file", "status": "running"}), encoding="utf-8"
+            )
+            manager = JobManager(state)
+            self.assertEqual(manager.get("stuck").status, "failed")
+            self.assertIn("restarted", manager.get("stuck").error)
             manager.shutdown()
 
 
