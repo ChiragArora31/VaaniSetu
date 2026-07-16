@@ -7,6 +7,7 @@ Environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is eng
 - Python compile: passed for all tracked/new Python files.
 - Frontend JavaScript syntax: passed with bundled Node.js.
 - Unit/integration/security/format suite: 43 passed; scanned-PDF OCR skipped locally because Tesseract is absent. GitHub CI installs Tesseract plus English/Hindi/Marathi data and runs the same test.
+- Clean-install GitHub CI: run #6 passed on Ubuntu with the pinned dependency set and all 43 tests, including scanned-PDF OCR.
 - Release/secret/generated-data policy: passed.
 - Offline package verifier: passed on real video job `466ad9a8fd58`; deliberate tampering is rejected by automated test.
 
