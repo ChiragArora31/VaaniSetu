@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css?v=20260716-rc1" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260716-win1" />
   </head>
   <body>
     <main class="shell">
@@ -58,6 +58,11 @@
       </details>
 
       <section class="translator-surface hidden" data-auth-required aria-label="Translation workspace">
+        <ol class="journey-steps" aria-label="Translation journey">
+          <li class="active" id="journeyTranslate"><span>1</span><strong>Translate</strong></li>
+          <li id="journeyReview"><span>2</span><strong>Review</strong></li>
+          <li id="journeyOffline"><span>3</span><strong>Take offline</strong></li>
+        </ol>
         <div class="language-panel" aria-label="Language selection">
           <label>
             <span>Source</span>
@@ -141,6 +146,7 @@
             </label>
             <button class="translate-action" id="translateText" type="button">Translate text</button>
           </div>
+          <div class="glossary-insight hidden" id="glossaryInsight" aria-live="polite"></div>
         </section>
 
         <section class="input-mode hidden" id="uploadMode" aria-label="Upload content">
@@ -150,9 +156,13 @@
               <strong id="selectedFileName">Choose a file</strong>
               <span id="uploadHint">Audio up to 30 min. Video up to 15 min. TXT, PDF, DOCX, PPTX, XLSX, CSV.</span>
             </label>
-            <input id="fileInput" type="file" accept=".mp3,.wav,.aac,.m4a,.flac,.wma,.ogg,.mp4,.mov,.avi,.wmv,.mkv,.flv,.webm,.txt,.text,.md,.pdf,.docx,.pptx,.xlsx,.csv,.tsv" />
-            <button class="translate-action" id="translateUpload" type="button" disabled>Translate file</button>
+            <input id="fileInput" type="file" multiple accept=".mp3,.wav,.aac,.m4a,.flac,.wma,.ogg,.mp4,.mov,.avi,.wmv,.mkv,.flv,.webm,.txt,.text,.md,.pdf,.docx,.pptx,.xlsx,.csv,.tsv" />
+            <button class="translate-action" id="translateUpload" type="button" disabled>Translate selected</button>
           </div>
+          <section class="batch-summary hidden" id="batchSummary" aria-live="polite">
+            <div class="batch-summary-header"><strong id="batchTitle">Batch progress</strong><span id="batchCount"></span></div>
+            <div class="batch-list" id="batchList"></div>
+          </section>
         </section>
 
         <section class="progress-panel hidden" id="progressPanel" aria-live="polite">
@@ -180,6 +190,13 @@
           </div>
 
           <div class="warning-list hidden" id="warningList"></div>
+
+          <section class="trust-card" aria-label="Translation trust information">
+            <div><span>Translation route</span><strong id="trustBackend">Checking</strong></div>
+            <div><span>Worker profile</span><strong id="trustProfile">Checking</strong></div>
+            <div><span>Processing time</span><strong id="trustTiming">Available in details</strong></div>
+            <div><span>Review</span><strong id="trustReview">Human review pending</strong></div>
+          </section>
 
           <audio class="output-audio" id="outputAudio" controls></audio>
           <button class="translate-action hidden" id="speakTranslation" type="button">Play translated speech</button>
@@ -209,6 +226,13 @@
               <span>Corrected translation</span>
               <textarea id="correctedText" rows="7" placeholder="Edit the translated text here after review"></textarea>
             </label>
+            <details class="diff-box" id="diffBox">
+              <summary id="diffSummary">No correction changes yet</summary>
+              <div class="diff-grid">
+                <article><span>Machine output</span><p id="machineDiff"></p></article>
+                <article><span>Corrected output</span><p id="correctedDiff"></p></article>
+              </div>
+            </details>
             <div class="review-actions">
               <button class="secondary-action" id="saveCorrection" type="button">Save correction</button>
               <button class="translate-action" id="approveCorrection" type="button">Approve final</button>
@@ -232,6 +256,21 @@
           <input id="librarySearch" placeholder="Search language, filename, text, or status" />
         </label>
         <div class="recent-list" id="recentList"></div>
+      </details>
+
+      <details class="impact-panel hidden" id="impactPanel" data-auth-required>
+        <summary>
+          <span>Impact and reuse</span>
+          <span id="impactHeadline">Loading</span>
+        </summary>
+        <div class="impact-content">
+          <div class="impact-grid" id="impactGrid"></div>
+          <div class="impact-breakdown" id="impactDirections"></div>
+          <div class="impact-actions">
+            <p id="impactPrivacy">Aggregated counts only. No source or translated content is included.</p>
+            <button class="secondary-action compact" id="exportImpact" type="button">Download impact report</button>
+          </div>
+        </div>
       </details>
 
       <details class="system-panel">
@@ -270,6 +309,6 @@
       </details>
     </main>
 
-    <script src="/static/app.js?v=20260716-rc1"></script>
+    <script src="/static/app.js?v=20260716-win1"></script>
   </body>
 </html>

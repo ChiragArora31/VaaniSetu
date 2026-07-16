@@ -10,6 +10,7 @@ import zipfile
 import time
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -21,8 +22,9 @@ import api as api_module
 from core.auth import AuthError, AuthStore
 from core.file_utils import ValidationError, save_binary_upload, validate_size
 from core.job_manager import JobManager
+from core.impact import build_impact_summary
 from core.observability import JsonFormatter
-from core.quality import glossary_findings, protect_invariants, restore_invariants, validate_translation
+from core.quality import glossary_findings, glossary_matches, protect_invariants, restore_invariants, validate_translation
 from core.export_utils import create_artifact_zip
 from core.asr_cleanup import clean_indic_asr_text
 from core.document_processor import DocumentProcessingError, extract_document_text
@@ -35,6 +37,7 @@ from core.translator import HostedHttpTranslator, TranslationError
 from scripts.verify_package import verify as verify_package
 from core.user_messages import user_safe_error
 from core.transcriber import WhisperTranscriber, get_transcriber
+from scripts.operations import recommended_worker_profile
 
 
 class TextUtilsTest(unittest.TestCase):
@@ -79,6 +82,11 @@ class TranslationQualityTest(unittest.TestCase):
 
     def test_glossary_accepts_expected_term(self):
         self.assertEqual(glossary_findings("Use drip irrigation", "ठिबक सिंचन वापरा", "English", "Marathi"), [])
+
+    def test_glossary_preflight_lists_expected_terms_without_claiming_approval(self):
+        coverage = glossary_matches("Use compost and drip irrigation", "English", "Hindi")
+        self.assertEqual({item["source_term"] for item in coverage["matches"]}, {"compost", "drip irrigation"})
+        self.assertIn("review required", coverage["review_status"])
 
 
 class SubtitleTest(unittest.TestCase):
@@ -146,6 +154,71 @@ class OfflinePackageTest(unittest.TestCase):
                 for name in source.namelist():
                     target.writestr(name, "tampered" if name == "translation.txt" else source.read(name))
             self.assertTrue(any("mismatch" in item.lower() for item in verify_package(tampered)))
+            injected = root / "injected.zip"
+            with zipfile.ZipFile(package) as source, zipfile.ZipFile(injected, "w") as target:
+                for name in source.namelist():
+                    target.writestr(name, source.read(name))
+                target.writestr("unexpected.exe", b"injected")
+            self.assertTrue(any("unexpected file" in item.lower() for item in verify_package(injected)))
+
+    def test_offline_landing_page_links_and_plays_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            audio = root / "translated_voice.mp3"
+            text = root / "translated_text.txt"
+            audio.write_bytes(b"offline-audio")
+            text.write_text("नमस्ते", encoding="utf-8")
+            package = create_artifact_zip({"tts_mp3": audio, "translated_txt": text}, root / "package.zip")
+            with zipfile.ZipFile(package) as archive:
+                contents = archive.read("CONTENTS.html").decode("utf-8")
+            self.assertIn("Works offline", contents)
+            self.assertIn("audio controls", contents)
+            self.assertIn("href='translated_text.txt'", contents)
+            self.assertIn("src='translated_voice.mp3'", contents)
+            tampered = root / "tampered-landing.zip"
+            with zipfile.ZipFile(package) as source, zipfile.ZipFile(tampered, "w") as target:
+                for name in source.namelist():
+                    target.writestr(name, b"changed" if name == "CONTENTS.html" else source.read(name))
+            self.assertTrue(any("contents.html" in item.lower() for item in verify_package(tampered)))
+
+
+class ImpactSummaryTest(unittest.TestCase):
+    def test_aggregates_impact_without_content(self):
+        review = SimpleNamespace(status="approved", versions=[object(), object()])
+        records = [
+            SimpleNamespace(
+                job_id="queue1",
+                kind="video",
+                status="succeeded",
+                stage_timings={"total": 42.0},
+                result={
+                    "job_id": "job1",
+                    "input_type": "video",
+                    "source_language": "Hindi",
+                    "target_language": "Marathi",
+                    "original_text": "private source content",
+                    "translated_text": "private translated content",
+                    "metadata": {"duration_seconds": 120, "translation_backend": "approved-memory"},
+                    "artifacts": [{"key": "bundle_zip"}, {"key": "srt"}],
+                },
+            ),
+            SimpleNamespace(job_id="queue2", kind="audio", status="failed", stage_timings={}, result=None),
+        ]
+        summary = build_impact_summary(records, lambda _job_id: review, 2048)
+        self.assertEqual(summary["jobs"]["succeeded"], 1)
+        self.assertEqual(summary["delivery"]["media_minutes"], 2.0)
+        self.assertEqual(summary["review"]["approved_jobs"], 1)
+        self.assertEqual(summary["review"]["approved_memory_reuses"], 1)
+        self.assertEqual(summary["language_directions"]["Hindi → Marathi"], 1)
+        self.assertNotIn("private", json.dumps(summary).lower())
+
+
+class OperationsRecommendationTest(unittest.TestCase):
+    def test_hardware_profile_respects_baif_baseline(self):
+        self.assertEqual(recommended_worker_profile(8, 8)["profile"], "unsupported")
+        self.assertEqual(recommended_worker_profile(16, 6)["profile"], "balanced")
+        self.assertEqual(recommended_worker_profile(32, 8)["profile"], "quality")
+        self.assertEqual(recommended_worker_profile(16, 6)["worker_count"], 1)
 
 
 class MediaConstraintTest(unittest.TestCase):
@@ -455,6 +528,13 @@ class ApiAuthTest(unittest.TestCase):
                 )
                 self.assertEqual(login.status_code, 200)
                 self.assertEqual(user_client.get("/history").status_code, 200)
+                coverage = user_client.post(
+                    "/glossary/coverage",
+                    headers={"X-CSRF-Token": login.json()["csrf_token"]},
+                    json={"text": "Use drip irrigation", "source_language": "English", "target_language": "Marathi"},
+                )
+                self.assertEqual(coverage.status_code, 200)
+                self.assertEqual(coverage.json()["matches"][0]["target_term"], "ठिबक सिंचन")
 
                 deactivate = client.post(
                     "/auth/users/trainer/deactivate",
@@ -584,6 +664,12 @@ class ReviewWorkflowTest(unittest.TestCase):
                 self.assertEqual(approval.status_code, 200)
                 self.assertEqual(approval.json()["status"], "approved")
                 self.assertIsNotNone(api_module.review_store.find_memory("hello farmer water", "English", "Hindi"))
+
+                impact = client.get("/impact")
+                self.assertEqual(impact.status_code, 200)
+                self.assertEqual(impact.json()["jobs"]["succeeded"], 1)
+                self.assertEqual(impact.json()["review"]["approved_jobs"], 1)
+                self.assertIn("no source or translated content", impact.json()["privacy"].lower())
 
                 delete = client.delete("/jobs/job123", headers={"X-CSRF-Token": csrf})
                 self.assertEqual(delete.status_code, 200)

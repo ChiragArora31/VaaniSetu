@@ -23,7 +23,10 @@ The supported formats and enforced limits are in `DELIVERY_COMPATIBILITY.md`. Ex
 - Governance: `PRIVACY.md`, `OPEN_SOURCE_COMPLIANCE.md`, `SUPPORT_MODEL.md`
 - Acceptance: `UAT.md`, `RELEASE_CHECKLIST.md`, `benchmarks/README.md`
 - Engineering evidence: `TEST_EVIDENCE.md`
+- Organiser alignment: `HACKATHON_REQUIREMENTS_AUDIT.md`
 - Recovery: `scripts/operations.py`, `scripts/verify_package.py`
+
+The runtime includes a privacy-safe impact view/export containing aggregate counts only. It never includes source or translated content. Multi-file batches remain sequential and therefore preserve the one-worker CPU safety boundary.
 
 ## Assumptions and external acceptance
 

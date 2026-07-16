@@ -17,6 +17,10 @@ const state = {
   currentJobId: "",
   currentQueueJobId: "",
   currentReviewVersion: null,
+  impactData: null,
+  batchRunning: false,
+  batchCancelRequested: false,
+  glossaryTimer: null,
 };
 
 const els = {
@@ -93,6 +97,28 @@ const els = {
   adminPanel: document.querySelector("#adminPanel"),
   adminUserCount: document.querySelector("#adminUserCount"),
   adminUserList: document.querySelector("#adminUserList"),
+  batchSummary: document.querySelector("#batchSummary"),
+  batchTitle: document.querySelector("#batchTitle"),
+  batchCount: document.querySelector("#batchCount"),
+  batchList: document.querySelector("#batchList"),
+  trustBackend: document.querySelector("#trustBackend"),
+  trustProfile: document.querySelector("#trustProfile"),
+  trustTiming: document.querySelector("#trustTiming"),
+  trustReview: document.querySelector("#trustReview"),
+  impactPanel: document.querySelector("#impactPanel"),
+  impactHeadline: document.querySelector("#impactHeadline"),
+  impactGrid: document.querySelector("#impactGrid"),
+  impactDirections: document.querySelector("#impactDirections"),
+  impactPrivacy: document.querySelector("#impactPrivacy"),
+  exportImpact: document.querySelector("#exportImpact"),
+  journeyTranslate: document.querySelector("#journeyTranslate"),
+  journeyReview: document.querySelector("#journeyReview"),
+  journeyOffline: document.querySelector("#journeyOffline"),
+  glossaryInsight: document.querySelector("#glossaryInsight"),
+  diffBox: document.querySelector("#diffBox"),
+  diffSummary: document.querySelector("#diffSummary"),
+  machineDiff: document.querySelector("#machineDiff"),
+  correctedDiff: document.querySelector("#correctedDiff"),
 };
 
 const uploadLimits = {
@@ -161,6 +187,7 @@ function showWorkspace(user) {
   els.adminPanel.classList.toggle("hidden", user.role !== "admin");
   if (user.role === "admin") loadUsers();
   loadHistory();
+  loadImpact();
 }
 
 function showAuthPanel(mode) {
@@ -460,6 +487,112 @@ async function loadServerLimits() {
   }
 }
 
+function setJourney(stage) {
+  const order = [els.journeyTranslate, els.journeyReview, els.journeyOffline];
+  const activeIndex = { translate: 0, review: 1, offline: 2 }[stage] ?? 0;
+  order.forEach((item, index) => {
+    item.classList.toggle("active", index === activeIndex);
+    item.classList.toggle("complete", index < activeIndex);
+    if (index === activeIndex) item.setAttribute("aria-current", "step");
+    else item.removeAttribute("aria-current");
+  });
+}
+
+function appendDiffWords(container, words, changedIndexes) {
+  container.innerHTML = "";
+  words.forEach((word, index) => {
+    const node = changedIndexes.has(index) ? document.createElement("mark") : document.createElement("span");
+    node.textContent = word;
+    container.appendChild(node);
+    if (index < words.length - 1) container.appendChild(document.createTextNode(" "));
+  });
+}
+
+function renderCorrectionDiff() {
+  const originalWords = (els.translatedText.textContent || "").trim().split(/\s+/).filter(Boolean);
+  const correctedWords = (els.correctedText.value || "").trim().split(/\s+/).filter(Boolean);
+  const removed = new Set();
+  const added = new Set();
+  if (!originalWords.length && !correctedWords.length) {
+    els.diffSummary.textContent = "No correction changes yet";
+    els.machineDiff.textContent = "";
+    els.correctedDiff.textContent = "";
+    return;
+  }
+  if (originalWords.length * correctedWords.length <= 90000) {
+    const matrix = Array.from({ length: originalWords.length + 1 }, () => new Uint16Array(correctedWords.length + 1));
+    for (let i = originalWords.length - 1; i >= 0; i -= 1) {
+      for (let j = correctedWords.length - 1; j >= 0; j -= 1) {
+        matrix[i][j] = originalWords[i] === correctedWords[j] ? matrix[i + 1][j + 1] + 1 : Math.max(matrix[i + 1][j], matrix[i][j + 1]);
+      }
+    }
+    let i = 0;
+    let j = 0;
+    while (i < originalWords.length || j < correctedWords.length) {
+      if (i < originalWords.length && j < correctedWords.length && originalWords[i] === correctedWords[j]) {
+        i += 1;
+        j += 1;
+      } else if (j < correctedWords.length && (i === originalWords.length || matrix[i][j + 1] >= matrix[i + 1][j])) {
+        added.add(j);
+        j += 1;
+      } else {
+        removed.add(i);
+        i += 1;
+      }
+    }
+  } else {
+    originalWords.forEach((_word, index) => removed.add(index));
+    correctedWords.forEach((_word, index) => added.add(index));
+  }
+  appendDiffWords(els.machineDiff, originalWords, removed);
+  appendDiffWords(els.correctedDiff, correctedWords, added);
+  const changes = removed.size + added.size;
+  els.diffSummary.textContent = changes ? `${changes} word change${changes === 1 ? "" : "s"} highlighted` : "No correction changes yet";
+}
+
+async function loadGlossaryInsight() {
+  const textValue = els.textInput.value.trim();
+  if (textValue.length < 3 || !state.auth.user) {
+    els.glossaryInsight.classList.add("hidden");
+    els.glossaryInsight.innerHTML = "";
+    return;
+  }
+  try {
+    const response = await apiFetch("/glossary/coverage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: textValue, source_language: els.sourceLanguage.value, target_language: els.targetLanguage.value }),
+    });
+    if (!response.ok) throw new Error("Glossary check unavailable");
+    const payload = await response.json();
+    els.glossaryInsight.innerHTML = "";
+    const heading = document.createElement("strong");
+    heading.textContent = payload.matches?.length ? `${payload.matches.length} agriculture term${payload.matches.length === 1 ? "" : "s"} detected` : "No seeded agriculture terms detected";
+    els.glossaryInsight.appendChild(heading);
+    if (payload.matches?.length) {
+      const list = document.createElement("div");
+      list.className = "glossary-chips";
+      payload.matches.forEach((match) => {
+        const chip = document.createElement("span");
+        chip.textContent = `${match.source_term} → ${match.target_term}`;
+        list.appendChild(chip);
+      });
+      els.glossaryInsight.appendChild(list);
+    }
+    const note = document.createElement("small");
+    note.textContent = `Glossary v${payload.version} · bilingual review remains required`;
+    els.glossaryInsight.appendChild(note);
+    els.glossaryInsight.classList.remove("hidden");
+  } catch {
+    els.glossaryInsight.classList.add("hidden");
+  }
+}
+
+function scheduleGlossaryInsight() {
+  window.clearTimeout(state.glossaryTimer);
+  state.glossaryTimer = window.setTimeout(loadGlossaryInsight, 300);
+}
+
 function resetResult() {
   els.resultPanel.classList.add("hidden");
   els.outputAudio.removeAttribute("src");
@@ -473,8 +606,14 @@ function resetResult() {
   els.correctedText.value = "";
   els.reviewStatus.textContent = "Not approved";
   els.reviewMessage.textContent = "";
+  els.trustBackend.textContent = "Checking";
+  els.trustProfile.textContent = "Checking";
+  els.trustTiming.textContent = "Available in details";
+  els.trustReview.textContent = "Human review pending";
   state.currentJobId = "";
   state.currentReviewVersion = null;
+  setJourney("translate");
+  renderCorrectionDiff();
 }
 
 function resetRecording() {
@@ -611,7 +750,10 @@ async function waitForJob(statusUrl) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not read translation status.");
     setProgress((payload.progress || 0) * 100, payload.message || "Processing...");
-    if (payload.status === "succeeded") return payload.result;
+    if (payload.status === "succeeded") {
+      payload.result.stage_timings = payload.stage_timings || {};
+      return payload.result;
+    }
     if (payload.status === "failed") throw new Error(payload.error || "Translation could not be completed.");
     if (payload.status === "cancelled") throw new Error("Translation was cancelled.");
     await new Promise((resolve) => window.setTimeout(resolve, 800));
@@ -708,13 +850,28 @@ function renderResult(payload) {
   els.originalText.textContent = payload.original_text || "No transcript returned.";
   els.translatedText.textContent = payload.translated_text || "No translation returned.";
   els.correctedText.value = payload.translated_text || "";
+  setJourney("review");
+  renderCorrectionDiff();
   els.reviewStatus.textContent = "Checking";
   els.reviewMessage.textContent = "";
+  const metadata = payload.metadata || {};
+  const backendLabels = {
+    "approved-memory": "Approved human translation memory",
+    "indictrans2-local": "Local IndicTrans2",
+    "nllb-ct2-local": "Local NLLB · CPU optimised",
+    "nllb-local": "Local NLLB",
+  };
+  els.trustBackend.textContent = backendLabels[metadata.translation_backend] || metadata.translation_backend || "Recorded in job details";
+  els.trustProfile.textContent = metadata.model_profile || "Local worker";
+  const totalSeconds = Number(payload.stage_timings?.total || 0);
+  els.trustTiming.textContent = totalSeconds > 0 ? `${totalSeconds.toFixed(1)} seconds` : "Recorded in job details";
+  els.trustReview.textContent = "Human review pending";
   renderWarnings(payload.warnings || []);
   renderDownloads(artifacts);
   els.resultPanel.classList.remove("hidden");
   loadReview(payload.job_id);
   loadHistory();
+  loadImpact();
 }
 
 function renderHistory(items) {
@@ -816,6 +973,91 @@ async function loadHistory() {
   }
 }
 
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let size = value / 1024;
+  let index = 0;
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024;
+    index += 1;
+  }
+  return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[index]}`;
+}
+
+function renderImpact(payload) {
+  state.impactData = payload;
+  const jobs = payload.jobs || {};
+  const delivery = payload.delivery || {};
+  const review = payload.review || {};
+  els.impactHeadline.textContent = `${jobs.succeeded || 0} completed · ${delivery.media_minutes || 0} media min`;
+  const cards = [
+    ["Completed translations", jobs.succeeded || 0],
+    ["Successful jobs", `${jobs.success_rate_percent || 0}%`],
+    ["Media translated", `${delivery.media_minutes || 0} min`],
+    ["Offline packages", delivery.offline_packages || 0],
+    ["Human-approved", review.approved_jobs || 0],
+    ["Approved reuse", review.approved_memory_reuses || 0],
+    ["Artifacts delivered", delivery.artifacts_created || 0],
+    ["Local storage", formatBytes(payload.storage_bytes)],
+  ];
+  els.impactGrid.innerHTML = "";
+  cards.forEach(([label, value]) => {
+    const card = document.createElement("div");
+    const strong = document.createElement("strong");
+    const span = document.createElement("span");
+    strong.textContent = String(value);
+    span.textContent = label;
+    card.append(strong, span);
+    els.impactGrid.appendChild(card);
+  });
+  els.impactDirections.innerHTML = "";
+  const heading = document.createElement("strong");
+  heading.textContent = "Language directions";
+  els.impactDirections.appendChild(heading);
+  const directions = Object.entries(payload.language_directions || {});
+  if (!directions.length) {
+    const empty = document.createElement("span");
+    empty.textContent = "Completed language directions will appear here.";
+    els.impactDirections.appendChild(empty);
+  } else {
+    const list = document.createElement("div");
+    list.className = "impact-chips";
+    directions.forEach(([direction, count]) => {
+      const chip = document.createElement("span");
+      chip.textContent = `${direction} · ${count}`;
+      list.appendChild(chip);
+    });
+    els.impactDirections.appendChild(list);
+  }
+  els.impactPrivacy.textContent = payload.privacy || "Aggregated counts only; no content is included.";
+}
+
+async function loadImpact() {
+  if (!state.auth.user) return;
+  try {
+    const response = await apiFetch("/impact", { cache: "no-store" });
+    if (!response.ok) throw new Error("Impact summary unavailable");
+    renderImpact(await response.json());
+  } catch {
+    els.impactHeadline.textContent = "Unavailable";
+  }
+}
+
+function exportImpactReport() {
+  if (!state.impactData) return;
+  const blob = new Blob([JSON.stringify(state.impactData, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `vaanisetu-impact-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function openLibraryJob(jobId) {
   if (!jobId) return;
   clearError();
@@ -824,6 +1066,7 @@ async function openLibraryJob(jobId) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not open this job.");
     if (!payload.result) throw new Error("This job is not ready for review.");
+    payload.result.stage_timings = payload.stage_timings || {};
     renderResult(payload.result);
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (error) {
@@ -839,13 +1082,19 @@ async function loadReview(jobId) {
     const review = await response.json();
     state.currentReviewVersion = review.versions?.at(-1)?.version || null;
     els.reviewStatus.textContent = review.status === "approved" ? `Approved v${review.approved_version}` : `${review.versions?.length || 0} corrections`;
+    els.trustReview.textContent = review.status === "approved" ? `Approved · version ${review.approved_version}` : review.versions?.length ? `${review.versions.length} saved correction${review.versions.length === 1 ? "" : "s"}` : "Human review pending";
+    if (review.status === "approved") setJourney("offline");
     const latest = review.versions?.at(-1);
     if (latest?.artifact_key) {
       const correction = await apiFetch(`/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(latest.artifact_key)}`, { cache: "no-store" });
-      if (correction.ok) els.correctedText.value = await correction.text();
+      if (correction.ok) {
+        els.correctedText.value = await correction.text();
+        renderCorrectionDiff();
+      }
     }
   } catch {
     els.reviewStatus.textContent = "Not approved";
+    els.trustReview.textContent = "Human review pending";
   }
 }
 
@@ -863,6 +1112,7 @@ async function saveCorrection() {
     if (!response.ok) throw new Error(payload.detail || "Could not save correction.");
     state.currentReviewVersion = payload.versions?.at(-1)?.version || null;
     els.reviewStatus.textContent = `${payload.versions.length} corrections`;
+    els.trustReview.textContent = `${payload.versions.length} saved correction${payload.versions.length === 1 ? "" : "s"}`;
     els.reviewMessage.textContent = "Correction saved. Approve it when reviewed.";
     await openLibraryJob(state.currentJobId);
     els.correctedText.value = savedText;
@@ -885,10 +1135,13 @@ async function approveCorrection() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not approve correction.");
     els.reviewStatus.textContent = `Approved v${payload.approved_version}`;
+    els.trustReview.textContent = `Approved · version ${payload.approved_version}`;
+    setJourney("offline");
     els.reviewMessage.textContent = "Approved package and translation memory updated.";
     await openLibraryJob(state.currentJobId);
     els.correctedText.value = approvedText;
     els.reviewMessage.textContent = "Approved package and translation memory updated.";
+    loadImpact();
   } catch (error) {
     els.reviewMessage.textContent = error.message || "Could not approve correction.";
   }
@@ -973,6 +1226,24 @@ function bestSpeechVoice(languageName) {
   );
 }
 
+function fileJobForm(blob, filename) {
+  const form = new FormData();
+  form.append("file", blob, filename);
+  form.append("source_language", els.sourceLanguage.value);
+  form.append("target_language", els.targetLanguage.value);
+  form.append("make_subtitles", String(els.makeSubtitles.checked));
+  form.append("make_tts", String(els.makeTts.checked));
+  form.append("burn_captions", String(els.burnCaptions.checked));
+  form.append("merge_translated_audio", String(els.mergeTranslatedAudio.checked));
+  form.append("allow_preview_translation", "false");
+  form.append("allow_model_download", "false");
+  return form;
+}
+
+async function submitFileJob(blob, filename) {
+  return submitJob("/jobs/file", { method: "POST", body: fileJobForm(blob, filename) });
+}
+
 async function processBlob(blob, filename, inputLabel = "voice note") {
   clearError();
   if (els.sourceLanguage.value === "Auto detect" && (inputLabel === "voice note" || isMediaFile({ name: filename }))) {
@@ -989,19 +1260,8 @@ async function processBlob(blob, filename, inputLabel = "voice note") {
   els.translateRecording.disabled = true;
   els.translateUpload.disabled = true;
 
-  const form = new FormData();
-  form.append("file", blob, filename);
-  form.append("source_language", els.sourceLanguage.value);
-  form.append("target_language", els.targetLanguage.value);
-  form.append("make_subtitles", String(els.makeSubtitles.checked));
-  form.append("make_tts", String(els.makeTts.checked));
-  form.append("burn_captions", String(els.burnCaptions.checked));
-  form.append("merge_translated_audio", String(els.mergeTranslatedAudio.checked));
-  form.append("allow_preview_translation", "false");
-  form.append("allow_model_download", "false");
-
   try {
-    const payload = await submitJob("/jobs/file", { method: "POST", body: form });
+    const payload = await submitFileJob(blob, filename);
     setProgress(100, "Your translation is ready.");
     renderResult(payload);
   } catch (error) {
@@ -1010,6 +1270,100 @@ async function processBlob(blob, filename, inputLabel = "voice note") {
     els.translateRecording.disabled = false;
     els.translateUpload.disabled = !els.fileInput.files.length;
   }
+}
+
+function createBatchRow(file, index) {
+  const row = document.createElement("article");
+  row.className = "batch-item";
+  row.dataset.batchIndex = String(index);
+  const name = document.createElement("strong");
+  name.textContent = file.name;
+  const status = document.createElement("span");
+  status.textContent = "Waiting";
+  row.append(name, status);
+  els.batchList.appendChild(row);
+  return row;
+}
+
+async function processSelectedFiles() {
+  const files = Array.from(els.fileInput.files || []);
+  if (!files.length || state.batchRunning) return;
+  if (files.length === 1) {
+    await processBlob(files[0], files[0].name, "file");
+    return;
+  }
+  if (files.length > 10) {
+    showError("Choose up to 10 files in one batch so the CPU worker queue stays manageable.");
+    return;
+  }
+  const invalid = files.map((file) => [file, validateSelectedFile(file)]).find(([, error]) => error);
+  if (invalid) {
+    showError(`${invalid[0].name}: ${invalid[1]}`);
+    return;
+  }
+  if (els.sourceLanguage.value === "Auto detect" && files.some(isMediaFile)) {
+    showError("For an audio/video batch, choose the spoken source language for best transcription accuracy.");
+    return;
+  }
+  const languageError = validateLanguagePair();
+  if (languageError) {
+    showError(languageError);
+    return;
+  }
+
+  clearError();
+  resetResult();
+  state.batchRunning = true;
+  state.batchCancelRequested = false;
+  els.translateUpload.disabled = true;
+  els.batchSummary.classList.remove("hidden");
+  els.batchList.innerHTML = "";
+  els.batchTitle.textContent = "Batch in progress";
+  const rows = files.map(createBatchRow);
+  let completed = 0;
+  let failed = 0;
+  let lastResult = null;
+  els.batchCount.textContent = `0 of ${files.length}`;
+
+  for (let index = 0; index < files.length; index += 1) {
+    if (state.batchCancelRequested) break;
+    const file = files[index];
+    const row = rows[index];
+    const status = row.querySelector("span");
+    status.textContent = "Processing";
+    row.classList.add("active");
+    beginProgress("file");
+    els.progressTitle.textContent = `Processing ${index + 1} of ${files.length}`;
+    try {
+      const payload = await submitFileJob(file, file.name);
+      completed += 1;
+      lastResult = payload;
+      status.textContent = "Complete";
+      row.classList.add("complete");
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "secondary-action compact";
+      open.textContent = "Review";
+      open.addEventListener("click", () => openLibraryJob(payload.job_id));
+      row.appendChild(open);
+    } catch (error) {
+      failed += 1;
+      status.textContent = error.message || "Failed";
+      row.classList.add("failed");
+    } finally {
+      row.classList.remove("active");
+      els.batchCount.textContent = `${index + 1} of ${files.length}`;
+    }
+  }
+
+  state.batchRunning = false;
+  els.translateUpload.disabled = false;
+  els.progressPanel.classList.add("hidden");
+  els.batchTitle.textContent = `${state.batchCancelRequested ? "Batch stopped" : "Batch complete"} · ${completed} succeeded${failed ? ` · ${failed} failed` : ""}`;
+  if (lastResult) renderResult(lastResult);
+  else showError("No file in this batch could be completed. Review the messages above and retry.");
+  loadHistory();
+  loadImpact();
 }
 
 async function processTextInput() {
@@ -1082,6 +1436,8 @@ els.modeTabs.forEach((tab) => {
 els.translateText.addEventListener("click", processTextInput);
 els.saveCorrection.addEventListener("click", saveCorrection);
 els.approveCorrection.addEventListener("click", approveCorrection);
+els.correctedText.addEventListener("input", renderCorrectionDiff);
+els.textInput.addEventListener("input", scheduleGlossaryInsight);
 els.librarySearch.addEventListener("input", () => {
   window.clearTimeout(state.libraryTimer);
   state.libraryTimer = window.setTimeout(loadHistory, 250);
@@ -1089,32 +1445,38 @@ els.librarySearch.addEventListener("input", () => {
 
 els.fileInput.addEventListener("change", () => {
   clearError();
-  const file = els.fileInput.files[0];
-  refreshOutputOptions(file || null);
-  if (!file) {
+  const files = Array.from(els.fileInput.files || []);
+  const representative = files.find(isVideoFile) || files[0] || null;
+  refreshOutputOptions(representative);
+  if (!files.length) {
     els.translateUpload.disabled = true;
     els.selectedFileName.textContent = "Choose a file";
+    els.batchSummary.classList.add("hidden");
     return;
   }
-  els.selectedFileName.textContent = file.name;
-  const error = validateSelectedFile(file);
-  if (error) {
-    showError(error);
+  els.selectedFileName.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
+  const invalid = files.map((file) => [file, validateSelectedFile(file)]).find(([, error]) => error);
+  if (invalid) {
+    showError(`${invalid[0].name}: ${invalid[1]}`);
     els.translateUpload.disabled = true;
     return;
   }
-  if (els.sourceLanguage.value === "Auto detect" && isMediaFile(file)) {
+  if (els.sourceLanguage.value === "Auto detect" && files.some(isMediaFile)) {
     showError("For audio/video, choose the spoken source language for best transcription accuracy.");
     els.translateUpload.disabled = true;
     return;
   }
+  if (files.length > 10) {
+    showError("Choose up to 10 files in one batch so the CPU worker queue stays manageable.");
+    els.translateUpload.disabled = true;
+    return;
+  }
   els.translateUpload.disabled = false;
+  els.translateUpload.textContent = files.length === 1 ? "Translate file" : `Translate ${files.length} files`;
 });
 
-els.translateUpload.addEventListener("click", () => {
-  const file = els.fileInput.files[0];
-  if (file) processBlob(file, file.name, "file");
-});
+els.translateUpload.addEventListener("click", processSelectedFiles);
+els.exportImpact.addEventListener("click", exportImpactReport);
 
 [els.makeTts, els.makeSubtitles, els.burnCaptions, els.mergeTranslatedAudio].forEach((control) => {
   control.addEventListener("change", () => refreshOutputOptions(els.fileInput.files[0] || null));
@@ -1126,25 +1488,30 @@ els.swapLanguages.addEventListener("click", () => {
     els.sourceLanguage.value = els.targetLanguage.value;
     els.targetLanguage.value = "English";
     clearError();
+    scheduleGlossaryInsight();
     return;
   }
   els.sourceLanguage.value = els.targetLanguage.value;
   els.targetLanguage.value = source;
   clearError();
+  scheduleGlossaryInsight();
 });
 
 els.sourceLanguage.addEventListener("change", () => {
   clearError();
-  const file = els.fileInput.files[0];
-  if (file && els.sourceLanguage.value === "Auto detect" && isMediaFile(file)) {
+  const files = Array.from(els.fileInput.files || []);
+  if (files.length && els.sourceLanguage.value === "Auto detect" && files.some(isMediaFile)) {
     showError("For audio/video, choose the spoken source language for best transcription accuracy.");
     els.translateUpload.disabled = true;
     return;
   }
-  if (file && !validateSelectedFile(file)) {
+  if (files.length && files.every((file) => !validateSelectedFile(file))) {
     els.translateUpload.disabled = false;
   }
+  scheduleGlossaryInsight();
 });
+
+els.targetLanguage.addEventListener("change", scheduleGlossaryInsight);
 
 els.speakTranslation.addEventListener("click", () => {
   if (!("speechSynthesis" in window)) {
@@ -1179,6 +1546,7 @@ els.logoutButton.addEventListener("click", logout);
 
 els.cancelJob.addEventListener("click", async () => {
   if (!state.currentQueueJobId) return;
+  if (state.batchRunning) state.batchCancelRequested = true;
   const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentQueueJobId)}/cancel`, { method: "POST" });
   if (!response.ok) showError("Could not cancel this job.");
 });

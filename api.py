@@ -37,10 +37,13 @@ from config.settings import (
 from core.auth import AuthError, AuthStore, SESSION_COOKIE_NAME, SESSION_TTL_SECONDS, SessionRecord, UserRecord
 from core.file_utils import ValidationError, save_binary_upload
 from core.health import collect_health_checks
+from core.impact import build_impact_summary
 from core.job_manager import JobManager, JobQueueFullError
 from core.observability import configure_logging
 from core.pipeline import PipelineError, PipelineResult, ProcessingOptions, TranslationPipeline
+from core.quality import glossary_matches
 from core.review_store import ReviewRecord, ReviewStore
+from core.text_utils import detect_language_name
 from core.user_messages import user_safe_error
 
 
@@ -121,6 +124,12 @@ class TextRequest(BaseModel):
     allow_preview_translation: bool = False
     allow_model_download: bool = False
     use_translation_memory: bool = True
+
+
+class GlossaryCoverageRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+    source_language: str = "English"
+    target_language: str = "Hindi"
 
 
 class AuthRequest(BaseModel):
@@ -417,6 +426,27 @@ def metrics(_auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_a
         "worker_threads": JOB_WORKERS,
         "storage": {"mode": "local", "used_bytes": _storage_bytes(OUTPUT_DIR), "disk_free_bytes": disk.free},
     }
+
+
+@app.get("/impact")
+def impact(_auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)]):
+    """Return useful aggregate evidence without exposing BAIF content."""
+    return build_impact_summary(
+        job_manager.recent(10000),
+        review_store.get_review,
+        _storage_bytes(OUTPUT_DIR),
+    )
+
+
+@app.post("/glossary/coverage")
+def glossary_coverage(
+    request: GlossaryCoverageRequest,
+    _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
+    source_language = detect_language_name(request.text) if request.source_language == "Auto detect" else request.source_language
+    _validate_source_language(source_language)
+    _validate_target_language(request.target_language)
+    return glossary_matches(request.text, source_language, request.target_language)
 
 
 @app.get("/auth/session", response_model=SessionResponse)

@@ -65,6 +65,27 @@ def _total_memory_gb() -> float | None:
         return None
 
 
+def recommended_worker_profile(memory_gb: float | None, cpu_count: int | None) -> dict:
+    cpu_count = cpu_count or 0
+    if memory_gb is not None and memory_gb < 16:
+        return {
+            "profile": "unsupported",
+            "worker_count": 1,
+            "rationale": "BAIF's confirmed baseline requires at least 16 GB RAM.",
+        }
+    if memory_gb is not None and memory_gb >= 32 and cpu_count >= 8:
+        return {
+            "profile": "quality",
+            "worker_count": 1,
+            "rationale": "Extra RAM and CPU headroom can support the quality profile; benchmark representative media before rollout.",
+        }
+    return {
+        "profile": "balanced",
+        "worker_count": 1,
+        "rationale": "Recommended for BAIF's 16 GB, 6+ core CPU-only baseline.",
+    }
+
+
 def preflight(output: Path | None = None, port: int = 8501) -> int:
     ensure_directories()
     disk = shutil.disk_usage(OUTPUT_DIR)
@@ -94,7 +115,8 @@ def preflight(output: Path | None = None, port: int = 8501) -> int:
         "ocr_ready": next((item["ok"] for item in checks if item["name"] == "Automatic OCR"), False),
         "quality_models_ready": all(next((item["ok"] for item in checks if item["name"] == f"IndicTrans2 {direction}"), False) for direction in ("en-indic", "indic-en", "indic-indic")),
     }
-    payload = {"generated_at": _utc(), "platform": platform.platform(), "python": platform.python_version(), "cpu_count": os.cpu_count(), "memory_gb": memory_gb, "disk_free_gb": round(disk.free / 1024**3, 1), "port": port, "gates": gates, "checks": checks, "ready": all(gates.values())}
+    cpu_count = os.cpu_count()
+    payload = {"generated_at": _utc(), "platform": platform.platform(), "python": platform.python_version(), "cpu_count": cpu_count, "memory_gb": memory_gb, "disk_free_gb": round(disk.free / 1024**3, 1), "port": port, "recommendation": recommended_worker_profile(memory_gb, cpu_count), "gates": gates, "checks": checks, "ready": all(gates.values())}
     target = output or OUTPUT_DIR / "preflight_report.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

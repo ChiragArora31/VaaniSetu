@@ -21,8 +21,10 @@ def verify(path: Path) -> list[str]:
             if "integrity_manifest.json" not in names:
                 return failures + ["Missing integrity_manifest.json"]
             manifest = json.loads(archive.read("integrity_manifest.json"))
+            expected_names = {"integrity_manifest.json"}
             for item in manifest.get("files", []):
                 filename = str(item.get("filename", ""))
+                expected_names.add(filename)
                 if filename not in names:
                     failures.append(f"Missing file: {filename}")
                     continue
@@ -31,6 +33,8 @@ def verify(path: Path) -> list[str]:
                     failures.append(f"Size mismatch: {filename}")
                 if hashlib.sha256(data).hexdigest() != item.get("sha256"):
                     failures.append(f"Checksum mismatch: {filename}")
+            for filename in sorted(names - expected_names):
+                failures.append(f"Unexpected file: {filename}")
     except (OSError, BadZipFile, json.JSONDecodeError, ValueError) as exc:
         failures.append(f"Unreadable package: {exc}")
     return failures

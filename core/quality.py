@@ -74,6 +74,41 @@ def load_glossary(path: Path = DEFAULT_GLOSSARY) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def glossary_matches(source: str, source_language: str, target_language: str, glossary: dict | None = None) -> dict:
+    glossary = glossary or load_glossary()
+    candidates = []
+    folded_source = source.casefold()
+    for entry in glossary.get("terms", []):
+        source_term = str(entry.get(source_language, "")).strip()
+        target_term = str(entry.get(target_language, "")).strip()
+        start = folded_source.find(source_term.casefold()) if source_term else -1
+        if start >= 0 and target_term:
+            candidates.append((start, start + len(source_term), entry, source_term, target_term))
+    occupied: list[tuple[int, int]] = []
+    selected = []
+    for start, end, entry, source_term, target_term in sorted(candidates, key=lambda item: (-(item[1] - item[0]), item[0])):
+        if any(start < used_end and end > used_start for used_start, used_end in occupied):
+            continue
+        occupied.append((start, end))
+        selected.append(
+            {
+                "category": str(entry.get("category", "general")),
+                "source_term": source_term,
+                "target_term": target_term,
+                "_start": start,
+            }
+        )
+    matches = []
+    for item in sorted(selected, key=lambda match: int(match["_start"])):
+        item.pop("_start", None)
+        matches.append(item)
+    return {
+        "version": str(glossary.get("version", "unknown")),
+        "review_status": str(glossary.get("review_status", "review required")),
+        "matches": matches,
+    }
+
+
 def glossary_findings(source: str, translated: str, source_language: str, target_language: str, glossary: dict | None = None) -> list[QualityFinding]:
     glossary = glossary or load_glossary()
     findings: list[QualityFinding] = []

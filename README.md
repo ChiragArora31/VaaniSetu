@@ -19,6 +19,11 @@ No paid APIs. No OpenAI, Google Cloud, Azure, AWS Transcribe, or ElevenLabs. The
 - Runtime readiness API for media, ASR, translation, OCR, and speech capabilities
 - Job report JSON with backend, warnings, and generated artifact metadata
 - One-click ZIP export containing all generated artifacts for offline field playback or reuse
+- Controlled multi-file batches that stay within the single-worker CPU budget
+- Privacy-safe impact/reuse dashboard and downloadable aggregate report
+- Prominent backend, model-profile, processing-time, warning and review provenance
+- Pre-translation agriculture glossary insights and word-level correction differences
+- A visible three-step trainer journey: translate, review, take offline
 
 ## Production Model Stack
 
