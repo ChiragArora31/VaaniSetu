@@ -11,6 +11,19 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 def create_artifact_zip(artifacts: dict[str, Path], output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    archive_names: dict[str, str] = {}
+    reserved = {"contents.html", "integrity_manifest.json"}
+    for key, path in artifacts.items():
+        if key == "bundle_zip" or not path.exists() or path == output_path:
+            continue
+        folded = path.name.casefold()
+        if folded in reserved:
+            raise ValueError(f"Artifact filename is reserved for package metadata: {path.name}")
+        if folded in archive_names:
+            raise ValueError(
+                f"Artifact filenames must be unique; duplicate archive filename: {path.name}"
+            )
+        archive_names[folded] = path.name
     entries: list[dict[str, str | int]] = []
     with ZipFile(output_path, "w", compression=ZIP_DEFLATED) as archive:
         for key, path in sorted(artifacts.items()):

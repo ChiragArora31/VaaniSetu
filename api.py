@@ -38,7 +38,7 @@ from core.auth import AuthError, AuthStore, SESSION_COOKIE_NAME, SESSION_TTL_SEC
 from core.file_utils import ValidationError, save_binary_upload
 from core.health import collect_health_checks
 from core.impact import build_impact_summary
-from core.job_manager import JobManager, JobQueueFullError
+from core.job_manager import JobManager, JobQueueFullError, SAFE_JOB_ID
 from core.observability import configure_logging
 from core.pipeline import PipelineError, PipelineResult, ProcessingOptions, TranslationPipeline
 from core.quality import glossary_matches
@@ -166,7 +166,7 @@ class Artifact(BaseModel):
 
 
 class JobResponse(BaseModel):
-    job_id: str
+    job_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     input_type: str
     source_language: str
     target_language: str
@@ -562,7 +562,7 @@ def _job_status(record) -> JobStatusResponse:
 def _fresh_job_response(record) -> JobResponse:
     response = JobResponse.model_validate(record.result)
     output_job_id = response.job_id
-    report_path = OUTPUT_DIR / output_job_id / "job_report.json"
+    report_path = _job_output_dir(output_job_id) / "job_report.json"
     if not report_path.exists():
         return response
     try:
@@ -632,6 +632,16 @@ def _storage_bytes(path: Path) -> int:
         except OSError:
             continue
     return total
+
+
+def _job_output_dir(job_id: str) -> Path:
+    if not SAFE_JOB_ID.fullmatch(job_id):
+        raise HTTPException(status_code=404, detail="Job not found")
+    output_root = OUTPUT_DIR.resolve()
+    job_dir = (output_root / job_id).resolve()
+    if job_dir.parent != output_root:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job_dir
 
 
 def _matches_filter(record, query: str, input_type: str, source_language: str, target_language: str, status: str) -> bool:
@@ -758,7 +768,7 @@ def delete_job(
         raise HTTPException(status_code=404, detail="Job not found")
     import shutil
 
-    shutil.rmtree(OUTPUT_DIR / output_job_id, ignore_errors=True)
+    shutil.rmtree(_job_output_dir(output_job_id), ignore_errors=True)
     review_store.delete(output_job_id)
     return AuthMessage(message="Job deleted.")
 
@@ -780,7 +790,7 @@ def save_correction(
 ):
     job = _job_result_or_404(job_id)
     try:
-        review = review_store.save_correction(job.job_id, request.corrected_text, auth[0].username, OUTPUT_DIR / job.job_id)
+        review = review_store.save_correction(job.job_id, request.corrected_text, auth[0].username, _job_output_dir(job.job_id))
     except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _review_response(review)
@@ -801,7 +811,7 @@ def approve_correction(
             job.original_text,
             job.source_language,
             job.target_language,
-            OUTPUT_DIR / job.job_id,
+            _job_output_dir(job.job_id),
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -1070,7 +1080,7 @@ def download_artifact(
     artifact_key: str,
     _auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_user)],
 ):
-    job_dir = OUTPUT_DIR / job_id
+    job_dir = _job_output_dir(job_id)
     if not job_dir.exists():
         raise HTTPException(status_code=404, detail="Job not found")
 

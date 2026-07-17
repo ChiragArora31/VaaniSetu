@@ -20,6 +20,11 @@ class DocumentProcessingError(RuntimeError):
     """Raised when a document cannot be converted into translatable text."""
 
 
+MAX_OFFICE_MEMBER_BYTES = 16 * 1024 * 1024
+MAX_OFFICE_TOTAL_BYTES = 64 * 1024 * 1024
+MAX_OFFICE_MEMBERS = 2_000
+
+
 @dataclass(frozen=True)
 class DocumentText:
     text: str
@@ -144,7 +149,10 @@ def _ocr_pdf(path: Path) -> str:
 def _extract_office_xml(path: Path, member: str) -> str:
     try:
         with zipfile.ZipFile(path) as archive:
-            data = archive.read(member)
+            _validate_office_archive(archive)
+            data = _read_office_member(archive, member)
+    except DocumentProcessingError:
+        raise
     except Exception as exc:
         raise DocumentProcessingError(f"The Office document could not be read: {path.name}") from exc
     return _xml_text(data)
@@ -153,8 +161,11 @@ def _extract_office_xml(path: Path, member: str) -> str:
 def _extract_pptx(path: Path) -> str:
     try:
         with zipfile.ZipFile(path) as archive:
+            _validate_office_archive(archive)
             slide_names = sorted(name for name in archive.namelist() if re.match(r"ppt/slides/slide\d+\.xml$", name))
-            slides = [_xml_text(archive.read(name)) for name in slide_names]
+            slides = [_xml_text(_read_office_member(archive, name)) for name in slide_names]
+    except DocumentProcessingError:
+        raise
     except Exception as exc:
         raise DocumentProcessingError("The PowerPoint file could not be read.") from exc
     return _clean_lines("\n\n".join(slide for slide in slides if slide))
@@ -163,9 +174,12 @@ def _extract_pptx(path: Path) -> str:
 def _extract_xlsx(path: Path) -> str:
     try:
         with zipfile.ZipFile(path) as archive:
+            _validate_office_archive(archive)
             shared_strings = _shared_strings(archive)
             sheet_names = sorted(name for name in archive.namelist() if re.match(r"xl/worksheets/sheet\d+\.xml$", name))
-            rows = [_sheet_text(archive.read(name), shared_strings) for name in sheet_names]
+            rows = [_sheet_text(_read_office_member(archive, name), shared_strings) for name in sheet_names]
+    except DocumentProcessingError:
+        raise
     except Exception as exc:
         raise DocumentProcessingError("The Excel workbook could not be read.") from exc
     return _clean_lines("\n".join(row for row in rows if row))
@@ -196,7 +210,7 @@ def _xml_text(data: bytes) -> str:
 
 def _shared_strings(archive: zipfile.ZipFile) -> list[str]:
     try:
-        data = archive.read("xl/sharedStrings.xml")
+        data = _read_office_member(archive, "xl/sharedStrings.xml")
     except KeyError:
         return []
     try:
@@ -211,6 +225,27 @@ def _shared_strings(archive: zipfile.ZipFile) -> list[str]:
                 parts.append(element.text)
         values.append("".join(parts).strip())
     return values
+
+
+def _validate_office_archive(archive: zipfile.ZipFile) -> None:
+    infos = archive.infolist()
+    if len(infos) > MAX_OFFICE_MEMBERS:
+        raise DocumentProcessingError("The Office document contains too many files to process safely.")
+    if sum(info.file_size for info in infos) > MAX_OFFICE_TOTAL_BYTES:
+        raise DocumentProcessingError("The Office document expands beyond the safe processing limit.")
+    names: set[str] = set()
+    for info in infos:
+        folded = info.filename.casefold()
+        if folded in names:
+            raise DocumentProcessingError(f"The Office document contains a duplicate file: {info.filename}")
+        names.add(folded)
+
+
+def _read_office_member(archive: zipfile.ZipFile, name: str) -> bytes:
+    info = archive.getinfo(name)
+    if info.file_size > MAX_OFFICE_MEMBER_BYTES:
+        raise DocumentProcessingError(f"The Office document member is too large to process safely: {name}")
+    return archive.read(info)
 
 
 def _sheet_text(data: bytes, shared_strings: list[str]) -> str:

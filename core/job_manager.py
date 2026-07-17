@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+import re
 import threading
 import uuid
 import shutil
@@ -18,6 +20,7 @@ from typing import Callable
 ProgressCallback = Callable[[str, float], None]
 JobTask = Callable[[ProgressCallback], dict]
 logger = logging.getLogger("vaanisetu.jobs")
+SAFE_JOB_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 class JobQueueFullError(RuntimeError):
@@ -55,12 +58,14 @@ class JobManager:
         self._restore()
 
     def _path(self, job_id: str) -> Path:
+        if not SAFE_JOB_ID.fullmatch(job_id):
+            raise ValueError("Invalid job identifier.")
         return self.state_dir / f"{job_id}.json"
 
     def _persist(self, record: JobRecord) -> None:
         target = self._path(record.job_id)
         temporary = target.with_suffix(".json.tmp")
-        temporary.write_text(json.dumps(asdict(record), ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.write_text(json.dumps(asdict(record), ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
         temporary.replace(target)
 
     def _restore(self) -> None:
@@ -68,6 +73,17 @@ class JobManager:
             try:
                 record = JobRecord(**json.loads(path.read_text(encoding="utf-8")))
             except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if record.job_id != path.stem or not SAFE_JOB_ID.fullmatch(record.job_id):
+                continue
+            if (
+                not isinstance(record.kind, str)
+                or record.status not in ("queued", "running", "succeeded", "failed", "cancelled")
+                or not isinstance(record.progress, (int, float))
+                or not math.isfinite(float(record.progress))
+                or not isinstance(record.stage_timings, dict)
+                or (record.result is not None and not isinstance(record.result, dict))
+            ):
                 continue
             if record.status in {"queued", "running"}:
                 record.status = "failed"
@@ -99,7 +115,9 @@ class JobManager:
         stage_started = run_started
         previous_stage = "startup"
         with self._lock:
-            record = self._jobs[job_id]
+            record = self._jobs.get(job_id)
+            if record is None:
+                return
             if record.cancel_requested:
                 record.status = "cancelled"
                 record.progress = 0.0
@@ -135,6 +153,12 @@ class JobManager:
 
         try:
             result = task(update)
+            if not isinstance(result, dict):
+                raise TypeError("Job result must be a serializable dictionary.")
+            try:
+                json.dumps(result, ensure_ascii=False, allow_nan=False)
+            except (TypeError, ValueError) as exc:
+                raise TypeError("Job result must be JSON serializable.") from exc
         except JobCancelledError as exc:
             with self._lock:
                 record = self._jobs[job_id]
@@ -176,15 +200,22 @@ class JobManager:
                 record.stage_timings.get(previous_stage, 0.0) + (time.monotonic() - stage_started), 3
             )
             record.stage_timings["total"] = round(time.monotonic() - run_started, 3)
-            record.status = "succeeded"
-            record.progress = 1.0
-            record.message = "Translation ready"
-            record.result = result
+            if record.cancel_requested:
+                record.status = "cancelled"
+                record.message = "Cancelled"
+                record.error = "Translation was cancelled."
+                record.result = None
+            else:
+                record.status = "succeeded"
+                record.progress = 1.0
+                record.message = "Translation ready"
+                record.result = result
             record.completed_at = datetime.now(timezone.utc).isoformat()
             self._persist(record)
+            event = "job_cancelled" if record.status == "cancelled" else "job_completed"
             logger.info(
-                "Job completed",
-                extra={"event": "job_completed", "job_id": record.job_id, "kind": record.kind},
+                "Job cancelled" if record.status == "cancelled" else "Job completed",
+                extra={"event": event, "job_id": record.job_id, "kind": record.kind},
             )
 
     def get(self, job_id: str) -> JobRecord | None:

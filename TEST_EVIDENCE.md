@@ -1,4 +1,4 @@
-# Release Engineering Test Evidence — 16 July 2026
+# Release Engineering Test Evidence — 17 July 2026
 
 Environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is engineering evidence, not the required clean Windows 11 acceptance run.
 
@@ -9,6 +9,9 @@ Environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is eng
 - Unit/integration/security/format suite: 43 passed; scanned-PDF OCR skipped locally because Tesseract is absent. GitHub CI installs Tesseract plus English/Hindi/Marathi data and runs the same test.
 - Clean-install GitHub CI: run #6 passed on Ubuntu with the pinned dependency set and all 43 tests, including scanned-PDF OCR.
 - Winning-sprint regression: 47 tests passed locally after adding privacy-safe impact calculations, glossary preflight, hardware recommendation and offline landing-page playback/link coverage; clean CI confirmation follows the push.
+- Adversarial regression suite: 65 tests collected; 64 executed successfully locally and the scanned-PDF OCR test was skipped only because Tesseract is absent. The 18 focused adversarial tests cover malformed/corrupt state, traversal and symlink escape, queue saturation and cancellation races, hostile password costs, bounded login/session state, partial uploads, filename boundaries, ambiguous ZIP members, malformed manifests, and Office archive expansion limits.
+- Race stability: the 18-test adversarial module passed 25 consecutive randomized-hash runs (450 focused executions) without a flake.
+- Coverage-guided diagnostic: branch-inclusive coverage across the modified safety boundary was 74%; the most critical deterministic modules measured 82% for the durable queue, 83% for authentication, 94% for package creation, 79% for uploads, 74% for package verification, and 72% for document parsing. Model-runtime branches remain covered by media/E2E gates rather than mocked line-count inflation.
 - Release/secret/generated-data policy: passed.
 - Offline package verifier: passed on real video job `466ad9a8fd58`; deliberate tampering is rejected by automated test.
 
@@ -21,6 +24,17 @@ Environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is eng
 - Audio job `03741573d403`: local Whisper transcribed Hindi “हेलो किसान पानी”; local NLLB returned “Hello farmer water”; TXT/SRT/VTT/report/integrity ZIP generated.
 - Video job `466ad9a8fd58`: 1280×720 Hindi speech video produced transcript, translation, SRT/VTT, WAV/MP3, captioned MP4, translated-audio MP4, report, and verified ZIP with no warnings.
 - Full boundary harness: generated/inspected 1,800-second WAV and 900-second 1920×1080 MP4; passed while recording generation/inspection timings, peak memory, CPU count, and disk bytes. The harness validates boundaries; representative spoken content supplies the ASR/translation E2E evidence above.
+- Post-adversarial smoke harness: generated and inspected an 8-second WAV and 5-second 1920×1080 MP4; duration, resolution, disk and memory checks passed.
+
+## Defects found and permanently closed by the adversarial sweep
+
+- A cancellation arriving after the task's last callback could lose the race and publish a successful result. Cancellation now wins at the commit boundary.
+- A corrupt persisted queue record could supply a mismatched/path-like identity and write outside its state directory during restart recovery. Restore now requires filename/record identity agreement and safe IDs.
+- An unserializable task result could leave a worker record inconsistent. Results are validated before the terminal state is committed.
+- Malformed auth records could crash startup, and attacker-controlled PBKDF2 cost metadata, rotating login keys, or repeated sessions could consume unbounded resources. Corrupt entries are isolated; hash cost, failure-cache size and sessions per user are bounded.
+- Interrupted streaming uploads left partial files, and extreme/control-character filenames could reach unsafe filesystem behavior. Upload cleanup is unconditional and filenames are validated and bounded.
+- Duplicate or oversized package/Office members could create ambiguous reads or excessive allocations. Package creation, verification and Office extraction now reject duplicates and enforce pre-read expansion limits.
+- Artifact lookup trusted job-directory names and could follow parent/symlink escapes. Every artifact path is now constrained to one direct child of the configured output root.
 
 ## Browser E2E
 

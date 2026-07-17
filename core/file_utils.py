@@ -29,6 +29,9 @@ class ValidationError(ValueError):
     """Raised when an uploaded file is not acceptable."""
 
 
+MAX_SAFE_FILENAME_BYTES = 240
+
+
 @dataclass(frozen=True)
 class SavedUpload:
     original_name: str
@@ -41,11 +44,19 @@ def safe_filename(filename: str) -> str:
     stem = Path(filename).stem or "upload"
     suffix = Path(filename).suffix.lower()
     clean_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", stem).strip("._")
-    return f"{clean_stem or 'upload'}{suffix}"
+    clean_stem = clean_stem or "upload"
+    available = max(1, MAX_SAFE_FILENAME_BYTES - len(suffix.encode("utf-8")))
+    clean_stem = clean_stem.encode("utf-8")[:available].decode("utf-8", errors="ignore").rstrip("._") or "upload"
+    return f"{clean_stem}{suffix}"
 
 
 def validate_extension(filename: str) -> str:
-    suffix = Path(filename).suffix.lower()
+    if not isinstance(filename, str) or any(ord(character) < 32 for character in filename):
+        raise ValidationError("Filename is invalid. Please rename the file and try again.")
+    try:
+        suffix = Path(filename).suffix.lower()
+    except (OSError, TypeError, ValueError) as exc:
+        raise ValidationError("Filename is invalid. Please rename the file and try again.") from exc
     if not suffix:
         raise ValidationError("File has no extension. Please upload a supported file type.")
     if suffix not in ALLOWED_EXTENSIONS:
@@ -118,18 +129,20 @@ def save_binary_upload(file_obj: BinaryIO, filename: str, temp_dir: Path) -> Sav
     if target.exists():
         target = temp_dir / f"{Path(safe_name).stem}_{uuid.uuid4().hex[:8]}{suffix}"
     size = 0
-    with target.open("wb") as out:
-        while True:
-            chunk = file_obj.read(1024 * 1024)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > max_upload_bytes_for_extension(suffix):
-                out.close()
-                target.unlink(missing_ok=True)
-                validate_size(size, suffix)
-            out.write(chunk)
-    validate_size(size, suffix)
+    try:
+        with target.open("wb") as out:
+            while True:
+                chunk = file_obj.read(1024 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > max_upload_bytes_for_extension(suffix):
+                    validate_size(size, suffix)
+                out.write(chunk)
+        validate_size(size, suffix)
+    except BaseException:
+        target.unlink(missing_ok=True)
+        raise
     return SavedUpload(original_name=filename, path=target, size_bytes=size, extension=suffix)
 
 

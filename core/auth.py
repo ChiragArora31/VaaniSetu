@@ -22,6 +22,8 @@ SESSION_COOKIE_NAME = "vaanisetu_session"
 SESSION_TTL_SECONDS = 12 * 60 * 60
 LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_MAX_FAILURES = 5
+MAX_LOGIN_FAILURE_KEYS = 10_000
+MAX_SESSIONS_PER_USER = 10
 PBKDF2_ITERATIONS = 260_000
 
 
@@ -88,11 +90,14 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, encoded: str) -> bool:
     try:
         algorithm, iterations, salt_b64, digest_b64 = encoded.split("$", 3)
-        if algorithm != "pbkdf2_sha256":
+        iteration_count = int(iterations)
+        if algorithm != "pbkdf2_sha256" or iteration_count != PBKDF2_ITERATIONS:
             return False
-        salt = base64.b64decode(salt_b64)
-        expected = base64.b64decode(digest_b64)
-        actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, int(iterations))
+        salt = base64.b64decode(salt_b64, validate=True)
+        expected = base64.b64decode(digest_b64, validate=True)
+        if len(salt) != 16 or len(expected) != hashlib.sha256().digest_size:
+            return False
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iteration_count)
     except (ValueError, TypeError):
         return False
     return hmac.compare_digest(actual, expected)
@@ -116,18 +121,55 @@ class AuthStore:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return
-        self._users = {
-            username: UserRecord(**record)
-            for username, record in payload.get("users", {}).items()
-        }
+        if not isinstance(payload, dict):
+            return
+        users = payload.get("users", {})
+        if not isinstance(users, dict):
+            users = {}
+        self._users = {}
+        for username, record in users.items():
+            if not isinstance(username, str) or not isinstance(record, dict):
+                continue
+            try:
+                user = UserRecord(**record)
+                normalized = _normalize_username(username)
+            except (AuthError, TypeError):
+                continue
+            if (
+                normalized != username
+                or user.username != username
+                or user.role not in {"admin", "user"}
+                or user.status not in {"pending", "active", "deactivated"}
+                or not isinstance(user.password_hash, str)
+                or not isinstance(user.created_at, str)
+                or not isinstance(user.display_name, str)
+            ):
+                continue
+            self._users[username] = user
         current = time.time()
         self._sessions = {}
-        for session_id, record in payload.get("sessions", {}).items():
+        sessions = payload.get("sessions", {})
+        if not isinstance(sessions, dict):
+            sessions = {}
+        for session_id, record in sessions.items():
+            if not isinstance(session_id, str) or not isinstance(record, dict):
+                continue
             try:
                 session = SessionRecord(**record)
-            except TypeError:
+                created_at = float(session.created_at)
+                expires_at = float(session.expires_at)
+                is_current = expires_at > current and created_at <= expires_at
+            except (TypeError, ValueError):
                 continue
-            if session.expires_at > current:
+            if (
+                is_current
+                and session.session_id == session_id
+                and session.username in self._users
+                and isinstance(session.csrf_token, str)
+                and bool(session.csrf_token)
+            ):
+                session.created_at = created_at
+                session.expires_at = expires_at
                 self._sessions[session_id] = session
 
     def _persist(self) -> None:
@@ -182,6 +224,16 @@ class AuthStore:
 
     def _create_session_locked(self, username: str) -> SessionRecord:
         current = time.time()
+        expired = [session_id for session_id, session in self._sessions.items() if session.expires_at <= current]
+        for session_id in expired:
+            self._sessions.pop(session_id, None)
+        user_sessions = sorted(
+            (session for session in self._sessions.values() if session.username == username),
+            key=lambda session: session.created_at,
+        )
+        while len(user_sessions) >= MAX_SESSIONS_PER_USER:
+            oldest = user_sessions.pop(0)
+            self._sessions.pop(oldest.session_id, None)
         session = SessionRecord(
             session_id=secrets.token_urlsafe(32),
             username=username,
@@ -198,6 +250,18 @@ class AuthStore:
         self._failures[key] = failures
         return failures
 
+    def _bound_failure_cache_locked(self) -> None:
+        cutoff = time.time() - LOGIN_WINDOW_SECONDS
+        for key in list(self._failures):
+            retained = [timestamp for timestamp in self._failures[key] if timestamp >= cutoff]
+            if retained:
+                self._failures[key] = retained
+            else:
+                self._failures.pop(key, None)
+        while len(self._failures) > MAX_LOGIN_FAILURE_KEYS:
+            oldest_key = min(self._failures, key=lambda item: self._failures[item][-1])
+            self._failures.pop(oldest_key, None)
+
     def login(self, username: str, password: str, throttle_key: str = "") -> tuple[UserRecord, SessionRecord]:
         username = _normalize_username(username)
         key = f"{throttle_key}:{username}"
@@ -209,6 +273,7 @@ class AuthStore:
             if not user or not verify_password(password, user.password_hash):
                 failures.append(time.time())
                 self._failures[key] = failures
+                self._bound_failure_cache_locked()
                 raise AuthError("Username or password is incorrect.")
             if user.status == "pending":
                 raise AuthError("Your account is waiting for admin approval.")
@@ -289,4 +354,3 @@ class AuthStore:
     def list_users(self) -> list[UserRecord]:
         with self._lock:
             return sorted(self._users.values(), key=lambda user: user.created_at)
-

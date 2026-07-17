@@ -106,7 +106,8 @@ These items improve judge-visible impact without breaking scope or depending on 
 ## 7. Current evidence snapshot
 
 - Main branch and GitHub CI are green.
-- 47 automated tests pass locally; CI runs the same suite with OCR enabled.
+- 65 automated tests are collected: 64 execute locally with only OCR skipped for missing Tesseract, while CI runs all 65 with OCR enabled.
+- 18 focused adversarial regressions pass 25 consecutive randomized-hash runs, covering malformed state, race conditions, capacity boundaries, traversal, partial writes and resource limits.
 - The 12-sample/six-direction engineering quality gate has no preservation, script, untranslated or backend-provenance failure.
 - Real audio and complete video output flows pass.
 - The 30-minute audio and 15-minute 1080p stress boundaries pass.

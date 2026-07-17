@@ -332,7 +332,7 @@ python -m unittest discover -s tests
 python scripts/release_check.py
 ```
 
-The tests do not require large ML models; they verify import safety, text processing, subtitle formatting, upload validation, and the text-output pipeline.
+The tests do not require large ML models. They verify import safety, text processing, subtitle formatting, translation/output paths, authentication and review flows, plus adversarial queue races, corrupt state, malformed uploads, path containment, archive ambiguity and resource limits.
 
 Run the reviewed translation benchmark before comparing model or configuration changes:
 
