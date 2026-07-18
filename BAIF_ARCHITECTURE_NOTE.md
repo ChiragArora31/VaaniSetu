@@ -1,12 +1,12 @@
 # BAIF Architecture Note
 
-## Recommended Delivery Model
+## Recommended delivery model
 
 VaaniSetu should be delivered as a local/on-prem open-source model worker with a browser UI.
 
 This means BAIF installs the versioned Python environment, media/OCR tools, and approved model assets once on an office workstation or LAN server. Users open a web interface on that same machine or office network. The worker performs document extraction, transcription, translation, speech synthesis, subtitle generation, and packaging.
 
-## Why This Fits The Hackathon Constraints
+## Why this fits the hackathon constraints
 
 The Q&A clarification says internet is available at BAIF premises for installation and translation, but not guaranteed in the field. This points to a central translation workflow:
 
@@ -17,7 +17,7 @@ The Q&A clarification says internet is available at BAIF premises for installati
 
 That is exactly what the current API/UI architecture supports.
 
-## Internet Use
+## Internet use
 
 Internet can be used in two legitimate places:
 
@@ -26,7 +26,7 @@ Internet can be used in two legitimate places:
 
 Internet should not be required for field playback after outputs are generated.
 
-## Why Not Install Everything On Every User Machine
+## Why not install everything on every user machine
 
 Per-user installation on every phone/laptop would create avoidable problems:
 
@@ -37,7 +37,7 @@ Per-user installation on every phone/laptop would create avoidable problems:
 
 The better architecture is one managed model worker plus a simple browser interface for everyone else. This still counts as locally installed model execution when the worker runs on BAIF premises or a BAIF-approved machine.
 
-## Quality Path
+## Quality path
 
 The judged production path should use locally hosted, license-approved model checkpoints:
 
@@ -47,32 +47,20 @@ The judged production path should use locally hosted, license-approved model che
 - Media handling: FFmpeg.
 - Documents: built-in Office XML extraction, pypdf for selectable PDFs, and automatic local PDFium/Tesseract OCR for scanned PDFs.
 
-Convenience hosted fallbacks are acceptable for demos only when clearly marked in the job report and UI warnings. They should not be used as evidence of final quality.
+Hosted translation must remain disabled for BAIF production and judged quality. The local NLLB route is an engineering fallback only; the intended judged translation path is accepted, locally cached IndicTrans2.
 
-## Deployment Shapes
+## Deployment
 
-### Local BAIF Worker
-
-Use this when BAIF has one Windows/Linux workstation or server available at the office.
+Use one managed Windows/Linux worker at the BAIF office. Keep one model worker by default and expose the browser only on the approved office network.
 
 ```bash
 python scripts/one_click_setup.py --profile balanced
 python -m uvicorn api:app --host 0.0.0.0 --port 8501
 ```
 
-Users then open the web app from the office network.
+Users then open the web app from the office network. Do not expose port 8501 directly to the public internet.
 
-### Provider-Managed Worker
-
-Use this when the team operates the model service for BAIF.
-
-```bash
-python -m uvicorn api:app --host 0.0.0.0 --port 8501
-```
-
-The provider manages model caching, logs, updates, and benchmarking. Users still only need the browser.
-
-## Submission Positioning
+## Submission positioning
 
 The strongest claim is not that VaaniSetu avoids all internet. The stronger and more accurate claim is:
 

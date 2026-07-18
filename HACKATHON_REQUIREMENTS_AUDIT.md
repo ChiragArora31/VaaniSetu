@@ -1,6 +1,7 @@
 # BAIF Hackathon Requirements Audit
 
-Audit date: 16 July 2026
+Initial audit: 16 July 2026
+Last reviewed: 18 July 2026
 Source of truth: the five organiser screenshots supplied by the team on 16 July 2026. No additional organiser requirement is assumed.
 
 ## Executive conclusion
@@ -13,10 +14,10 @@ VaaniSetu is aligned to the requested product: a production-ready, zero-license-
 | --- | --- | --- | --- |
 | Impact | Met | Converts text, recordings, audio, video and office documents into reusable translated text, subtitles, speech and offline packages; privacy-safe dashboard shows throughput, minutes, reuse and approvals | Continue collecting representative evidence |
 | Scalability and production readiness | Met | Durable one-worker CPU queue, restart recovery, bounded uploads, disk guard, metrics, backup/restore, cleanup, support bundle and model preflight | Prove on the external Windows baseline |
-| Usability/UX | Met | Browser workflow, recording, multi-file batches, progress, actionable errors, review/approval, retry/cancel/delete, searchable library, trust card and mobile layout | Continue final demo polish |
+| Usability/UX | Met | Browser workflow, recording, multi-file batches, progress, actionable errors, review/approval, retry/cancel/delete, searchable library, trust card and mobile layout | Package and rehearse the final demo |
 | Tech safety, fairness and inclusivity | Met | No silent hosted processing, local-first privacy, RBAC, human approval, source/output preservation checks, target-script checks, glossary findings, model provenance and accessible controls | Obtain bilingual human sign-off externally |
 | Zero cost / open source only | Met | Open-source stack, pinned dependencies, model/license manifest, SBOM/source manifest, no BAIF paid service requirement | Confirm gated model terms through the team account |
-| Differentiate through edge cases and optimisation | Met, improving | Corrupt-file handling, size/duration/resolution limits, scanned PDF OCR, invariant protection, restart recovery, tamper detection, low-disk handling and CPU-optimised model routes | Make these strengths explicit in the demo and deck |
+| Differentiate through edge cases and optimisation | Met | Corrupt-file handling, adversarial state/race/path/resource tests, size/duration/resolution limits, scanned PDF OCR, invariant protection, restart recovery, tamper detection, low-disk handling and CPU-optimised routes | Make these strengths explicit in the demo and deck |
 | Existing low-spec BAIF infrastructure, no GPU | Met by design | CPU-only CTranslate2/Whisper paths, one heavy worker, int8 profiles, no GPU assumption | External Windows performance proof remains |
 | Target hardware: i5 11th Gen/equivalent or Ryzen 5 6+ cores; 16 GB RAM; 512 GB/1 TB storage | Met by configuration | Hardware-aware preflight, one worker, disk checks and bounded media | Run the preflight on the target machine |
 | Windows 11 and Office 2020+ | Implemented, proof pending | PowerShell setup/start scripts and Office/PDF/table ingestion | External clean-machine installation evidence |
@@ -30,7 +31,7 @@ VaaniSetu is aligned to the requested product: a production-ready, zero-license-
 | Personal-laptop/DLP guidance | Met | Repository policy excludes credentials, generated media, private BAIF data and model weights | Continue the same policy |
 | Production-ready web application | Met | Authenticated browser app, API, durable processing, diagnostics and handover tooling | External deployment acceptance remains |
 | Handover source, documentation and training/KT | Met | Source repository plus user/admin/privacy/support/troubleshooting/UAT/handover documents | Conduct the external KT session if selected |
-| 4–5 slide design deliverable covering problem, architecture, stack and pillars | Design-phase obligation | Architecture and evaluation evidence exist in the repository | Final presentation/deck polish should be a later dedicated deliverable |
+| 4–5 slide design deliverable covering problem, architecture, stack and pillars | Internal packaging pending | Architecture and evaluation evidence exist in the repository | Produce the final concise deck from the verified evidence |
 
 ## Deferred external list
 

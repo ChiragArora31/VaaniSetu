@@ -18,6 +18,7 @@ The supported formats and enforced limits are in `DELIVERY_COMPATIBILITY.md`. Ex
 
 ## Handover contents
 
+- Current status and finishing plan: `IMPLEMENTATION_ROADMAP.md`, `RELEASE_CHECKLIST.md`
 - Setup and architecture: `README.md`, `BAIF_ARCHITECTURE_NOTE.md`, `config/model_manifest.json`
 - Operation: `USER_GUIDE.md`, `ADMIN_GUIDE.md`, `TROUBLESHOOTING.md`
 - Governance: `PRIVACY.md`, `OPEN_SOURCE_COMPLIANCE.md`, `SUPPORT_MODEL.md`
@@ -27,6 +28,8 @@ The supported formats and enforced limits are in `DELIVERY_COMPATIBILITY.md`. Ex
 - Recovery: `scripts/operations.py`, `scripts/verify_package.py`
 
 The runtime includes a privacy-safe impact view/export containing aggregate counts only. It never includes source or translated content. Multi-file batches remain sequential and therefore preserve the one-worker CPU safety boundary.
+
+The source repository is engineering-complete. The final handover release should be tagged only after the model inventory, bilingual approval and target Windows UAT are recorded.
 
 ## Assumptions and external acceptance
 

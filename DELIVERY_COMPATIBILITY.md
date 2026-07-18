@@ -1,93 +1,49 @@
 # BAIF Delivery Compatibility
 
-This project is aligned with the technical and delivery clarifications shared for the BAIF translation solution.
+## Target environment
 
-## Target Environment
+Confirmed minimum:
 
-Minimum target machine:
+- Windows 11
+- Intel Core i5 11th Gen/equivalent or AMD Ryzen 5 with 6+ cores
+- 16 GB DDR4/DDR5 RAM
+- 512 GB or 1 TB SSD/HDD
+- Microsoft Office 2020 or later for BAIF-side document workflows
+- No GPU assumption
 
-- CPU: Intel Core i5 11th Gen or equivalent, or AMD Ryzen 5 with 6+ cores
-- RAM: 16 GB DDR4/DDR5 minimum
-- Storage: 512 GB or 1 TB SSD/HDD
-- OS: Windows 11
-- Office suite: Microsoft Office 2020 or later for BAIF-side document workflows
+VaaniSetu keeps one heavy model worker by default. Preflight recommends `balanced` on the minimum baseline, permits `quality` only with measured headroom (normally at least 32 GB RAM/eight cores), and rejects systems below 16 GB.
 
-Recommended production worker while remaining within the stated CPU-only constraint:
+Internet may be used at BAIF premises during controlled installation/model caching. Normal jobs run locally without paid APIs or silent model downloads. Translation happens at the office; exported packages work offline in the field.
 
-- 8+ CPU cores, 32 GB RAM, SSD storage
-- Native Python environment with pinned dependencies and locally cached model assets
-- No GPU dependency
+## Enforced inputs
 
-## Connectivity
-
-Internet access may be used at BAIF premises to download/cache open-source model weights and run translation on the local/on-prem worker. No paid APIs or usage-cost services are required. Generated outputs are designed for offline field playback or reuse.
-
-## Enforced Input Limits
-
-The backend enforces these limits before processing:
-
-| Input | Supported formats | Duration | Size |
-| --- | --- | --- | --- |
-| Audio field recordings/training guides | MP3, AAC, M4A, WMA, OGG | 30 min | 50 MB |
-| Audio lossless/uncompressed | WAV, FLAC | 30 min | 150 MB |
-| Video agricultural demos | MP4, MOV, AVI, WMV, MKV, FLV, WebM | 15 min | 200 MB |
+| Input | Formats | Duration | Size |
+| --- | --- | ---: | ---: |
+| Compressed audio | MP3, AAC, M4A, WMA, OGG | 30 min | 50 MB |
+| Lossless/uncompressed audio | WAV, FLAC | 30 min | 150 MB |
+| Agricultural video | MP4, MOV, AVI, WMV, MKV, FLV, WebM | 15 min | 200 MB |
 | Text | TXT, MD, TEXT | n/a | 10 MB |
-| Documents / learning modules | PDF, DOCX, PPTX, XLSX, CSV, TSV | n/a | 50 MB |
+| Documents/tables | PDF, DOCX, PPTX, XLSX, CSV, TSV | n/a | 50 MB |
 
-Selectable-text PDFs are extracted directly. Scanned PDFs use automatic local Tesseract OCR when the OCR runtime is installed; otherwise the app gives a clear fallback instruction instead of returning an empty translation.
-
-Video uploads are validated for 720p/1080p delivery. Higher-than-1080p uploads are rejected with a user-safe error.
+Video is limited to 720p/1080p; higher resolutions are rejected. Selectable PDFs are read directly. Scanned PDFs use local Tesseract OCR when ready and otherwise return an actionable error.
 
 ## Outputs
 
-Supported outputs:
+- Source transcript and translated text
+- Reviewable TXT/Markdown/table exports
+- SRT and VTT subtitles
+- Optional translated speech, captioned video and translated-audio video
+- Job report containing backend/provenance, warnings and artifact metadata
+- Integrity-protected ZIP with a server-free landing page, direct links and audio/video playback
 
-- Source transcript
-- Translated text
-- Translated document TXT/Markdown/table exports
-- SRT subtitles
-- VTT subtitles
-- Translated speech when a server or browser speech backend is available
-- Optional captioned video and translated-audio video on full FFmpeg deployments
-- ZIP bundle containing generated artifacts
-- Job report JSON with model/backend metadata
+Completed jobs, review versions and approved-memory records remain under the configured worker storage until BAIF retention/cleanup removes them. Multi-file batches are sequential and do not increase the one-worker CPU budget.
 
-## Storage And Reuse
+## Acceptance
 
-Every completed job writes artifacts under `outputs/<job_id>/`. The app also appends a durable reuse ledger at `outputs/manifest.jsonl` with job metadata, language pair, backend metadata, and artifact references. BAIF can archive this folder for future reference and reuse.
+Engineering compatibility is proven by automated limits, browser/media E2E and full boundary stress tests. Final production acceptance still requires:
 
-## Handover Package
+1. accepted/cached IndicTrans2 checkpoints and model inventory;
+2. Hindi/Marathi reviewer sign-off; and
+3. clean Windows 11 baseline installation, preflight and UAT.
 
-For final handover to BAIF IT, provide:
-
-- Complete source repository
-- `README.md`
-- `DELIVERY_COMPATIBILITY.md`
-- `OPEN_SOURCE_COMPLIANCE.md`
-- `benchmarks/README.md`
-- Reviewed benchmark manifests and quality reports
-- Model setup command history
-- Deployment environment variables
-- Training walkthrough for recording, uploading, translating, exporting, and reusing outputs
-
-## One-command Setup
-
-Preferred BAIF worker setup:
-
-```bash
-python scripts/one_click_setup.py --profile balanced
-```
-
-Windows and macOS/Linux wrappers are available under `scripts/setup_baif_worker.ps1` and `scripts/setup_baif_worker.sh`.
-
-## Quality Gates
-
-Before final submission:
-
-```bash
-python -m py_compile $(git ls-files '*.py')
-python -m unittest discover -s tests
-python scripts/evaluate_quality.py
-```
-
-For the winning-quality backend, run reviewed BAIF audio through both Whisper large-v3 and IndicConformer, then choose the lower-WER backend per language.
+Setup and acceptance commands are maintained in [README.md](README.md), [ADMIN_GUIDE.md](ADMIN_GUIDE.md), [UAT.md](UAT.md) and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).

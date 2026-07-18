@@ -29,4 +29,4 @@ pip install -r requirements-quality.txt
 python scripts/evaluate_quality.py
 ```
 
-Expand `benchmarks/translation_seed.jsonl` with BAIF-reviewed sentences, dialects, names, agricultural terminology, and noisy field recordings before final judging.
+The checked-in six-direction seed is an engineering corpus. Add reviewer-approved BAIF-style sentences, dialects, names, agricultural terminology and noisy field recordings before final judging; do not alter predictions merely to pass the gate.

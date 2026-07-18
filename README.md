@@ -1,373 +1,160 @@
-# VaaniSetu BAIF Translator
+# VaaniSetu
 
-Open-source multilingual translation for learning modules, text, audio, and video. The app is built for BAIF teams to turn Marathi, Hindi, and English content into translated text, subtitles, document exports, and optional speech/video outputs.
+VaaniSetu is a local, open-source translation workflow for BAIF learning material. Authorised trainers can translate English, Hindi and Marathi text, recordings, documents, audio and video; review the result; and export an integrity-protected package that works offline in the field.
 
-No paid APIs. No OpenAI, Google Cloud, Azure, AWS Transcribe, or ElevenLabs. The app uses open-source software and locally cached model assets whose licenses are documented separately. Internet is used during controlled setup; normal translation jobs do not silently download models or send content to hosted translation services.
+Normal jobs run on the configured worker. They do not silently download models, call paid APIs or send BAIF content to hosted translation services.
 
-## Features
+## Current status
 
-- Voice-note recording in the browser as the primary input
-- In-app playback for recorded source audio and translated voice output
-- Secondary upload path for existing text, document, audio, and video files
-- Selectable-text and scanned PDF, DOCX, PPTX, XLSX, CSV, and TSV translation with reviewable TXT/Markdown/table exports
-- Audio/video transcription with faster-whisper
-- Transcript translation between Marathi, Hindi, and English
-- SRT and VTT subtitle export
-- Translated voice output with Indic Parler, Piper, or compact eSpeak NG fallback
-- Optional burned-in captions and translated audio video export with FFmpeg
-- Modern FastAPI-served web UI with progress, previews, playback, and downloads
-- Runtime readiness API for media, ASR, translation, OCR, and speech capabilities
-- Job report JSON with backend, warnings, and generated artifact metadata
-- One-click ZIP export containing all generated artifacts for offline field playback or reuse
-- Controlled multi-file batches that stay within the single-worker CPU budget
-- Privacy-safe impact/reuse dashboard and downloadable aggregate report
-- Prominent backend, model-profile, processing-time, warning and review provenance
-- Pre-translation agriculture glossary insights and word-level correction differences
-- A visible three-step trainer journey: translate, review, take offline
+Product engineering is complete and `main` is green. The current suite contains 65 automated tests, including 18 adversarial regressions, plus browser, media, recovery, package-integrity and full-boundary stress evidence.
 
-## Production Model Stack
+Three external acceptance gates remain before an unrestricted production claim:
 
-VaaniSetu is designed as a local/on-prem model-worker product with a browser UI. BAIF installs the open-source model stack once on an office workstation, LAN server, or provider-managed machine. Users access the same machine through the web UI/API, while the heavy models stay local to that worker. This gives better reproducibility and quality than depending on public translation APIs, without forcing every user laptop or phone to install Python, FFmpeg, and model weights.
+1. accept and cache the intended MIT-licensed IndicTrans2 checkpoints;
+2. obtain Hindi and Marathi reviewer approval; and
+3. prove installation and UAT on BAIF's Windows 11 CPU baseline.
 
-Recommended provider stack:
+See the [winning roadmap](IMPLEMENTATION_ROADMAP.md) for the exact internal and external finishing plan.
 
-| Task | Production choice | Why |
-| --- | --- | --- |
-| Speech-to-text | AI4Bharat IndicConformer or `faster-whisper-large-v3` | Benchmark both on BAIF field audio; use the lower-WER backend per language. |
-| Low-latency STT | `faster-whisper-small` or `faster-whisper-base` | Faster CPU fallback for low-resource machines. |
-| Translation | AI4Bharat IndicTrans2; NLLB-200 CTranslate2 INT8 evaluation fallback | Indian-language judged path plus a fast local fallback whose non-commercial model license must be reviewed. |
-| Text-to-speech | AI4Bharat Indic Parler TTS, Piper, or eSpeak NG | Natural-voice quality tier plus a compact open-source WAV fallback for English, Hindi, and Marathi. |
-| Media processing | FFmpeg | Reliable open-source extraction, caption burn-in, and muxing. |
-| Documents | Python ZIP/XML parsers, pypdf, PDFium, and Tesseract | Handles learning module files and automatic scanned-PDF OCR without paid office automation. |
+## What it delivers
 
-The judged production path must use locally hosted open-source models on the BAIF worker. Any convenience fallback must be explicitly reported and must not be used as evidence of final model quality. See [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md).
+- Browser recording, text entry and controlled multi-file upload
+- TXT, Markdown, PDF/scanned PDF, DOCX, PPTX, XLSX, CSV and TSV extraction
+- Audio/video transcription and six English/Hindi/Marathi translation directions
+- Translated text, SRT/VTT subtitles, optional speech, captioned video and translated-audio video
+- Human correction, versioned approval and exact approved translation-memory reuse
+- Agriculture glossary insights, invariant/script checks and visible model/review provenance
+- Searchable local library, sequential CPU-safe batches and privacy-safe impact reporting
+- Offline ZIP with direct links, media playback and a checksum manifest
+- Local authentication, durable queue, restart recovery, backup/restore and support tooling
 
-BAIF delivery limits and handover expectations are documented in [DELIVERY_COMPATIBILITY.md](DELIVERY_COMPATIBILITY.md).
-The install-versus-web/API delivery decision is explained in [BAIF_ARCHITECTURE_NOTE.md](BAIF_ARCHITECTURE_NOTE.md).
-The complete operator handover index is [HANDOVER.md](HANDOVER.md); trainer, administrator, privacy, recovery, support, UAT, and release guides are linked there.
-
-Model profile is controlled by `BAIF_MODEL_PROFILE`:
-
-```bash
-export BAIF_MODEL_PROFILE=fast      # low-resource CPU/serverless profile
-export BAIF_MODEL_PROFILE=balanced  # default local/provider profile
-export BAIF_MODEL_PROFILE=quality   # provider production backend
-```
-
-The Docker deployment defaults to `quality`. Local development defaults to `balanced` so a laptop does not unexpectedly download the largest model.
+BAIF input limits and supported formats are listed in [DELIVERY_COMPATIBILITY.md](DELIVERY_COMPATIBILITY.md).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A["Browser voice recorder"] --> B["FastAPI web/API layer"]
-    U["Secondary file upload"] --> B
-    B --> C{"Input type"}
-    C -->|Text| H["Translation"]
-    C -->|Audio| D["Media decode / normalize"]
-    C -->|Video| E["Audio extraction / direct decode"]
-    D --> F["faster-whisper STT"]
-    E --> F
-    F --> G["Timed transcript segments"]
-    G --> H
-    H --> I["TXT output"]
-    H --> J["SRT/VTT subtitles"]
-    H --> K["TTS voice generation"]
-    J --> L["FFmpeg burned captions"]
-    K --> M["FFmpeg mux translated audio"]
+    A["Trainer browser"] --> B["FastAPI UI/API"]
+    B --> C{"Input"}
+    C -->|"Text or document"| T["Local translation"]
+    C -->|"Audio or video"| M["FFmpeg / PyAV"]
+    M --> S["Local speech recognition"]
+    S --> T
+    T --> Q["Safety and terminology checks"]
+    Q --> R["Human review and approval"]
+    R --> O["Offline text, subtitles, speech/video and ZIP"]
+    R --> L["Approved local reuse"]
 ```
 
-## Project Structure
+One managed CPU worker holds the models and artifacts; trainers use the browser on that machine or the BAIF LAN. Translation occurs at the office, while downloaded outputs work without the server in the field. The deployment decision is explained in [BAIF_ARCHITECTURE_NOTE.md](BAIF_ARCHITECTURE_NOTE.md).
 
-```text
-app.py
-requirements.txt
-README.md
-frontend/
-config/
-core/
-models/
-outputs/
-samples/
-temp/
-```
+## Install and run
 
-## Installation
+Python 3.10 or 3.11 is required.
 
-### One-command BAIF worker setup
+### Windows 11 BAIF worker
 
-Use this on the BAIF office worker or approved provider machine:
-
-```bash
-python scripts/one_click_setup.py --profile balanced
-```
-
-Windows shortcut:
+From PowerShell in the repository root:
 
 ```powershell
 .\scripts\setup_baif_worker.ps1
-```
-
-macOS/Linux shortcut:
-
-```bash
-./scripts/setup_baif_worker.sh
-```
-
-Start the app after setup. The Windows launcher disables runtime model downloads so a user job never changes the installation:
-
-```bash
-python -m uvicorn app:app --host 0.0.0.0 --port 8501
-```
-
-```powershell
 .\scripts\start_baif_worker.ps1
 ```
 
-The preferred IndicTrans2 and Indic Parler repositories require one-time acceptance of their Hugging Face access conditions. Setup installs NLLB first and converts it to an INT8 CTranslate2 runtime, so the worker remains usable and responsive if that optional access is not ready. NLLB is CC-BY-NC-4.0 and is retained as an evaluation/resilience fallback, not the final judged open-source claim. After accepting the AI4Bharat terms, set `HF_TOKEN` and rerun model setup to enable the intended IndicTrans2 path.
+The setup wrapper installs the Python stack and, when available, FFmpeg/Tesseract. Model repositories that require access approval must be accepted by an authorised team account first. Do not commit or share the account token.
 
-### Linux
+### Manual setup
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate          # Windows: .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
-sudo apt-get update
-sudo apt-get install -y ffmpeg
-uvicorn app:app --host 0.0.0.0 --port 8501
+python scripts/one_click_setup.py --profile balanced
+python -m uvicorn app:app --host 127.0.0.1 --port 8501
 ```
 
-Install the full local/on-prem model stack when preparing a production media worker:
+Open `http://127.0.0.1:8501`, create the first administrator, and approve trainer accounts. Use `--host 0.0.0.0` only on an approved BAIF LAN/reverse-proxy deployment; never expose the worker directly to the public internet.
+
+Before production use:
 
 ```bash
-pip install -r requirements-full.txt
+python scripts/operations.py preflight
+python scripts/operations.py model-inventory
 ```
 
-Install the judged quality stack, including Indic Parler TTS and evaluation tools:
+Preflight must be green with runtime model downloads and hosted translation disabled. The confirmed baseline is Windows 11, 16 GB RAM, six or more CPU cores and one model worker. Systems below 16 GB are unsupported; the quality profile requires measured headroom.
 
-```bash
-pip install -r requirements-quality.txt
-```
+## Model and licence policy
 
-### Windows
+| Capability | Intended judged path | Engineering fallback |
+| --- | --- | --- |
+| Speech recognition | IndicConformer or faster-whisper, chosen with reviewed WER evidence | Smaller faster-whisper CPU profile |
+| Translation | AI4Bharat IndicTrans2 | NLLB-200 CTranslate2 INT8 |
+| Speech | Indic Parler TTS or Piper | eSpeak NG |
+| Documents/media | Local Tesseract/PDFium/pypdf and FFmpeg/PyAV | Text/subtitle output remains available when optional speech is absent |
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 8501
-```
+NLLB is licensed CC-BY-NC-4.0 and is retained for engineering evaluation and resilience. It must not be presented as the final unrestricted production model unless BAIF explicitly accepts that licence. Hosted translation is disabled by default and is not acceptable evidence for judged quality. See [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md).
 
-Install FFmpeg for Windows from the official FFmpeg builds and add the `bin` folder to `PATH`. Confirm with:
-
-```bash
-ffmpeg -version
-ffprobe -version
-```
-
-## Model Setup
-
-The app can download/cache open-source models when internet is available. For repeatable production use, pre-download them:
+Model setup is automated:
 
 ```bash
 python scripts/setup_models.py --profile quality --with-translation --with-tts --with-indic-asr
-```
-
-You can download only one model family:
-
-```bash
-python scripts/setup_models.py --profile balanced
-python scripts/setup_models.py --only whisper-quality
-python scripts/setup_models.py --only indictrans-en-indic
 python scripts/convert_nllb_ct2.py
 ```
 
-### faster-whisper
-
-Download a faster-whisper model once while online. Example:
-
-```bash
-python - <<'PY'
-from huggingface_hub import snapshot_download
-snapshot_download(
-    repo_id="Systran/faster-whisper-large-v3",
-    local_dir="models/whisper/faster-whisper-large-v3",
-    local_dir_use_symlinks=False,
-)
-PY
-```
-
-Production quality path:
-
-```text
-models/whisper/faster-whisper-large-v3
-```
-
-### IndicTrans2
-
-Download the required AI4Bharat IndicTrans2 model directories once:
-
-```bash
-python - <<'PY'
-from huggingface_hub import snapshot_download
-models = {
-    "ai4bharat/indictrans2-en-indic-1B": "models/indictrans2/indictrans2-en-indic-1B",
-    "ai4bharat/indictrans2-indic-en-1B": "models/indictrans2/indictrans2-indic-en-1B",
-    "ai4bharat/indictrans2-indic-indic-1B": "models/indictrans2/indictrans2-indic-indic-1B",
-}
-for repo, path in models.items():
-    snapshot_download(repo_id=repo, local_dir=path, local_dir_use_symlinks=False)
-PY
-```
-
-Set these env vars if you store models elsewhere:
-
-```bash
-export BAIF_INDICTRANS_EN_INDIC_MODEL=/path/to/en-indic
-export BAIF_INDICTRANS_INDIC_EN_MODEL=/path/to/indic-en
-export BAIF_INDICTRANS_INDIC_INDIC_MODEL=/path/to/indic-indic
-```
-
-For offline installation validation without translation models, enable the deterministic phrasebook fallback:
-
-```bash
-export BAIF_ALLOW_PREVIEW_TRANSLATOR=1
-```
-
-### Piper TTS
-
-Install Piper and download free voice models into:
-
-```text
-models/piper/
-```
-
-The app searches for `.onnx` voice files matching the target language hint (`en`, `hi`, or `mr`). If no voice is present, the text/subtitle pipeline still succeeds and shows a warning for voice output.
-
-## Usage
-
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8501
-```
-
-Open `http://localhost:8501`.
-
-1. Select source and target language.
-2. Press **Start recording** and speak like a voice note.
-3. Stop, listen to the captured note, then press **Translate to voice**.
-4. Play the translated voice output in the app.
-5. Download MP3, WAV, TXT, SRT, VTT, or the all-outputs ZIP when needed.
-
-Existing files are still supported through the secondary upload control below the recorder. For documents, upload selectable-text or scanned PDF, DOCX, PPTX, XLSX, CSV, or TSV. Scanned PDFs are processed with local Tesseract OCR when that capability is ready; the UI reports a clear fallback when it is not.
-
-## Mobile-Friendly API Mode
-
-For mobile users, do not run models on the phone. Deploy the API on a server and let phones call it. BAIF users should normally use the browser UI or API client while the model stack runs on BAIF-premises/provider infrastructure.
-
-```bash
-uvicorn api:app --host 0.0.0.0 --port 8000
-```
-
-Endpoints:
-
-```text
-GET  /health
-GET  /languages
-GET  /limits
-POST /translate/text
-POST /translate/file
-GET  /jobs/{job_id}/artifacts/{artifact_key}
-```
-
-This keeps phones lightweight: the mobile app uploads text/document/audio/video, the server runs open-source extraction/STT/translation/TTS models, and the response returns translated text plus download links for TXT, Markdown, table, SRT, VTT, audio, video, and ZIP artifacts.
-
-The translation layer is local/open-source first. Keep heavy model dependencies on the backend worker and expose only the API/UI to users. `BAIF_ENABLE_HOSTED_TRANSLATION=1` exists only as an explicitly marked emergency demo fallback; it should stay disabled for judged quality runs.
-
-## Provider-Managed Deployment
-
-End users should never install Python packages, FFmpeg, or model weights. Those are provider/backend responsibilities.
-
-Run the full stack with Docker:
-
-```bash
-docker compose up --build
-```
-
-Then expose the single worker (it serves both UI and API routes):
-
-```text
-Web app and API: http://server:8501
-```
-
-The Docker image installs system dependencies and Python libraries once. Model weights are cached in the mounted `models/` volume so the first server run prepares them and later runs reuse them.
-
-Generated artifacts are stored under `outputs/<job_id>/`, and a reuse ledger is appended to `outputs/manifest.jsonl` for BAIF reference.
-
-For production, prepare the quality model cache once:
-
-```bash
-docker compose run --rm web python scripts/setup_models.py --profile quality --with-translation
-docker compose up --build
-```
-
-## Vercel Preview Shell
-
-Vercel may serve the lightweight web/API shell for interface review:
-
-```bash
-vercel --prod
-```
-
-The Vercel profile disables hosted translation and runtime model downloads, so it is not a production translation deployment. Full local media/translation requires the BAIF worker or Docker deployment; do not present a Vercel preview as field-ready processing.
-
 ## Validation
 
-Run the local checks before a release:
+Run before every release candidate:
 
 ```bash
 python -m py_compile $(git ls-files '*.py')
-python -m unittest discover -s tests
+python -m unittest discover -s tests -v
 python scripts/release_check.py
-```
-
-The tests do not require large ML models. They verify import safety, text processing, subtitle formatting, translation/output paths, authentication and review flows, plus adversarial queue races, corrupt state, malformed uploads, path containment, archive ambiguity and resource limits.
-
-Run the reviewed translation benchmark before comparing model or configuration changes:
-
-```bash
 python scripts/evaluate_quality.py
 ```
 
-The generated `outputs/quality_report.json` records per-sample predictions, backend names, and chrF++ scores. Expand the benchmark with BAIF-reviewed field language before final judging.
-
-Run operational and offline-proof checks before handover:
+Operational evidence:
 
 ```bash
-python scripts/operations.py migrate
 python scripts/operations.py preflight
-python scripts/operations.py model-inventory
 python scripts/stress_test.py --profile full
 python scripts/verify_package.py outputs/JOB_ID/vaanisetu_outputs.zip
 python scripts/release_evidence.py
 ```
 
-The quality report distinguishes the engineering gate from external bilingual approval. A green fallback benchmark is not permission to claim IndicTrans2 production readiness.
+The benchmark is an engineering gate, not bilingual approval. Current results and limitations are recorded in [TEST_EVIDENCE.md](TEST_EVIDENCE.md).
 
-## Assumptions and Limitations
+## Operations
 
-- Setup can use BAIF-premises internet to download/cache approved model weights. Generated outputs are downloadable and usable offline in the field.
-- Translation quality depends on the locally installed IndicTrans2 checkpoints. NLLB is a CC-BY-NC-4.0 evaluation/resilience fallback pending BAIF license confirmation.
-- faster-whisper is robust but transcription accuracy depends on audio quality, noise, and dialect.
-- Music-only files or songs with vocals mixed under instruments may not produce a useful speech transcript.
-- Piper voice availability for Indian regional languages can vary by installed model. Indic Parler TTS is the recommended production TTS direction.
-- Burned-in subtitle styling uses FFmpeg defaults.
-- Large videos are supported through streaming FFmpeg processing, but local CPU, memory, disk space, and processing time still matter.
-- BAIF delivery profile enforces 30-minute audio, 15-minute video, 1080p max video, and differentiated size caps by file type.
+```bash
+python scripts/operations.py cleanup --days 7 --dry-run
+python scripts/operations.py backup backups/vaanisetu-backup.zip
+python scripts/operations.py restore backups/vaanisetu-backup.zip --force
+python scripts/operations.py support-bundle outputs/support.zip
+```
 
-## Operating Notes
+Backups contain operational content and belong only in BAIF-approved encrypted storage. Support bundles are privacy-filtered but must still be inspected before sharing.
 
-For a reliable first run, start with a short clean voice recording, then an uploaded speech clip, then a short MP4. Keep files under a few minutes on CPU-only machines unless the deployment has enough CPU/GPU capacity.
+## Documentation
 
-The app creates missing `temp/`, `outputs/`, `models/`, and `samples/` folders automatically.
+| Need | Document |
+| --- | --- |
+| Current completion and next work | [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) |
+| Organiser requirement mapping | [HACKATHON_REQUIREMENTS_AUDIT.md](HACKATHON_REQUIREMENTS_AUDIT.md) |
+| Architecture and deployment rationale | [BAIF_ARCHITECTURE_NOTE.md](BAIF_ARCHITECTURE_NOTE.md) |
+| Formats, limits and target hardware | [DELIVERY_COMPATIBILITY.md](DELIVERY_COMPATIBILITY.md) |
+| Trainer operation | [USER_GUIDE.md](USER_GUIDE.md) |
+| Administrator operation | [ADMIN_GUIDE.md](ADMIN_GUIDE.md) |
+| Handover index | [HANDOVER.md](HANDOVER.md) |
+| Release acceptance | [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) and [UAT.md](UAT.md) |
+| Privacy, licences and support | [PRIVACY.md](PRIVACY.md), [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md), [SUPPORT_MODEL.md](SUPPORT_MODEL.md) |
+| Verification evidence | [TEST_EVIDENCE.md](TEST_EVIDENCE.md) |
+
+## Honest boundaries
+
+- Machine output remains a draft until an appropriate reviewer approves it.
+- Accuracy varies with dialect, noise, OCR quality and model availability.
+- Health, pesticide, financial, safety or legally consequential instructions require human review.
+- Translation is an office workflow; VaaniSetu is not a live field translator.
+- Offline means exported field packages work without the worker—it does not mean every installation step is internet-free.
+- Exact Office layout reconstruction is outside scope; document exports prioritise reviewable translated content.

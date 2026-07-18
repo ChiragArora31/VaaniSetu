@@ -1,119 +1,83 @@
 # VaaniSetu Winning Roadmap
 
-Last updated: 16 July 2026
+Last reviewed: 18 July 2026
 Implementation window: 9 July–14 August 2026
 Finals (tentative): 17 August 2026
 
-## 1. The goal
+## Goal
 
-Deliver the best production-ready, open-source translation workflow for BAIF's CPU-only Windows office environment. A trainer should be able to translate English, Hindi or Marathi learning content, review it, and send a trustworthy package for offline field use without needing technical knowledge.
+Deliver a production-ready, zero-paid-licence translation workflow for BAIF's CPU-only Windows office environment. A trainer should be able to translate English, Hindi or Marathi material, review it and send a trustworthy package for offline field use without technical assistance.
 
-The complete organiser alignment audit is in [HACKATHON_REQUIREMENTS_AUDIT.md](HACKATHON_REQUIREMENTS_AUDIT.md).
+The complete organiser mapping is in [HACKATHON_REQUIREMENTS_AUDIT.md](HACKATHON_REQUIREMENTS_AUDIT.md).
 
-## 2. Non-negotiable organiser rules
+## Engineering status — complete
 
-- Run on BAIF's existing Windows 11, 16 GB RAM, CPU-only infrastructure; no GPU assumption.
-- Require no paid licence or software purchase by BAIF.
-- Translation happens at the BAIF office. Downloaded outputs must work offline in the field.
-- Support audio up to 30 minutes and video up to 15 minutes/200 MB at 720p or 1080p.
-- Preserve previous translations for reference and reuse.
-- Use public agriculture/crop material for testing unless BAIF supplies approved samples.
-- Protect confidential content and follow the personal-laptop/DLP guidance.
-- Provide production-ready source, deployment guidance, handover documents and KT material.
-- Optimise for the five evaluation pillars: impact, production readiness, usability, safety/fairness/inclusivity and zero cost.
+- [x] Text, recording, audio, video and common Office/PDF/table inputs
+- [x] All six English/Hindi/Marathi directions
+- [x] Local transcription, translation, subtitles, optional speech/video and offline ZIP outputs
+- [x] Exact organiser size, duration and resolution limits
+- [x] Human correction, versioned approval and approved translation-memory reuse
+- [x] Agriculture glossary, invariant/script checks, trust/provenance and correction differences
+- [x] Authenticated browser app, durable one-worker CPU queue and searchable library
+- [x] Sequential multi-file batches and privacy-safe impact reporting/export
+- [x] Windows setup/preflight, backup/restore, cleanup, diagnostics and handover material
+- [x] 65-test clean CI, adversarial race/security coverage, real media/browser E2E and boundary stress evidence
+- [x] Requirement, licence, privacy, support, UAT and release documentation
 
-## 3. What is already achieved
+No known critical or high-severity engineering issue is open.
 
-### Core trainer journey — complete
+## Internal work we can do now
 
-- [x] Text, microphone recording, audio, video, TXT, PDF/scanned PDF, DOCX, PPTX, XLSX, CSV and TSV inputs.
-- [x] English, Hindi and Marathi in all six translation directions.
-- [x] Local transcription, translation, subtitles, speech, captioned video and translated-audio video.
-- [x] Exact organiser size, duration and resolution limits with non-technical recovery messages.
-- [x] Integrity-protected offline ZIP outputs and a reusable local library.
+These tasks improve submission quality without external access or new product risk.
 
-### Quality, trust and reuse — complete
+### Submission story
 
-- [x] Versioned agriculture glossary, numbers/units/URL/email protection, script checks and unchanged-output detection.
-- [x] Reproducible six-direction quality report with chrF++, terminology, latency, memory and backend provenance.
-- [x] Side-by-side source/machine output, correction versions, approval and approved corrected packages.
-- [x] Exact approved translation-memory reuse with visible provenance and opt-out.
+- [ ] Produce the final 4–5 slide deck: problem/impact, workflow, architecture/stack, evaluation evidence and deployment readiness.
+- [ ] Write and rehearse a 3–5 minute judge demo: **translate → trust checks → correct/approve → reuse → take offline → impact**.
+- [ ] Select one public agriculture video and create a repeatable demo-input/output bundle with no confidential content.
+- [ ] Record a short backup demo and capture clean desktop/mobile screenshots.
 
-### Production readiness — complete
+### Release packaging
 
-- [x] First-admin setup, approved users, secure sessions, CSRF protection and login throttling.
-- [x] Durable CPU queue, one heavy worker by default, restart recovery, retry, cancellation and safe deletion.
-- [x] Windows setup/preflight, dependency/model inventory, disk guard, cleanup, migration, backup/restore and privacy-safe support bundle.
-- [x] Stage timings, queue/failure/storage metrics, pinned dependencies, release policy, SBOM and source manifest.
+- [ ] Create a candidate evidence bundle containing source manifest/SBOM, test report, quality report, model inventory, preflight, stress report and verified sample package.
+- [ ] Perform a fresh-repository installation rehearsal on an available supported non-target machine and record any documentation corrections.
+- [ ] Run one final demo-day failure drill: no model, low disk, cancelled job, worker restart, corrupted ZIP and offline playback.
 
-### Evidence and handover — complete
+### Documentation
 
-- [x] 43-test clean Ubuntu CI including scanned-PDF OCR.
-- [x] Real audio/video E2E, six-direction quality gate, browser/mobile/accessibility checks, recovery checks and full boundary stress harness.
-- [x] User, admin, privacy, troubleshooting, support, UAT, release and handover guides.
-- [x] Every claim distinguishes engineering evidence from external approval.
+- [x] Remove stale test milestones and duplicated setup/model instructions.
+- [x] Separate completed engineering from internal packaging and external acceptance.
+- [x] Keep one concise entry point in `README.md` with specialised operator guides linked from it.
 
-## 4. Current winning sprint — work we can do ourselves
+## Optional feature parking lot
 
-These items improve judge-visible impact without breaking scope or depending on external access.
+Do not build these before the submission story and acceptance evidence are secure:
 
-### P0 — make the value obvious
+- Admin-managed glossary import/version history/rollback
+- Near-duplicate suggestions beyond exact approved-memory reuse
+- Batch pause/resume and an exportable batch manifest
 
-- [x] Add a privacy-safe impact dashboard: completed work, media minutes, language directions, approval rate, reuse, success rate and storage.
-- [x] Add a clear trust/provenance card to every result: backend, model profile, processing time, human-review state and warnings.
-- [x] Turn the offline `CONTENTS.html` into a field-friendly landing page with direct document links and embedded audio/video playback.
+They are useful extensions, not requirements or release blockers.
 
-### P1 — multiply trainer productivity
+Avoid cloud translation dependencies, paid APIs, GPU-only features, live field translation, generic chatbots or decorative analytics that weaken the trainer journey.
 
-- [x] Add multi-file batch selection and sequential queueing while preserving the one-model-worker CPU limit.
-- [x] Show a batch summary with completed/failed files and direct review links for each completed result.
-- [x] Add privacy-safe impact export for reporting and demonstration.
+## External acceptance — defer until available
 
-### P2 — polish and proof
-
-- [x] Re-run browser E2E for the new dashboard controls, batch affordance, trust card and offline package.
-- [x] Add tests for impact calculations, queue-safe behaviour and offline landing-page links/players.
-- [x] Update user/admin/handover documents and record final evidence.
-
-## 5. Brownie-point queue
-
-### Build now
-
-- [x] Glossary coverage insights before processing terminology-heavy content.
-- [x] Review-difference highlighting between machine and corrected output.
-- [x] Downloadable impact report with no raw BAIF content.
-- [x] A guided three-step demo mode: translate → review → take offline.
-
-### Build after the current winning sprint
-
-- [ ] Admin-managed glossary overlay with safe JSON/CSV import, version history and rollback.
-- [ ] Duplicate/near-duplicate detection to suggest reusable approved content before processing.
-- [ ] Batch-level pause/resume and exportable batch manifest.
-- [x] Hardware-profile recommender based on preflight RAM/CPU and the confirmed BAIF baseline.
-
-### Avoid unless the panel asks
-
-- Cloud translation dependencies, paid APIs, GPU-only features, live field translation, generic chatbots, unrelated analytics, or decorative features that weaken the core trainer journey.
-
-## 6. Deferred external list — do last
-
-- [ ] Team account accepts and caches the intended IndicTrans2 checkpoints.
+- [ ] Authorised team account accepts and caches the intended IndicTrans2 checkpoints.
 - [ ] Hindi and Marathi reviewers approve representative translations and terminology.
-- [ ] Clean Windows 11 CPU-only installation/preflight/UAT evidence is recorded.
-- [ ] Approved BAIF sample content is used if BAIF supplies it.
-- [ ] Release tag and BAIF IT KT session are completed after the three acceptance gates above.
+- [ ] Clean Windows 11 CPU-only installation, preflight, performance and UAT evidence is recorded.
+- [ ] Approved BAIF content is used if the panel supplies it; otherwise retain public agriculture fixtures.
+- [ ] Release tag and BAIF IT knowledge-transfer session are completed after the acceptance gates.
 
-## 7. Current evidence snapshot
+## Current evidence
 
-- Main branch and GitHub CI are green.
-- 65 automated tests are collected: 64 execute locally with only OCR skipped for missing Tesseract, while CI runs all 65 with OCR enabled.
-- 18 focused adversarial regressions pass 25 consecutive randomized-hash runs, covering malformed state, race conditions, capacity boundaries, traversal, partial writes and resource limits.
-- The 12-sample/six-direction engineering quality gate has no preservation, script, untranslated or backend-provenance failure.
-- Real audio and complete video output flows pass.
-- The 30-minute audio and 15-minute 1080p stress boundaries pass.
-- Desktop and 390×844 mobile browser journeys, including the impact and trust surfaces, pass without console errors or horizontal overflow.
-- No known critical/high engineering issue is open.
+- `main` and GitHub CI are green.
+- All 65 tests pass in CI; 18 adversarial regressions also passed 25 consecutive randomized runs locally.
+- Six-direction engineering quality has no preservation, script, untranslated or backend-provenance failure.
+- Real audio/video, 30-minute audio and 15-minute 1080p boundary flows pass.
+- Desktop and 390×844 mobile journeys pass without console errors or horizontal overflow.
+- Offline packages have direct playback/links, checksums and deliberate-tamper rejection.
 
-## 8. Definition of “ready to win”
+## Finishing line
 
-The core trainer journey can be demonstrated end-to-end in minutes; judges can see quantified impact and safety evidence; every output is reviewable and usable offline; the system remains honest about model and human approval; setup/recovery needs no developer; and every organiser constraint has a direct evidence link.
+Internally, the product is feature-complete; the next milestone is a polished submission package. Final production readiness requires the three external gates—IndicTrans2, bilingual approval and Windows-baseline proof—followed by the release tag and handover.
