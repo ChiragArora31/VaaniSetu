@@ -11,6 +11,7 @@ Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3
 - Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
 - Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.
 - The GitHub Actions workflow repeats the suite on a clean Ubuntu runner with FFmpeg and English/Hindi/Marathi OCR data.
+- A detached clean checkout at commit `791ec1c5` completed the documented minimal/no-model setup from an empty virtual environment, migration, all 69 tests in 4.28 seconds, and repository policy checks.
 
 Run:
 
