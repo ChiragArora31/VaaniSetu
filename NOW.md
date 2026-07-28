@@ -37,13 +37,6 @@ There is no deferred internal engineering or submission task. Three external gat
 
 If BAIF later supplies approved sample material, we will replace the public fixture. The release tag and BAIF IT knowledge transfer follow only after the three gates above.
 
-## Best use of the four-person team now
-
-- **Engineering/demo owner — Chirag:** preserve the release candidate, integrate feedback and run the final demonstration.
-- **Model/licence owner — assign one teammate:** secure IndicTrans2 access and return the model IDs, accepted terms and inventory evidence.
-- **Language-review owner — assign one teammate:** coordinate Hindi/Marathi review and collect corrections/sign-off in the prepared worksheet.
-- **Deployment/presentation owner — assign one teammate:** arrange the Windows baseline run, record UAT evidence and act as demo co-pilot/backup.
-
 The goal now is not to add decorative scope. It is to convert a strong, tested product into undeniable evidence on the exact environment and quality bar the judges will use.
 
 Start here: [final deck](submission/VaaniSetu_Final_Hackathon_Deck.pptx) · [demo runbook](SUBMISSION_RUNBOOK.md) · [evidence](TEST_EVIDENCE.md) · [roadmap](IMPLEMENTATION_ROADMAP.md)
