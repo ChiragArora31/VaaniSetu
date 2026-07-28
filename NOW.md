@@ -1,42 +1,46 @@
 # VaaniSetu — Now
 
-**Status: verified release candidate · 28 July 2026**
+**Project update · 28 July 2026**
 
-## The idea in one sentence
+## What we are building
 
-VaaniSetu helps authorised BAIF trainers turn English, Hindi and Marathi learning material into reviewed, reusable packages that work offline in the field—using BAIF's existing CPU-only office infrastructure and open-source software.
+VaaniSetu is a local translation workspace for BAIF training material. It helps a trainer translate English, Hindi and Marathi content, review and correct the result, reuse approved translations, and export a package that can be played offline in the field.
 
-## Where we are
+The design follows the constraints shared by the organisers: translation happens at BAIF's Pune office, the application runs on an existing Windows 11 CPU-only machine, and the software stack is open source.
 
-The complete product workflow and internal submission work are finished. The implementation, QA, repository and submission consolidation have so far been driven by Chirag; the best use of the full team now is to close the three external acceptance gates and sharpen delivery.
+## What works today
 
-| Area | Current position |
+| Area | Current state |
 | --- | --- |
-| Product | Complete trainer journey: translate → inspect trust signals → correct/approve → reuse → take offline |
-| Inputs | Text, recording, PDF/scanned PDF, Office/table files, audio and video |
-| Outputs | Text, SRT/VTT, optional speech/video and checksum-protected offline ZIP |
-| Reliability | 69 automated tests, including 20 adversarial regressions; CI and clean-install rehearsal pass |
-| Real proof | CPU translation in 43.8s; approved reuse in 0.6s; four-minute public video processed in 120s |
-| Submission | Final five-slide deck, 3½-minute demo, backup walkthrough and evidence bundle are ready |
+| Input | Text, microphone recordings, documents, audio and video are supported |
+| Translation | English, Hindi and Marathi workflows run locally, with source-language detection and terminology support |
+| Review | Users can inspect warnings and provenance, edit translations, approve them and reuse exact approved results |
+| Output | The app produces translated text, SRT/VTT subtitles, optional speech/video and an offline ZIP with checksums |
+| Operations | Jobs can be cancelled, resumed after restart, deleted safely and diagnosed through health/preflight checks |
+| Submission | A five-slide deck, demo runbook, backup walkthrough and test evidence are prepared |
 
-## Why the direction is strong
+## What we have verified
 
-- It follows the organiser's actual operating model: translation in Pune, offline playback in the field.
-- It is designed for the stated Windows 11, 16 GB RAM, CPU-only environment—no GPU or paid API assumption.
-- Quality is a workflow, not a vague model claim: invariants, target-script checks, agriculture terminology, visible provenance and human approval are built in.
-- Exact approved translations can be reused locally, saving time without unsafe fuzzy matching.
-- Edge cases are treated as product behaviour: corrupt state, low disk, cancellation races, restarts and tampered packages fail safely.
+- The automated suite has 69 passing tests, including 20 tests for malformed inputs, boundary conditions, race conditions and recovery paths.
+- A clean installation rehearsal and GitHub CI pass.
+- A real four-minute public agriculture video completed the local transcription, translation, subtitle, audio and packaging workflow on CPU.
+- All six English/Hindi/Marathi translation directions have been benchmarked; the results and known quality limits are recorded in the repository.
+- The stated 30-minute audio and 15-minute 1080p input boundaries have been exercised.
 
-## What remains
+These checks make the project suitable for a controlled demo and evaluation. They do not replace review by native speakers or validation on BAIF's exact machine.
 
-There is no deferred internal engineering or submission task. Three external gates separate this release candidate from an unrestricted production claim:
+## Where we are heading
 
-1. **Model acceptance:** an authorised account must accept, cache and inventory the intended IndicTrans2 checkpoints.
-2. **Language acceptance:** qualified Hindi and Marathi reviewers must sign representative outputs and terminology.
-3. **Target-machine acceptance:** a clean BAIF-spec Windows 11 machine must pass setup, preflight, media processing and UAT.
+The product workflow and submission materials are in place. The next step is to validate the same build under the conditions that will matter in final use:
 
-If BAIF later supplies approved sample material, we will replace the public fixture. The release tag and BAIF IT knowledge transfer follow only after the three gates above.
+1. Cache and verify the intended IndicTrans2 models through an authorised account.
+2. Ask qualified Hindi and Marathi reviewers to assess representative translations and terminology.
+3. Run installation, preflight, media processing and user acceptance testing on a clean BAIF-spec Windows 11 machine.
 
-The goal now is not to add decorative scope. It is to convert a strong, tested product into undeniable evidence on the exact environment and quality bar the judges will use.
+If BAIF provides approved sample material, we will run it through the same review process and include the results in the evidence pack. The final release tag and handover material should follow these checks.
 
-Start here: [final deck](submission/VaaniSetu_Final_Hackathon_Deck.pptx) · [demo runbook](SUBMISSION_RUNBOOK.md) · [evidence](TEST_EVIDENCE.md) · [roadmap](IMPLEMENTATION_ROADMAP.md)
+## Current position
+
+We have a working, tested release candidate and a clear path to final acceptance. The remaining work depends mainly on access to the approved models, language reviewers and target BAIF environment; until those checks are complete, we should describe the project as demo-ready rather than fully production-approved.
+
+More detail: [final deck](submission/VaaniSetu_Final_Hackathon_Deck.pptx) · [demo runbook](SUBMISSION_RUNBOOK.md) · [test evidence](TEST_EVIDENCE.md) · [roadmap](IMPLEMENTATION_ROADMAP.md)
