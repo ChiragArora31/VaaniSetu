@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css?v=20260716-win1" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260728-rc1" />
   </head>
   <body>
     <main class="shell">
@@ -85,9 +85,9 @@
         </div>
 
         <div class="mode-tabs" role="tablist" aria-label="Input mode">
-          <button class="mode-tab active" type="button" data-mode="record">Record</button>
-          <button class="mode-tab" type="button" data-mode="text">Text</button>
-          <button class="mode-tab" id="toggleUpload" type="button" data-mode="upload">Upload</button>
+          <button class="mode-tab active" id="recordTab" type="button" role="tab" aria-selected="true" aria-controls="recordMode" data-mode="record">Record</button>
+          <button class="mode-tab" id="textTab" type="button" role="tab" aria-selected="false" aria-controls="textMode" tabindex="-1" data-mode="text">Text</button>
+          <button class="mode-tab" id="toggleUpload" type="button" role="tab" aria-selected="false" aria-controls="uploadMode" tabindex="-1" data-mode="upload">Upload</button>
         </div>
 
         <details class="output-options" id="outputOptions">
@@ -115,7 +115,7 @@
           </div>
         </details>
 
-        <section class="input-mode" id="recordMode" aria-label="Record audio">
+        <section class="input-mode" id="recordMode" role="tabpanel" aria-labelledby="recordTab">
           <div class="record-visual" id="recordVisual">
             <canvas id="meterCanvas" width="900" height="180" aria-hidden="true"></canvas>
             <div class="record-center">
@@ -138,7 +138,7 @@
           </div>
         </section>
 
-        <section class="input-mode hidden" id="textMode" aria-label="Type or paste text">
+        <section class="input-mode hidden" id="textMode" role="tabpanel" aria-labelledby="textTab">
           <div class="text-input-panel">
             <label for="textInput">
               <span>Text</span>
@@ -149,7 +149,7 @@
           <div class="glossary-insight hidden" id="glossaryInsight" aria-live="polite"></div>
         </section>
 
-        <section class="input-mode hidden" id="uploadMode" aria-label="Upload content">
+        <section class="input-mode hidden" id="uploadMode" role="tabpanel" aria-labelledby="toggleUpload">
           <div class="upload-panel" id="uploadPanel">
             <label class="upload-dropzone" for="fileInput">
               <span class="upload-mark" aria-hidden="true">+</span>
@@ -309,6 +309,6 @@
       </details>
     </main>
 
-    <script src="/static/app.js?v=20260716-win1"></script>
+    <script src="/static/app.js?v=20260728-rc1"></script>
   </body>
 </html>

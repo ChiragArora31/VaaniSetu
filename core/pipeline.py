@@ -105,6 +105,11 @@ def _resolved_source_language(text: str, source_language: str, result: PipelineR
     return detected
 
 
+def _ensure_distinct_languages(source_language: str, target_language: str) -> None:
+    if source_language == target_language:
+        raise PipelineError("Source and target languages must be different.")
+
+
 def _effective_media_type(input_type: str, has_video: bool | None) -> str:
     if input_type == "video" and has_video is False:
         return "audio"
@@ -189,6 +194,8 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
+        if source_language != "Auto detect":
+            _ensure_distinct_languages(source_language, target_language)
         job_id, _temp_dir, output_dir = _job_dirs()
         result = PipelineResult(
             job_id=job_id,
@@ -202,6 +209,7 @@ class TranslationPipeline:
         if not result.original_text:
             raise PipelineError("Please enter text to translate.")
         source_language = _resolved_source_language(result.original_text, source_language, result)
+        _ensure_distinct_languages(source_language, target_language)
         try:
             enforce_text_limit(result.original_text, MAX_TEXT_CHARS)
         except ValueError as exc:
@@ -252,6 +260,7 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
+        _ensure_distinct_languages(source_language, target_language)
         job_id, _temp_dir, output_dir = _job_dirs()
         result = PipelineResult(
             job_id=job_id,
@@ -263,6 +272,7 @@ class TranslationPipeline:
         )
         if not result.original_text or not result.translated_text:
             raise PipelineError("Approved translation memory entry is incomplete.")
+        _ensure_distinct_languages(source_language, target_language)
         result.metadata["translation_backend"] = "approved-memory"
         result.metadata["model_download"] = "disabled"
         result.metadata["model_profile"] = MODEL_PROFILE
@@ -294,6 +304,8 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
+        if source_language != "Auto detect":
+            _ensure_distinct_languages(source_language, target_language)
         job_id, temp_dir, output_dir = _job_dirs()
         input_type = detect_input_type(input_path)
         result = PipelineResult(
@@ -444,6 +456,8 @@ class TranslationPipeline:
         options: ProcessingOptions,
         status: StatusCallback | None = None,
     ) -> PipelineResult:
+        if source_language != "Auto detect":
+            _ensure_distinct_languages(source_language, target_language)
         job_id, _temp_dir, output_dir = _job_dirs()
         result = PipelineResult(
             job_id=job_id,
@@ -466,6 +480,7 @@ class TranslationPipeline:
             if not result.original_text:
                 raise PipelineError("No translatable text was found in this document.")
             source_language = _resolved_source_language(result.original_text, source_language, result)
+            _ensure_distinct_languages(source_language, target_language)
             enforce_text_limit(result.original_text, MAX_TEXT_CHARS)
 
             _status(status, "Translating document text...", 0.52)

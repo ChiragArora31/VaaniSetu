@@ -68,16 +68,41 @@ class ReviewStore:
         path = self._review_path(job_id)
         if not path.exists():
             return ReviewRecord(job_id=job_id)
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        versions = [ReviewVersion(**item) for item in payload.get("versions", [])]
-        return ReviewRecord(
-            job_id=payload["job_id"],
-            status=payload.get("status", "draft"),
-            versions=versions,
-            approved_version=payload.get("approved_version"),
-            approved_at=payload.get("approved_at"),
-            approved_by=payload.get("approved_by"),
-        )
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict) or payload.get("job_id") != job_id:
+                raise ValueError("Review identity does not match its file.")
+            versions_payload = payload.get("versions", [])
+            if not isinstance(versions_payload, list):
+                raise ValueError("Review versions must be a list.")
+            versions = [ReviewVersion(**item) for item in versions_payload]
+            record = ReviewRecord(
+                job_id=payload["job_id"],
+                status=payload.get("status", "draft"),
+                versions=versions,
+                approved_version=payload.get("approved_version"),
+                approved_at=payload.get("approved_at"),
+                approved_by=payload.get("approved_by"),
+            )
+            if record.status not in {"draft", "approved"}:
+                raise ValueError("Review status is invalid.")
+            if [item.version for item in record.versions] != list(range(1, len(record.versions) + 1)):
+                raise ValueError("Review version sequence is invalid.")
+            if record.approved_version is not None and record.approved_version not in {
+                item.version for item in record.versions
+            }:
+                raise ValueError("Approved review version is missing.")
+            return record
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            # Preserve corrupt state for diagnosis without allowing it to break the
+            # trainer workflow or be silently overwritten on the next correction.
+            suffix = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            quarantine = path.with_name(f"{path.stem}.corrupt-{suffix}.json")
+            try:
+                path.replace(quarantine)
+            except OSError:
+                pass
+            return ReviewRecord(job_id=job_id)
 
     def _write_review(self, record: ReviewRecord) -> None:
         path = self._review_path(record.job_id)
@@ -103,6 +128,8 @@ class ReviewStore:
             raise FileNotFoundError("Job output folder is missing.")
         with self._lock:
             record = self._read_review(job_id)
+            if record.versions and record.versions[-1].corrected_text == corrected_text:
+                return record
             version_number = len(record.versions) + 1
             artifact_key = f"corrected_txt_v{version_number}"
             corrected_path = write_text(job_dir / f"corrected_translation_v{version_number}.txt", corrected_text)
@@ -140,9 +167,11 @@ class ReviewStore:
             )
             if selected is None:
                 raise ValueError("Correction version not found.")
+            already_approved = record.status == "approved" and record.approved_version == selected.version
             record.status = "approved"
             record.approved_version = selected.version
-            record.approved_at = _now_iso()
+            if not already_approved or not record.approved_at:
+                record.approved_at = _now_iso()
             record.approved_by = username
             self._write_review(record)
             bundle_path = create_artifact_zip(
@@ -153,7 +182,7 @@ class ReviewStore:
                 job_dir / "approved_corrected_package.zip",
             )
             self._merge_report_artifacts(job_dir, {"approved_corrected_package": bundle_path.name})
-            self._append_memory(
+            self._upsert_memory(
                 MemoryRecord(
                     source_hash=_source_hash(source_text, source_language, target_language),
                     source_language=source_language,
@@ -167,6 +196,31 @@ class ReviewStore:
                 )
             )
             return record
+
+    def finalize(
+        self,
+        job_id: str,
+        corrected_text: str,
+        username: str,
+        source_text: str,
+        source_language: str,
+        target_language: str,
+        job_dir: Path,
+    ) -> ReviewRecord:
+        """Save and approve the exact visible correction as one locked action."""
+        with self._lock:
+            draft = self.save_correction(job_id, corrected_text, username, job_dir)
+            if not draft.versions:
+                raise ValueError("Save a corrected translation before approval.")
+            return self.approve(
+                job_id,
+                draft.versions[-1].version,
+                username,
+                source_text,
+                source_language,
+                target_language,
+                job_dir,
+            )
 
     def find_memory(self, source_text: str, source_language: str, target_language: str) -> MemoryRecord | None:
         key = _source_hash(source_text, source_language, target_language)
@@ -202,9 +256,22 @@ class ReviewStore:
                     kept.append(json.dumps(item, ensure_ascii=False))
             self.memory_path.write_text(("\n".join(kept) + "\n") if kept else "", encoding="utf-8")
 
-    def _append_memory(self, record: MemoryRecord) -> None:
-        with self.memory_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
+    def _upsert_memory(self, record: MemoryRecord) -> None:
+        rows: list[str] = []
+        if self.memory_path.exists():
+            for line in self.memory_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    existing = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(existing, dict) and existing.get("source_hash") != record.source_hash:
+                    rows.append(json.dumps(existing, ensure_ascii=False))
+        rows.append(json.dumps(asdict(record), ensure_ascii=False))
+        temporary = self.memory_path.with_suffix(".jsonl.tmp")
+        temporary.write_text("\n".join(rows) + "\n", encoding="utf-8")
+        temporary.replace(self.memory_path)
 
     @staticmethod
     def _merge_report_artifacts(job_dir: Path, artifacts: dict[str, str]) -> None:
@@ -213,7 +280,15 @@ class ReviewStore:
             return
         try:
             report = json.loads(report_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+        except (OSError, json.JSONDecodeError):
             return
-        report.setdefault("artifacts", {}).update(artifacts)
-        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        if not isinstance(report, dict):
+            return
+        report_artifacts = report.get("artifacts")
+        if not isinstance(report_artifacts, dict):
+            report_artifacts = {}
+            report["artifacts"] = report_artifacts
+        report_artifacts.update(artifacts)
+        temporary = report_path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.replace(report_path)

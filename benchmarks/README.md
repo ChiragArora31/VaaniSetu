@@ -4,7 +4,7 @@ Quality claims for VaaniSetu must be backed by reviewed examples that represent 
 
 ## Translation
 
-`translation_seed.jsonl` covers every supported language direction. Replace and expand the seed with BAIF-reviewed sentences before final judging.
+`translation_seed.jsonl` covers every supported language direction. Expand it with BAIF-reviewed sentences before production acceptance; keep the checked-in seed unchanged as a reproducible engineering baseline.
 
 ```bash
 python scripts/evaluate_quality.py

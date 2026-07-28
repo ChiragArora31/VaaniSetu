@@ -1,83 +1,73 @@
-# VaaniSetu Winning Roadmap
+# VaaniSetu Implementation Roadmap
 
-Last reviewed: 18 July 2026
-Implementation window: 9 July–14 August 2026
-Finals (tentative): 17 August 2026
+Last reviewed: 28 July 2026
 
-## Goal
+## Finish-line summary
 
-Deliver a production-ready, zero-paid-licence translation workflow for BAIF's CPU-only Windows office environment. A trainer should be able to translate English, Hindi or Marathi material, review it and send a trustworthy package for offline field use without technical assistance.
+All work that can be completed independently is done. VaaniSetu is a verified release candidate with a complete trainer workflow, submission deck, rehearsable demo, public agriculture video proof, backup walkthrough, evidence bundle tooling and handover documentation.
 
-The complete organiser mapping is in [HACKATHON_REQUIREMENTS_AUDIT.md](HACKATHON_REQUIREMENTS_AUDIT.md).
+Production acceptance remains deliberately separate: **0 of 3 external gates** have evidence today. They are listed at the end of this document and are the only blockers to an unrestricted production claim.
 
-## Engineering status — complete
+## Achieved
 
-- [x] Text, recording, audio, video and common Office/PDF/table inputs
-- [x] All six English/Hindi/Marathi directions
-- [x] Local transcription, translation, subtitles, optional speech/video and offline ZIP outputs
+### Product and experience
+
+- [x] Text, recording, PDF/scanned PDF, Office/table, audio and video inputs
+- [x] All six English/Hindi/Marathi directions with distinct-language enforcement
 - [x] Exact organiser size, duration and resolution limits
-- [x] Human correction, versioned approval and approved translation-memory reuse
-- [x] Agriculture glossary, invariant/script checks, trust/provenance and correction differences
-- [x] Authenticated browser app, durable one-worker CPU queue and searchable library
-- [x] Sequential multi-file batches and privacy-safe impact reporting/export
-- [x] Windows setup/preflight, backup/restore, cleanup, diagnostics and handover material
-- [x] 65-test clean CI, adversarial race/security coverage, real media/browser E2E and boundary stress evidence
-- [x] Requirement, licence, privacy, support, UAT and release documentation
+- [x] Local transcription/translation, subtitles, optional speech/video and verified offline ZIP
+- [x] Human correction, atomic final approval, version history and exact approved-memory reuse
+- [x] Agriculture glossary, invariant/script checks, provenance and review differences
+- [x] Authenticated responsive UI, keyboard tabs, durable CPU queue, cancellation/restart recovery and searchable library
+- [x] Sequential ten-file batches, privacy-safe impact metrics and safe delete/reset behaviour
 
-No known critical or high-severity engineering issue is open.
+### Reliability and operations
 
-## Internal work we can do now
+- [x] 69 automated tests, including 20 adversarial regressions
+- [x] Corrupt review/report recovery, bounded state/resources, archive/path protection and checksum tamper rejection
+- [x] Low-disk refusal before partial job creation and concise optional-media fallbacks
+- [x] Six-direction quality gate with local NLLB CTranslate2 INT8 and no critical preservation/script/backend failure
+- [x] Full 30-minute audio and 15-minute 1080p boundary harness
+- [x] Windows setup/start scripts, preflight, inventory, backup/restore, cleanup, migration and support bundle
 
-These tasks improve submission quality without external access or new product risk.
+### Submission package
 
-### Submission story
+- [x] Final five-slide deck aligned to every evaluation pillar
+- [x] 3½-minute demo script and judge Q&A
+- [x] Canonical CC BY 3.0 public agriculture video and verified real-model output package
+- [x] Clean real-model desktop/mobile screenshots and 22-second offline backup walkthrough
+- [x] Source manifest, SBOM, quality, stress, preflight, model, failure-drill and demo evidence
+- [x] Privacy-safe candidate ZIP builder that excludes users, sessions, secrets, BAIF content, models and logs
+- [x] Complete user, admin, UAT, handover, privacy, licence, support and troubleshooting documentation
 
-- [ ] Produce the final 4–5 slide deck: problem/impact, workflow, architecture/stack, evaluation evidence and deployment readiness.
-- [ ] Write and rehearse a 3–5 minute judge demo: **translate → trust checks → correct/approve → reuse → take offline → impact**.
-- [ ] Select one public agriculture video and create a repeatable demo-input/output bundle with no confidential content.
-- [ ] Record a short backup demo and capture clean desktop/mobile screenshots.
+## Verified evidence
 
-### Release packaging
+- 69/69 tests pass locally; Python compilation, frontend syntax, dependency and repository policy checks pass.
+- Real browser run: English→Hindi NLLB CTranslate2 INT8 completed in 43.8 seconds; approved exact reuse completed in 0.6 seconds.
+- Public four-minute agriculture video completed local transcription, translation, captions, speech/video and checksum package generation in 120 seconds.
+- Six demo-day failures pass: no model, low disk, cancel race, worker restart, corrupted ZIP and offline playback.
+- Desktop and 390×844 mobile journeys have no horizontal overflow, duplicate IDs, unlabeled controls or console failures.
 
-- [ ] Create a candidate evidence bundle containing source manifest/SBOM, test report, quality report, model inventory, preflight, stress report and verified sample package.
-- [ ] Perform a fresh-repository installation rehearsal on an available supported non-target machine and record any documentation corrections.
-- [ ] Run one final demo-day failure drill: no model, low disk, cancelled job, worker restart, corrupted ZIP and offline playback.
+Detailed evidence is in [TEST_EVIDENCE.md](TEST_EVIDENCE.md); the exact demo is in [SUBMISSION_RUNBOOK.md](SUBMISSION_RUNBOOK.md).
 
-### Documentation
+## Deliberate release boundary
 
-- [x] Remove stale test milestones and duplicated setup/model instructions.
-- [x] Separate completed engineering from internal packaging and external acceptance.
-- [x] Keep one concise entry point in `README.md` with specialised operator guides linked from it.
+The following ideas are not unfinished requirements and are intentionally excluded from this release:
 
-## Optional feature parking lot
+- Fuzzy/near-duplicate translation reuse, because an approximate agricultural match can silently change meaning. Only exact human-approved reuse is permitted.
+- Live field translation or cloud APIs, because the organiser defined office translation and offline field playback.
+- Decorative dashboards or chatbot features that distract from the trainer journey.
+- Admin glossary rollback and batch pause/resume until BAIF assigns governance and operator ownership.
 
-Do not build these before the submission story and acceptance evidence are secure:
+## External gates — owner action required
 
-- Admin-managed glossary import/version history/rollback
-- Near-duplicate suggestions beyond exact approved-memory reuse
-- Batch pause/resume and an exportable batch manifest
+- [ ] An authorised team account accepts the intended IndicTrans2 terms and caches/inventories the selected checkpoints.
+- [ ] Qualified Hindi and Marathi reviewers sign the representative translation and terminology worksheet.
+- [ ] A clean Windows 11 machine matching BAIF's 16 GB/six-core CPU baseline passes setup, preflight, media processing and UAT.
 
-They are useful extensions, not requirements or release blockers.
+After those gates:
 
-Avoid cloud translation dependencies, paid APIs, GPU-only features, live field translation, generic chatbots or decorative analytics that weaken the trainer journey.
+- [ ] Substitute approved BAIF material if the panel supplies it; otherwise retain the licensed public fixture.
+- [ ] Create the final release tag and conduct BAIF IT knowledge transfer if selected.
 
-## External acceptance — defer until available
-
-- [ ] Authorised team account accepts and caches the intended IndicTrans2 checkpoints.
-- [ ] Hindi and Marathi reviewers approve representative translations and terminology.
-- [ ] Clean Windows 11 CPU-only installation, preflight, performance and UAT evidence is recorded.
-- [ ] Approved BAIF content is used if the panel supplies it; otherwise retain public agriculture fixtures.
-- [ ] Release tag and BAIF IT knowledge-transfer session are completed after the acceptance gates.
-
-## Current evidence
-
-- `main` and GitHub CI are green.
-- All 65 tests pass in CI; 18 adversarial regressions also passed 25 consecutive randomized runs locally.
-- Six-direction engineering quality has no preservation, script, untranslated or backend-provenance failure.
-- Real audio/video, 30-minute audio and 15-minute 1080p boundary flows pass.
-- Desktop and 390×844 mobile journeys pass without console errors or horizontal overflow.
-- Offline packages have direct playback/links, checksums and deliberate-tamper rejection.
-
-## Finishing line
-
-Internally, the product is feature-complete; the next milestone is a polished submission package. Final production readiness requires the three external gates—IndicTrans2, bilingual approval and Windows-baseline proof—followed by the release tag and handover.
+Nothing else is being deferred as internal product or submission work.

@@ -25,7 +25,8 @@ The supported formats and enforced limits are in `DELIVERY_COMPATIBILITY.md`. Ex
 - Acceptance: `UAT.md`, `RELEASE_CHECKLIST.md`, `benchmarks/README.md`
 - Engineering evidence: `TEST_EVIDENCE.md`
 - Organiser alignment: `HACKATHON_REQUIREMENTS_AUDIT.md`
-- Recovery: `scripts/operations.py`, `scripts/verify_package.py`
+- Submission: `submission/VaaniSetu_Final_Hackathon_Deck.pptx`, `SUBMISSION_RUNBOOK.md`, `scripts/build_submission_bundle.py`
+- Recovery: `scripts/operations.py`, `scripts/verify_package.py`, `scripts/failure_drill.py`
 
 The runtime includes a privacy-safe impact view/export containing aggregate counts only. It never includes source or translated content. Multi-file batches remain sequential and therefore preserve the one-worker CPU safety boundary.
 

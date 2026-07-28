@@ -67,7 +67,7 @@ def split_for_translation(text: str, max_chars: int = 700) -> list[str]:
                     textwrap.wrap(
                         sentence,
                         width=max_chars,
-                        break_long_words=False,
+                        break_long_words=True,
                         break_on_hyphens=False,
                     )
                 )

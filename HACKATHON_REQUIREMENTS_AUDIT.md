@@ -1,7 +1,7 @@
 # BAIF Hackathon Requirements Audit
 
 Initial audit: 16 July 2026
-Last reviewed: 18 July 2026
+Last reviewed: 28 July 2026
 Source of truth: the five organiser screenshots supplied by the team on 16 July 2026. No additional organiser requirement is assumed.
 
 ## Executive conclusion
@@ -14,7 +14,7 @@ VaaniSetu is aligned to the requested product: a production-ready, zero-license-
 | --- | --- | --- | --- |
 | Impact | Met | Converts text, recordings, audio, video and office documents into reusable translated text, subtitles, speech and offline packages; privacy-safe dashboard shows throughput, minutes, reuse and approvals | Continue collecting representative evidence |
 | Scalability and production readiness | Met | Durable one-worker CPU queue, restart recovery, bounded uploads, disk guard, metrics, backup/restore, cleanup, support bundle and model preflight | Prove on the external Windows baseline |
-| Usability/UX | Met | Browser workflow, recording, multi-file batches, progress, actionable errors, review/approval, retry/cancel/delete, searchable library, trust card and mobile layout | Package and rehearse the final demo |
+| Usability/UX | Met | Browser workflow, recording, multi-file batches, progress, actionable errors, atomic review/approval, retry/cancel/delete, searchable library, trust card and mobile layout | None internally |
 | Tech safety, fairness and inclusivity | Met | No silent hosted processing, local-first privacy, RBAC, human approval, source/output preservation checks, target-script checks, glossary findings, model provenance and accessible controls | Obtain bilingual human sign-off externally |
 | Zero cost / open source only | Met | Open-source stack, pinned dependencies, model/license manifest, SBOM/source manifest, no BAIF paid service requirement | Confirm gated model terms through the team account |
 | Differentiate through edge cases and optimisation | Met | Corrupt-file handling, adversarial state/race/path/resource tests, size/duration/resolution limits, scanned PDF OCR, invariant protection, restart recovery, tamper detection, low-disk handling and CPU-optimised routes | Make these strengths explicit in the demo and deck |
@@ -27,11 +27,11 @@ VaaniSetu is aligned to the requested product: a production-ready, zero-license-
 | Audio: up to 30 min; 50 MB compressed MP3/OGG; 150 MB WAV | Met | Exact type-aware size and duration enforcement plus boundary stress evidence | None |
 | Video: MP4/MKV, 720p/1080p, up to 15 min and 200 MB | Met | Exact size/duration/resolution enforcement, subtitle/voice outputs and 15-minute 1080p stress evidence | None |
 | Store previous translations for reference and reuse | Met | Durable library, local manifest, approved translation memory, searchable results, reuse metrics and controlled batch workflow | None |
-| Test with public agriculture/crop videos up to 15 minutes | Met | Public/non-confidential engineering fixtures and a full 15-minute boundary harness; no HSBC/BAIF confidential content committed | Use an approved public demo clip for final presentation |
+| Test with public agriculture/crop videos up to 15 minutes | Met | Four-minute CC BY 3.0 India agriculture video completed the real local pipeline; full 15-minute boundary harness also passes | None internally |
 | Personal-laptop/DLP guidance | Met | Repository policy excludes credentials, generated media, private BAIF data and model weights | Continue the same policy |
 | Production-ready web application | Met | Authenticated browser app, API, durable processing, diagnostics and handover tooling | External deployment acceptance remains |
 | Handover source, documentation and training/KT | Met | Source repository plus user/admin/privacy/support/troubleshooting/UAT/handover documents | Conduct the external KT session if selected |
-| 4–5 slide design deliverable covering problem, architecture, stack and pillars | Internal packaging pending | Architecture and evaluation evidence exist in the repository | Produce the final concise deck from the verified evidence |
+| 4–5 slide design deliverable covering problem, architecture, stack and pillars | Met | Final five-slide deck covers the gap/impact, trainer journey, constrained architecture, quality controls and honest readiness | None |
 
 ## Deferred external list
 
@@ -47,4 +47,4 @@ VaaniSetu is aligned to the requested product: a production-ready, zero-license-
 - An internet connection at the office does not authorise sending BAIF content to third-party translation services.
 - “Offline” means downloaded field outputs work without VaaniSetu; the office translation worker itself is not a live field app.
 - Quality claims must always name the model/backend and distinguish machine output from approved human corrections.
-- The final demo must show the core trainer journey before operational depth or optional document formats.
+- The final demo shows the core trainer journey before operational depth or optional document formats; follow [SUBMISSION_RUNBOOK.md](SUBMISSION_RUNBOOK.md).

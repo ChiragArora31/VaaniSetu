@@ -55,7 +55,7 @@ Use one managed Windows/Linux worker at the BAIF office. Keep one model worker b
 
 ```bash
 python scripts/one_click_setup.py --profile balanced
-python -m uvicorn api:app --host 0.0.0.0 --port 8501
+python -m uvicorn app:app --host 0.0.0.0 --port 8501
 ```
 
 Users then open the web app from the office network. Do not expose port 8501 directly to the public internet.

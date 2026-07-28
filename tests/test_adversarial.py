@@ -19,6 +19,7 @@ from core.document_processor import DocumentProcessingError, extract_document_te
 from core.export_utils import create_artifact_zip
 from core.file_utils import ValidationError, save_binary_upload
 from core.job_manager import JobManager, JobQueueFullError
+from core.review_store import ReviewStore
 from scripts.verify_package import verify as verify_package
 
 
@@ -305,3 +306,51 @@ class ApiFilesystemAdversarialTest(unittest.TestCase):
                     self.assertEqual(raised.exception.status_code, 404)
             finally:
                 api_module.OUTPUT_DIR = previous_output
+
+    def test_corrupt_report_and_history_state_fail_safely(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "outputs"
+            job_dir = output / "job123"
+            job_dir.mkdir(parents=True)
+            report = job_dir / "job_report.json"
+            report.write_text("{not-json", encoding="utf-8")
+            (output / "manifest.jsonl").write_text(
+                "not-json\n[]\n" + json.dumps({"job_id": "safe", "artifacts": []}) + "\n",
+                encoding="utf-8",
+            )
+            previous_output = api_module.OUTPUT_DIR
+            api_module.OUTPUT_DIR = output
+            try:
+                with self.assertRaises(HTTPException) as raised:
+                    api_module.download_artifact("job123", "translation", (None, None))
+                self.assertEqual(raised.exception.status_code, 409)
+                history = api_module.history((None, None), limit=10)
+                self.assertEqual([item.job_id for item in history.items], ["safe"])
+                self.assertEqual(history.items[0].artifacts, {})
+            finally:
+                api_module.OUTPUT_DIR = previous_output
+
+
+class ReviewStateAdversarialTest(unittest.TestCase):
+    def test_corrupt_review_is_quarantined_and_workflow_recovers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reviews = root / ".reviews"
+            reviews.mkdir()
+            (reviews / "job123.json").write_text(
+                json.dumps({"job_id": "different", "status": "approved", "versions": []}),
+                encoding="utf-8",
+            )
+            job_dir = root / "job123"
+            job_dir.mkdir()
+            (job_dir / "job_report.json").write_text(json.dumps({"artifacts": {}}), encoding="utf-8")
+
+            store = ReviewStore(reviews)
+            recovered = store.get_review("job123")
+            self.assertEqual(recovered.status, "draft")
+            self.assertEqual(recovered.versions, [])
+            self.assertEqual(len(list(reviews.glob("job123.corrupt-*.json"))), 1)
+
+            saved = store.save_correction("job123", "सुरक्षित सुधार", "trainer", job_dir)
+            self.assertEqual(saved.versions[0].corrected_text, "सुरक्षित सुधार")
+            self.assertTrue((reviews / "job123.json").is_file())

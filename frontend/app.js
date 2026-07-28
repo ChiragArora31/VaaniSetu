@@ -382,6 +382,7 @@ function setInputMode(mode) {
     const active = tab.dataset.mode === mode;
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", active ? "true" : "false");
+    tab.tabIndex = active ? 0 : -1;
   });
   clearError();
 }
@@ -611,6 +612,7 @@ function resetResult() {
   els.trustTiming.textContent = "Available in details";
   els.trustReview.textContent = "Human review pending";
   state.currentJobId = "";
+  state.currentQueueJobId = "";
   state.currentReviewVersion = null;
   setJourney("translate");
   renderCorrectionDiff();
@@ -618,6 +620,14 @@ function resetResult() {
 
 function resetRecording() {
   if (state.recordingUrl) URL.revokeObjectURL(state.recordingUrl);
+  state.stream?.getTracks().forEach((track) => track.stop());
+  state.audioContext?.close();
+  window.clearInterval(state.timerId);
+  window.cancelAnimationFrame(state.meterId);
+  state.stream = null;
+  state.audioContext = null;
+  state.analyser = null;
+  state.mediaRecorder = null;
   state.recordingBlob = null;
   state.recordingUrl = null;
   state.chunks = [];
@@ -702,6 +712,14 @@ async function startRecording() {
     els.recordState.textContent = "Recording";
     drawLiveMeter();
   } catch (error) {
+    state.stream?.getTracks().forEach((track) => track.stop());
+    state.audioContext?.close();
+    state.stream = null;
+    state.audioContext = null;
+    state.analyser = null;
+    state.mediaRecorder = null;
+    els.recordButton.textContent = "Start recording";
+    els.recordButton.classList.remove("recording");
     showError(error.name === "NotAllowedError" ? "Microphone permission was blocked." : "Could not start recording.");
   }
 }
@@ -723,6 +741,16 @@ function onRecordingStop() {
 
   const type = state.mediaRecorder?.mimeType || "audio/webm";
   state.recordingBlob = new Blob(state.chunks, { type });
+  if (!state.recordingBlob.size) {
+    state.recordingBlob = null;
+    state.mediaRecorder = null;
+    els.recordButton.textContent = "Start recording";
+    els.recordButton.classList.remove("recording");
+    els.recordState.textContent = "No audio captured";
+    showError("No audio was captured. Check the microphone and record again.");
+    drawIdleMeter();
+    return;
+  }
   state.recordingUrl = URL.createObjectURL(state.recordingBlob);
   els.inputAudio.src = state.recordingUrl;
   els.recordingPreview.classList.remove("hidden");
@@ -948,10 +976,7 @@ async function deleteSavedJob(jobId) {
     const response = await apiFetch(`/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not delete this job.");
-    if (state.currentJobId === jobId) {
-      state.currentJobId = "";
-      els.resultPanel.classList.add("hidden");
-    }
+    if (state.currentJobId === jobId || state.currentQueueJobId === jobId) resetResult();
     loadHistory();
   } catch (error) {
     showError(error.message || "Could not delete this job.");
@@ -1066,6 +1091,7 @@ async function openLibraryJob(jobId) {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not open this job.");
     if (!payload.result) throw new Error("This job is not ready for review.");
+    state.currentQueueJobId = payload.job_id;
     payload.result.stage_timings = payload.stage_timings || {};
     renderResult(payload.result);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1127,20 +1153,20 @@ async function approveCorrection() {
   els.reviewMessage.textContent = "";
   const approvedText = els.correctedText.value;
   try {
-    const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentJobId)}/review/approve`, {
+    const response = await apiFetch(`/jobs/${encodeURIComponent(state.currentJobId)}/review/finalize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: state.currentReviewVersion }),
+      body: JSON.stringify({ corrected_text: approvedText }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || "Could not approve correction.");
     els.reviewStatus.textContent = `Approved v${payload.approved_version}`;
     els.trustReview.textContent = `Approved · version ${payload.approved_version}`;
     setJourney("offline");
-    els.reviewMessage.textContent = "Approved package and translation memory updated.";
+    els.reviewMessage.textContent = "The visible correction was saved and approved. Package and translation memory updated.";
     await openLibraryJob(state.currentJobId);
     els.correctedText.value = approvedText;
-    els.reviewMessage.textContent = "Approved package and translation memory updated.";
+    els.reviewMessage.textContent = "The visible correction was saved and approved. Package and translation memory updated.";
     loadImpact();
   } catch (error) {
     els.reviewMessage.textContent = error.message || "Could not approve correction.";
@@ -1431,6 +1457,19 @@ els.toggleUpload.addEventListener("click", () => {
 
 els.modeTabs.forEach((tab) => {
   tab.addEventListener("click", () => setInputMode(tab.dataset.mode));
+  tab.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = Array.from(els.modeTabs);
+    const current = tabs.indexOf(tab);
+    const next = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? tabs.length - 1
+        : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    setInputMode(tabs[next].dataset.mode);
+    tabs[next].focus();
+  });
 });
 
 els.translateText.addEventListener("click", processTextInput);

@@ -1,47 +1,77 @@
 # Test Evidence
 
-Last reviewed: 18 July 2026
-Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is not the required Windows 11 acceptance machine.
+Last reviewed: 28 July 2026
+
+Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is intentionally recorded as a non-target machine; BAIF's clean Windows 11/16 GB acceptance remains external.
 
 ## Automated release gate
 
-- 65 tests pass in clean Ubuntu CI, including scanned-PDF OCR with English/Hindi/Marathi Tesseract data.
-- Locally, 64 tests pass and only OCR is skipped because Tesseract is absent.
-- 18 adversarial regressions cover malformed/corrupt state, traversal and symlink escape, queue saturation and cancellation races, hostile password cost, bounded login/session state, partial uploads, filename boundaries, ambiguous/oversized archives and malformed manifests.
-- The adversarial module passed 25 consecutive randomized-hash runs—450 focused executions—with no race flake.
-- Branch-inclusive diagnostic coverage across the modified safety boundary was 74%; deterministic critical modules measured 72–94% without mocking model-runtime work merely to inflate line coverage.
-- Python compilation, frontend syntax, secret/generated-data policy and package verification pass.
+- **69/69 tests pass** locally, including scanned-PDF OCR.
+- **20 adversarial regressions** cover corrupt/malformed state, traversal/symlink escape, queue saturation/cancellation races, hostile password cost, bounded auth/session state, partial uploads, filename boundaries, oversized/duplicate archives and malformed manifests.
+- Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
+- Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.
+- The GitHub Actions workflow repeats the suite on a clean Ubuntu runner with FFmpeg and English/Hindi/Marathi OCR data.
 
-The latest code-bearing verification release is `787f1f87`; [GitHub CI run 29599126528](https://github.com/ChiragArora31/VaaniSetu/actions/runs/29599126528) completed successfully.
+Run:
 
-## Defects closed by adversarial testing
+```bash
+python -m py_compile $(git ls-files '*.py')
+node --check frontend/app.js
+python -m unittest discover -s tests -v
+python -m pip check
+python scripts/release_check.py
+```
 
-- Cancellation now wins if it races with task completion.
-- Restart recovery rejects mismatched/path-like queue identities and malformed records.
-- Non-JSON/non-finite results cannot corrupt durable terminal state.
-- Malformed auth records are isolated; PBKDF2 cost, failure-cache size and sessions per user are bounded.
-- Interrupted uploads leave no partial file; control-character and excessive filenames are handled safely.
-- Package and Office readers reject duplicate/oversized members before ambiguous or excessive reads.
-- Artifact access is constrained to a direct child of the configured output root.
+## Defects closed in the final adversarial pass
 
-## Quality and media
+- Corrupt review records are quarantined and recovered instead of crashing the workflow.
+- Corrupt/non-object job reports fail with an actionable response instead of breaking history/download views.
+- Final approval atomically persists exactly the visible correction; duplicate saves/approvals no longer create false versions or memory rows.
+- Typed and auto-detected same-language jobs are rejected before model work.
+- Hostile unbroken text is hard-split at the configured translation boundary.
+- Request throttling no longer trusts a caller-controlled forwarding header.
+- Deleting or switching jobs cannot leave stale download/action targets in the UI.
+- Recorder start/reset failures release microphone tracks, timers and object URLs.
+- Low disk rejects a job before partial job directories are created.
+- Missing FFmpeg subtitle support now leaves SRT/VTT available, removes partial video and emits one concise warning instead of raw diagnostics.
 
-- The 12-sample, six-direction engineering gate passed with local NLLB-200 CTranslate2 INT8: no preservation, script, unchanged-output or backend-provenance failure; every direction exceeded chrF++ 35.
-- The report is engineering evidence, not IndicTrans2 readiness or bilingual approval. Preferred terminology misses—especially English→Hindi—remain visible for reviewers.
-- Real Hindi audio produced a transcript, English translation, subtitles, report and verified package.
-- Real Hindi video produced transcript, translation, subtitles, speech, captioned video, translated-audio video, report and verified package.
-- The boundary harness generated and inspected a 1,800-second WAV and 900-second 1920×1080 MP4 successfully.
+## Translation quality
 
-## Browser and offline journey
+The 12-sample, six-direction engineering gate passed with local **NLLB-200 CTranslate2 INT8**:
 
-- First-admin setup, pending-user rejection, approval, sign-in and CSRF controls passed.
-- Text translation, invariant preservation, correction versions, approval, approved-memory reuse, retry/cancel/delete and library reopen passed.
-- Impact, trust/provenance, batch and glossary/difference surfaces rendered correctly on desktop and 390×844 mobile.
-- The accessibility audit found no horizontal overflow, duplicate IDs, unlabeled controls, unnamed buttons, positive tab indices or console errors/warnings.
-- A real ZIP opened through its server-free `CONTENTS.html`, exposed direct files and media playback, verified cleanly and rejected deliberate tampering/injected files.
+| Direction | Mean chrF++ | Critical preservation/script/backend failures |
+| --- | ---: | ---: |
+| English → Hindi | 37.20 | 0 |
+| English → Marathi | 88.10 | 0 |
+| Hindi → English | 48.55 | 0 |
+| Hindi → Marathi | 74.66 | 0 |
+| Marathi → English | 48.62 | 0 |
+| Marathi → Hindi | 79.41 | 0 |
 
-## Operations and remaining proof
+Peak benchmark memory was 964 MB. Preferred terminology misses remain visible in `outputs/translation_reviewer_worksheet.csv`; these engineering scores are not IndicTrans2 readiness or bilingual approval.
 
-Migration, backup/checksum validation, forced restore, cleanup dry-run, redacted support bundle, model inventory and source/SBOM generation passed. Preflight correctly marks this 8 GB Mac unsupported under BAIF's confirmed 16 GB minimum.
+## Real browser and media E2E
 
-External evidence still required: the accepted/cached IndicTrans2 inventory, Hindi/Marathi reviewer sign-off and a clean Windows 11 baseline run.
+- Real browser English→Hindi processing used NLLB CTranslate2 INT8 in **43.8 seconds** and preserved `25 kg` plus `1800-123-456`.
+- Atomic human approval created the approved package; the same source then reused the approved correction in **0.6 seconds**.
+- Text, public TXT/CSV batch upload, library reopen, keyboard tabs and 390×844 mobile layout passed with no duplicate IDs, unlabeled controls, horizontal overflow or console errors.
+- Canonical public video: [Agriculture First](https://commons.wikimedia.org/wiki/File:Agriculture_First.webm), CC BY 3.0, attribution Indian Diplomacy; 239.501 seconds, 600×480, 16,491,593 bytes, SHA-256 `f3c679682e325e4b35c9586f9f2b161e192458de609fe615bb1588da14b3bd9a`.
+- That video completed local Whisper transcription, English→Hindi translation, SRT/VTT, speech, translated-audio video and verified offline ZIP in **120 seconds**.
+- The full boundary harness generated and inspected 1,800-second audio and 900-second 1920×1080 video with 16.97 MB peak harness memory.
+
+## Failure and offline evidence
+
+`python scripts/failure_drill.py` passes all six demo-day scenarios:
+
+1. no-model privacy-safe setup error;
+2. low-disk preflight refusal;
+3. cancellation/completion race;
+4. worker restart recovery;
+5. corrupted/injected ZIP rejection; and
+6. server-free `CONTENTS.html` playback/links.
+
+Both the standard and approved review packages verify cleanly. Migration, backup/checksum restore, cleanup dry-run, redacted support bundle, model inventory, source manifest and SBOM generation also pass.
+
+## Honest remaining proof
+
+Preflight correctly marks this 8 GB Mac unsupported under BAIF's 16 GB minimum and reports the intended IndicTrans2 checkpoints absent. The only external evidence still required is accepted/cached IndicTrans2 inventory, Hindi/Marathi reviewer sign-off and a clean Windows 11 baseline run.

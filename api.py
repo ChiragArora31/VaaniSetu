@@ -24,6 +24,7 @@ from config.settings import (
     DOCUMENT_MAX_UPLOAD_MB,
     JOB_WORKERS,
     MAX_PENDING_JOBS,
+    MAX_TEXT_CHARS,
     MODEL_PROFILE,
     OUTPUT_DIR,
     TEXT_MAX_UPLOAD_MB,
@@ -116,7 +117,7 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
 class TextRequest(BaseModel):
-    text: str = Field(min_length=1)
+    text: str = Field(min_length=1, max_length=MAX_TEXT_CHARS)
     source_language: str = "English"
     target_language: str = "Hindi"
     make_subtitles: bool = True
@@ -213,6 +214,10 @@ class ApprovalRequest(BaseModel):
     version: int | None = None
 
 
+class FinalizeReviewRequest(BaseModel):
+    corrected_text: str = Field(min_length=1, max_length=MAX_TEXT_CHARS)
+
+
 class JobAccepted(BaseModel):
     job_id: str
     status: str
@@ -280,9 +285,8 @@ def _session_response(user: UserRecord | None, session: SessionRecord | None = N
 
 
 def _client_throttle_key(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        return forwarded_for.split(",", 1)[0].strip()
+    # Do not trust caller-controlled forwarding headers. A BAIF reverse proxy can
+    # still share one client key safely because throttling is also scoped by username.
     return request.client.host if request.client else "local"
 
 
@@ -336,6 +340,12 @@ def _validate_source_language(name: str) -> None:
 def _validate_target_language(name: str) -> None:
     if name not in language_names():
         raise HTTPException(status_code=400, detail=f"Unsupported language: {name}")
+
+
+def _validate_language_pair(source_language: str, target_language: str, text: str = "") -> None:
+    resolved_source = detect_language_name(text) if source_language == "Auto detect" and text.strip() else source_language
+    if resolved_source != "Auto detect" and resolved_source == target_language:
+        raise HTTPException(status_code=400, detail="Source and target languages must be different.")
 
 
 def _options(
@@ -446,6 +456,7 @@ def glossary_coverage(
     source_language = detect_language_name(request.text) if request.source_language == "Auto detect" else request.source_language
     _validate_source_language(source_language)
     _validate_target_language(request.target_language)
+    _validate_language_pair(source_language, request.target_language, request.text)
     return glossary_matches(request.text, source_language, request.target_language)
 
 
@@ -567,12 +578,16 @@ def _fresh_job_response(record) -> JobResponse:
         return response
     try:
         report = json.loads(report_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    except (OSError, json.JSONDecodeError):
+        return response
+    if not isinstance(report, dict) or not isinstance(report.get("artifacts", {}), dict):
         return response
     artifacts = []
     for key, filename in sorted(report.get("artifacts", {}).items()):
-        path = OUTPUT_DIR / output_job_id / str(filename)
-        if path.exists():
+        if not isinstance(filename, str) or not filename:
+            continue
+        path = OUTPUT_DIR / output_job_id / filename
+        if path.is_file():
             artifacts.append(
                 Artifact(
                     key=str(key),
@@ -818,6 +833,29 @@ def approve_correction(
     return _review_response(review)
 
 
+@app.post("/jobs/{job_id}/review/finalize", response_model=ReviewResponse)
+def finalize_review(
+    job_id: str,
+    request: FinalizeReviewRequest,
+    auth: Annotated[tuple[UserRecord, SessionRecord], Depends(require_csrf_user)],
+):
+    """Persist and approve exactly the correction currently visible to the reviewer."""
+    job = _job_result_or_404(job_id)
+    try:
+        review = review_store.finalize(
+            job.job_id,
+            request.corrected_text,
+            auth[0].username,
+            job.original_text,
+            job.source_language,
+            job.target_language,
+            _job_output_dir(job.job_id),
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _review_response(review)
+
+
 @app.post("/jobs/text", response_model=JobAccepted, status_code=202)
 def queue_text_translation(
     request: TextRequest,
@@ -825,6 +863,7 @@ def queue_text_translation(
 ):
     _validate_source_language(request.source_language)
     _validate_target_language(request.target_language)
+    _validate_language_pair(request.source_language, request.target_language, request.text)
 
     def task(status):
         with pipeline_lock:
@@ -882,6 +921,7 @@ async def queue_file_translation(
 ):
     _validate_source_language(source_language)
     _validate_target_language(target_language)
+    _validate_language_pair(source_language, target_language)
     try:
         saved = save_binary_upload(file.file, file.filename or "upload", TEMP_DIR / "queued_uploads")
     except ValidationError as exc:
@@ -964,6 +1004,11 @@ def history(
             payload = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if not isinstance(payload, dict):
+            continue
+        artifacts = payload.get("artifacts", {})
+        if not isinstance(artifacts, dict):
+            artifacts = {}
         rows.append(
             HistoryItem(
                 created_at=str(payload.get("created_at", "")),
@@ -971,7 +1016,7 @@ def history(
                 input_type=str(payload.get("input_type", "")),
                 source_language=str(payload.get("source_language", "")),
                 target_language=str(payload.get("target_language", "")),
-                artifacts={str(key): str(value) for key, value in payload.get("artifacts", {}).items()},
+                artifacts={str(key): str(value) for key, value in artifacts.items()},
             )
         )
     rows = [row for row in rows if row.job_id]
@@ -985,6 +1030,7 @@ def translate_text(
 ):
     _validate_source_language(request.source_language)
     _validate_target_language(request.target_language)
+    _validate_language_pair(request.source_language, request.target_language, request.text)
     try:
         with pipeline_lock:
             options = _options(
@@ -1036,6 +1082,7 @@ async def translate_file(
 ):
     _validate_source_language(source_language)
     _validate_target_language(target_language)
+    _validate_language_pair(source_language, target_language)
     temp_upload_dir = TEMP_DIR / "api_uploads"
     saved = None
     try:
@@ -1088,13 +1135,19 @@ def download_artifact(
     if not report_path.exists():
         raise HTTPException(status_code=404, detail="Job report not found")
 
-    report = json.loads(report_path.read_text(encoding="utf-8"))
-    filename = report.get("artifacts", {}).get(artifact_key)
-    if not filename:
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=409, detail="Job report is unreadable. Run the job again or contact BAIF IT.") from exc
+    artifacts = report.get("artifacts", {}) if isinstance(report, dict) else {}
+    if not isinstance(artifacts, dict):
+        artifacts = {}
+    filename = artifacts.get(artifact_key)
+    if not isinstance(filename, str) or not filename:
         raise HTTPException(status_code=404, detail="Artifact not found")
     path = (job_dir / filename).resolve()
     if job_dir.resolve() not in path.parents:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    if not path.exists():
+    if not path.is_file():
         raise HTTPException(status_code=404, detail="Artifact file missing")
     return FileResponse(path, filename=path.name)

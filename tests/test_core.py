@@ -11,6 +11,7 @@ import time
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -20,7 +21,7 @@ os.environ.setdefault("BAIF_MIN_FREE_DISK_GB", "1")
 
 import api as api_module
 from core.auth import AuthError, AuthStore
-from core.file_utils import ValidationError, save_binary_upload, validate_size
+from core.file_utils import ValidationError, create_job_dirs, save_binary_upload, validate_size
 from core.job_manager import JobManager
 from core.impact import build_impact_summary
 from core.observability import JsonFormatter
@@ -28,7 +29,7 @@ from core.quality import glossary_findings, glossary_matches, protect_invariants
 from core.export_utils import create_artifact_zip
 from core.asr_cleanup import clean_indic_asr_text
 from core.document_processor import DocumentProcessingError, extract_document_text
-from core.media_utils import MediaInfo
+from core.media_utils import MediaError, MediaInfo
 from core.pipeline import ProcessingOptions, TranslationPipeline, _validate_media_constraints
 from core.review_store import ReviewStore
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
@@ -37,6 +38,7 @@ from core.translator import HostedHttpTranslator, TranslationError
 from scripts.verify_package import verify as verify_package
 from core.user_messages import user_safe_error
 from core.transcriber import WhisperTranscriber, get_transcriber
+from core.video_processor import burn_subtitles
 from scripts.operations import recommended_worker_profile
 
 
@@ -48,6 +50,8 @@ class TextUtilsTest(unittest.TestCase):
         self.assertTrue(chunks)
         self.assertTrue(all(len(chunk) <= 120 for chunk in chunks))
         self.assertNotIn("  ", normalized)
+        hostile_token_chunks = split_for_translation("x" * 1000, max_chars=120)
+        self.assertTrue(all(len(chunk) <= 120 for chunk in hostile_token_chunks))
 
     def test_clean_indic_asr_text(self):
         cleaned, changed = clean_indic_asr_text(
@@ -110,6 +114,17 @@ class SubtitleTest(unittest.TestCase):
 
 
 class FileUtilsTest(unittest.TestCase):
+    def test_low_disk_rejects_job_before_partial_directories_are_created(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            temp_root = root / "temp"
+            output_root = root / "outputs"
+            with patch("core.file_utils.shutil.disk_usage", return_value=SimpleNamespace(free=0)):
+                with self.assertRaisesRegex(ValidationError, "archive old jobs or run cleanup"):
+                    create_job_dirs(temp_root, output_root)
+            self.assertFalse(temp_root.exists())
+            self.assertEqual(list(output_root.iterdir()), [])
+
     def test_rejects_bad_extension(self):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(ValidationError):
@@ -180,6 +195,26 @@ class OfflinePackageTest(unittest.TestCase):
                 for name in source.namelist():
                     target.writestr(name, b"changed" if name == "CONTENTS.html" else source.read(name))
             self.assertTrue(any("contents.html" in item.lower() for item in verify_package(tampered)))
+
+
+class VideoProcessorTest(unittest.TestCase):
+    def test_missing_subtitle_filter_is_concise_and_removes_partial_video(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            video = root / "source.mp4"
+            subtitles = root / "captions.srt"
+            output = root / "partial.mp4"
+            video.write_bytes(b"video")
+            subtitles.write_text("1\n00:00:00,000 --> 00:00:01,000\nनमस्ते\n", encoding="utf-8")
+            output.write_bytes(b"partial")
+            failure = SimpleNamespace(returncode=1, stderr="ffmpeg version 4.3\nNo such filter: 'subtitles'\nConversion failed!")
+            with patch("core.video_processor.ensure_ffmpeg", return_value="ffmpeg"), patch(
+                "core.video_processor.subprocess.run", return_value=failure
+            ):
+                with self.assertRaisesRegex(MediaError, "SRT and VTT captions are still ready") as raised:
+                    burn_subtitles(video, subtitles, output)
+            self.assertLess(len(str(raised.exception)), 220)
+            self.assertFalse(output.exists())
 
 
 class ImpactSummaryTest(unittest.TestCase):
@@ -499,6 +534,19 @@ class ApiAuthTest(unittest.TestCase):
                 missing_csrf = client.post("/jobs/text", json={"text": "hello farmer water"})
                 self.assertEqual(missing_csrf.status_code, 403)
 
+                same_language = client.post(
+                    "/jobs/text",
+                    headers={"X-CSRF-Token": admin_csrf},
+                    json={"text": "hello farmer water", "source_language": "English", "target_language": "English"},
+                )
+                self.assertEqual(same_language.status_code, 400)
+                auto_same_language = client.post(
+                    "/jobs/text",
+                    headers={"X-CSRF-Token": admin_csrf},
+                    json={"text": "hello farmer water", "source_language": "Auto detect", "target_language": "English"},
+                )
+                self.assertEqual(auto_same_language.status_code, 400)
+
                 register = client.post(
                     "/auth/register",
                     json={"username": "trainer", "password": "approved trainer password", "display_name": "Trainer"},
@@ -561,6 +609,8 @@ class ReviewWorkflowTest(unittest.TestCase):
             draft = store.save_correction("job123", "सुधारित अनुवाद", "trainer", job_dir)
             self.assertEqual(len(draft.versions), 1)
             self.assertTrue((job_dir / "corrected_translation_v1.txt").exists())
+            duplicate = store.save_correction("job123", "  सुधारित अनुवाद  ", "trainer", job_dir)
+            self.assertEqual(len(duplicate.versions), 1)
 
             approved = store.approve(
                 "job123",
@@ -576,6 +626,28 @@ class ReviewWorkflowTest(unittest.TestCase):
             self.assertIsNotNone(memory)
             self.assertEqual(memory.corrected_text, "सुधारित अनुवाद")
             self.assertTrue((job_dir / "approved_corrected_package.zip").exists())
+            self.assertEqual(len(store.memory_path.read_text(encoding="utf-8").splitlines()), 1)
+            approved_at = approved.approved_at
+            (job_dir / "approved_corrected_package.zip").unlink()
+            repaired = store.approve(
+                "job123", 1, "trainer", "hello farmer water", "English", "Hindi", job_dir
+            )
+            self.assertEqual(repaired.approved_at, approved_at)
+            self.assertTrue((job_dir / "approved_corrected_package.zip").is_file())
+            self.assertEqual(len(store.memory_path.read_text(encoding="utf-8").splitlines()), 1)
+
+            finalized = store.finalize(
+                "job123",
+                "अंतिम दृश्यमान अनुवाद",
+                "trainer",
+                "hello farmer water",
+                "English",
+                "Hindi",
+                job_dir,
+            )
+            self.assertEqual(finalized.approved_version, 2)
+            self.assertEqual(store.find_memory("hello farmer water", "English", "Hindi").corrected_text, "अंतिम दृश्यमान अनुवाद")
+            self.assertEqual(len(store.memory_path.read_text(encoding="utf-8").splitlines()), 1)
 
             store.delete("job123")
             self.assertIsNone(store.find_memory("hello farmer water", "English", "Hindi"))
@@ -657,13 +729,17 @@ class ReviewWorkflowTest(unittest.TestCase):
                 self.assertEqual(correction.json()["versions"][0]["version"], 1)
 
                 approval = client.post(
-                    "/jobs/job123/review/approve",
+                    "/jobs/job123/review/finalize",
                     headers={"X-CSRF-Token": csrf},
-                    json={},
+                    json={"corrected_text": "स्क्रीन पर अंतिम अनुवाद"},
                 )
                 self.assertEqual(approval.status_code, 200)
                 self.assertEqual(approval.json()["status"], "approved")
-                self.assertIsNotNone(api_module.review_store.find_memory("hello farmer water", "English", "Hindi"))
+                self.assertEqual(approval.json()["approved_version"], 2)
+                self.assertEqual(
+                    api_module.review_store.find_memory("hello farmer water", "English", "Hindi").corrected_text,
+                    "स्क्रीन पर अंतिम अनुवाद",
+                )
 
                 impact = client.get("/impact")
                 self.assertEqual(impact.status_code, 200)

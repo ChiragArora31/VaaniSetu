@@ -6,7 +6,7 @@ Normal jobs run on the configured worker. They do not silently download models, 
 
 ## Current status
 
-Product engineering is complete and `main` is green. The current suite contains 65 automated tests, including 18 adversarial regressions, plus browser, media, recovery, package-integrity and full-boundary stress evidence.
+Product engineering and internal submission work are complete. The release candidate has 69 automated tests, including 20 adversarial regressions, plus real-model browser/video, recovery, package-integrity and full-boundary stress evidence.
 
 Three external acceptance gates remain before an unrestricted production claim:
 
@@ -14,7 +14,7 @@ Three external acceptance gates remain before an unrestricted production claim:
 2. obtain Hindi and Marathi reviewer approval; and
 3. prove installation and UAT on BAIF's Windows 11 CPU baseline.
 
-See the [winning roadmap](IMPLEMENTATION_ROADMAP.md) for the exact internal and external finishing plan.
+See the [implementation roadmap](IMPLEMENTATION_ROADMAP.md) for the completion record and the three external gates.
 
 ## What it delivers
 
@@ -118,8 +118,10 @@ Operational evidence:
 ```bash
 python scripts/operations.py preflight
 python scripts/stress_test.py --profile full
+python scripts/failure_drill.py
 python scripts/verify_package.py outputs/JOB_ID/vaanisetu_outputs.zip
 python scripts/release_evidence.py
+python scripts/build_submission_bundle.py
 ```
 
 The benchmark is an engineering gate, not bilingual approval. Current results and limitations are recorded in [TEST_EVIDENCE.md](TEST_EVIDENCE.md).
@@ -149,6 +151,7 @@ Backups contain operational content and belong only in BAIF-approved encrypted s
 | Release acceptance | [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) and [UAT.md](UAT.md) |
 | Privacy, licences and support | [PRIVACY.md](PRIVACY.md), [OPEN_SOURCE_COMPLIANCE.md](OPEN_SOURCE_COMPLIANCE.md), [SUPPORT_MODEL.md](SUPPORT_MODEL.md) |
 | Verification evidence | [TEST_EVIDENCE.md](TEST_EVIDENCE.md) |
+| Final deck and judge demo | [submission/README.md](submission/README.md) and [SUBMISSION_RUNBOOK.md](SUBMISSION_RUNBOOK.md) |
 
 ## Honest boundaries
 
