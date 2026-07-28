@@ -57,7 +57,7 @@ def main() -> None:
     print("Production preflight (must be green before handover):")
     print("  python scripts/operations.py preflight")
     print("Start VaaniSetu with:")
-    print("  python -m uvicorn api:app --host 127.0.0.1 --port 8501")
+    print("  python -m uvicorn app:app --host 127.0.0.1 --port 8501")
 
 
 if __name__ == "__main__":
