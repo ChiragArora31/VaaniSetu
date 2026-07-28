@@ -1,4 +1,4 @@
-# VaaniSetu — Team Brief
+# VaaniSetu — Now
 
 **Status: verified release candidate · 28 July 2026**
 
