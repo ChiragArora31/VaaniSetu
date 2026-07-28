@@ -141,6 +141,7 @@ Backups contain operational content and belong only in BAIF-approved encrypted s
 
 | Need | Document |
 | --- | --- |
+| Three-minute team overview | [TEAM_ONE_PAGER.md](TEAM_ONE_PAGER.md) |
 | Current completion and next work | [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) |
 | Organiser requirement mapping | [HACKATHON_REQUIREMENTS_AUDIT.md](HACKATHON_REQUIREMENTS_AUDIT.md) |
 | Architecture and deployment rationale | [BAIF_ARCHITECTURE_NOTE.md](BAIF_ARCHITECTURE_NOTE.md) |
