@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED_DOCS = ["README.md", "HANDOVER.md", "USER_GUIDE.md", "ADMIN_GUIDE.md", "PRIVACY.md", "TROUBLESHOOTING.md", "SUPPORT_MODEL.md", "UAT.md", "RELEASE_CHECKLIST.md", "TEST_EVIDENCE.md", "OPEN_SOURCE_COMPLIANCE.md"]
+REQUIRED_DOCS = ["README.md", "BAIF_ONBOARDING_RUNBOOK.html", "HANDOVER.md", "USER_GUIDE.md", "ADMIN_GUIDE.md", "PRIVACY.md", "TROUBLESHOOTING.md", "SUPPORT_MODEL.md", "UAT.md", "RELEASE_CHECKLIST.md", "TEST_EVIDENCE.md", "OPEN_SOURCE_COMPLIANCE.md"]
 SECRET_PATTERNS = [re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"), re.compile(rb"hf_[A-Za-z0-9]{30,}"), re.compile(rb"(?:sk|ghp)_[A-Za-z0-9]{30,}")]
 
 

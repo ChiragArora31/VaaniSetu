@@ -1,5 +1,7 @@
 # Administrator Guide
 
+Start with the [BAIF onboarding runbook](BAIF_ONBOARDING_RUNBOOK.html). It gives one role-based path for installation, first administrator, trainer approval, acceptance testing, field handoff and internal demonstration.
+
 ## Install and start
 
 On the Windows 11 BAIF worker, run `scripts\setup_baif_worker.ps1`, then `scripts\start_baif_worker.ps1`. Complete first-admin setup in the browser. Do not expose port 8501 directly to the public internet; use the BAIF LAN or an approved reverse proxy with TLS.

@@ -1,12 +1,12 @@
 # Test Evidence
 
-Last reviewed: 28 July 2026
+Last reviewed: 5 August 2026
 
 Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is intentionally recorded as a non-target machine; BAIF's clean Windows 11/16 GB acceptance remains external.
 
 ## Automated release gate
 
-- **69/69 tests pass** locally, including scanned-PDF OCR.
+- **71/71 tests pass** locally, including scanned-PDF OCR and onboarding delivery checks.
 - **20 adversarial regressions** cover corrupt/malformed state, traversal/symlink escape, queue saturation/cancellation races, hostile password cost, bounded auth/session state, partial uploads, filename boundaries, oversized/duplicate archives and malformed manifests.
 - Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
 - Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.
@@ -56,6 +56,7 @@ Peak benchmark memory was 964 MB. Preferred terminology misses remain visible in
 - Real browser English→Hindi processing used NLLB CTranslate2 INT8 in **43.8 seconds** and preserved `25 kg` plus `1800-123-456`.
 - Atomic human approval created the approved package; the same source then reused the approved correction in **0.6 seconds**.
 - Text, public TXT/CSV batch upload, library reopen, keyboard tabs and 390×844 mobile layout passed with no duplicate IDs, unlabeled controls, horizontal overflow or console errors.
+- The first-admin onboarding checklist and printable BAIF runbook pass desktop/mobile browser checks with actionable state transitions, no horizontal overflow and no console warnings/errors.
 - Canonical public video: [Agriculture First](https://commons.wikimedia.org/wiki/File:Agriculture_First.webm), CC BY 3.0, attribution Indian Diplomacy; 239.501 seconds, 600×480, 16,491,593 bytes, SHA-256 `f3c679682e325e4b35c9586f9f2b161e192458de609fe615bb1588da14b3bd9a`.
 - That video completed local Whisper transcription, English→Hindi translation, SRT/VTT, speech, translated-audio video and verified offline ZIP in **120 seconds**.
 - The full boundary harness generated and inspected 1,800-second audio and 900-second 1920×1080 video with 16.97 MB peak harness memory.

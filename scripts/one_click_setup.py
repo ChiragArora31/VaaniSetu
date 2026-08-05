@@ -23,6 +23,11 @@ def run(cmd: list[str]) -> None:
 
 
 def main() -> None:
+    if sys.version_info[:2] not in {(3, 10), (3, 11)}:
+        raise SystemExit(
+            "VaaniSetu requires Python 3.10 or 3.11. "
+            f"This command is using Python {sys.version_info.major}.{sys.version_info.minor}."
+        )
     parser = argparse.ArgumentParser(description="Set up the VaaniSetu BAIF translation worker.")
     parser.add_argument("--profile", choices=["fast", "balanced", "quality"], default="balanced")
     parser.add_argument("--skip-models", action="store_true", help="Install packages only; do not download model weights.")
@@ -52,12 +57,12 @@ def main() -> None:
     run([python, "scripts/operations.py", "migrate"])
 
     print("")
-    print("Setup complete.")
-    print("Readiness check: http://127.0.0.1:8501/health")
+    print("Setup complete. No further installation is needed for normal users.")
     print("Production preflight (must be green before handover):")
     print("  python scripts/operations.py preflight")
     print("Start VaaniSetu with:")
     print("  python -m uvicorn app:app --host 127.0.0.1 --port 8501")
+    print("Then open http://127.0.0.1:8501 and follow Start here.")
 
 
 if __name__ == "__main__":

@@ -594,6 +594,38 @@ class ApiAuthTest(unittest.TestCase):
                 api_module.auth_store = previous_store
 
 
+class OnboardingDeliveryTest(unittest.TestCase):
+    def test_runbook_is_served_and_covers_every_baif_role(self):
+        response = TestClient(api_module.app).get("/onboarding")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/html", response.headers["content-type"])
+        stylesheet = TestClient(api_module.app).get("/BAIF_ONBOARDING_RUNBOOK.css")
+        self.assertEqual(stylesheet.status_code, 200)
+        self.assertIn("text/css", stylesheet.headers["content-type"])
+        for expected in (
+            "BAIF administrator",
+            "Trainer or reviewer",
+            "Field recipient",
+            "Internal demo",
+            "Handover complete when",
+        ):
+            self.assertIn(expected, response.text)
+
+    def test_first_run_ui_and_windows_launcher_are_self_contained(self):
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+        script = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+        setup = (ROOT / "scripts" / "setup_baif_worker.ps1").read_text(encoding="utf-8")
+        start = (ROOT / "scripts" / "start_baif_worker.ps1").read_text(encoding="utf-8")
+
+        self.assertIn('id="onboardingPanel"', index)
+        self.assertIn('href="/onboarding"', index)
+        self.assertIn("function renderOnboarding()", script)
+        self.assertIn('@("3.11", "3.10")', setup)
+        self.assertIn('.venv\\Scripts\\python.exe', setup)
+        self.assertIn('.venv\\Scripts\\python.exe', start)
+        self.assertNotIn("py -m uvicorn", start)
+
+
 class ReviewWorkflowTest(unittest.TestCase):
     def test_review_store_versions_approval_memory_and_delete(self):
         with tempfile.TemporaryDirectory() as directory:

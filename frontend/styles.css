@@ -63,6 +63,14 @@ textarea {
   line-height: 1.5;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .shell {
   width: min(1100px, calc(100% - 36px));
   margin: 0 auto;
@@ -932,6 +940,7 @@ summary {
   white-space: pre-wrap;
 }
 
+.onboarding-panel,
 .recent-panel,
 .impact-panel,
 .system-panel {
@@ -942,6 +951,7 @@ summary {
   padding: 0;
 }
 
+.onboarding-panel > summary,
 .recent-panel > summary,
 .impact-panel > summary,
 .system-panel > summary {
@@ -954,10 +964,83 @@ summary {
   list-style: none;
 }
 
+.onboarding-panel > summary::-webkit-details-marker,
 .recent-panel > summary::-webkit-details-marker,
 .impact-panel > summary::-webkit-details-marker,
 .system-panel > summary::-webkit-details-marker {
   display: none;
+}
+
+.onboarding-panel {
+  border-color: rgba(17, 103, 95, 0.28);
+  background: rgba(244, 250, 248, 0.9);
+}
+
+.onboarding-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding: 16px;
+}
+
+.onboarding-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.onboarding-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.onboarding-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #d6b675;
+  border-radius: 999px;
+  background: #fff7e6;
+  color: #835515;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.onboarding-item.complete .onboarding-check {
+  border-color: #9fc9ad;
+  background: #e7f4ec;
+  color: #1f6c3f;
+}
+
+.onboarding-item strong,
+.onboarding-item span {
+  display: block;
+}
+
+.onboarding-item div > span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.onboarding-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 190px;
+}
+
+.onboarding-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .impact-content {
@@ -1218,6 +1301,8 @@ summary {
   }
 
   .language-panel,
+  .onboarding-content,
+  .onboarding-list,
   .voice-controls,
   .input-preview,
   .upload-panel,

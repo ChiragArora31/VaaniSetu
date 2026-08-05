@@ -21,7 +21,7 @@ The design follows the constraints shared by the organisers: translation happens
 
 ## What we have verified
 
-- The automated suite has 69 passing tests, including 20 tests for malformed inputs, boundary conditions, race conditions and recovery paths.
+- The automated suite has 71 passing tests, including 20 tests for malformed inputs, boundary conditions, race conditions and recovery paths.
 - A clean installation rehearsal and GitHub CI pass.
 - A real four-minute public agriculture video completed the local transcription, translation, subtitle, audio and packaging workflow on CPU.
 - All six English/Hindi/Marathi translation directions have been benchmarked; the results and known quality limits are recorded in the repository.

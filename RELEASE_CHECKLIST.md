@@ -5,7 +5,7 @@ Last reviewed: 28 July 2026
 ## Verified engineering
 
 - [x] Python compilation, frontend syntax and repository release policy pass.
-- [x] All 69 unit/integration/security/format tests pass locally, including scanned-PDF OCR; the published CI gate is green.
+- [x] All 71 unit/integration/security/format/onboarding tests pass locally, including scanned-PDF OCR; the published CI gate is green.
 - [x] Six-direction engineering benchmark passes with invariant, script, unchanged-output and backend checks.
 - [x] Real audio/video E2E and full 30-minute audio/15-minute 1080p boundary harness pass.
 - [x] Desktop/mobile, keyboard, review, retry, cancellation, offline and download journeys pass.

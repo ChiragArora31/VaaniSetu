@@ -1,6 +1,6 @@
 # VaaniSetu Implementation Roadmap
 
-Last reviewed: Wednesday 5 August 2026, 20:47 IST
+Last reviewed: Wednesday 5 August 2026, 21:02 IST
 Submission deadline: Friday 21 August 2026
 Finals: 25-27 August 2026 (tentative)
 
@@ -21,7 +21,7 @@ Winning cannot be guaranteed. The execution standard is to remove every controll
 ### Verified today
 
 - `main` and `origin/main` are synchronized at `95025e6e`.
-- 69/69 automated tests pass on Python 3.10, including 20 adversarial regressions and scanned-PDF OCR.
+- 71/71 automated tests pass on Python 3.10, including 20 adversarial regressions, onboarding delivery and scanned-PDF OCR.
 - Python compilation, frontend syntax, dependency health and repository release-policy checks pass.
 - The latest GitHub Actions run for `main` is green.
 - First-admin, trainer and model-unavailable paths were rechecked in a real browser on 5 August.
@@ -34,9 +34,9 @@ These are planning estimates, not predicted judge scores.
 
 | Measure | Position | Why it is not 100% |
 | --- | ---: | --- |
-| Product implementation | 92% | The committed workflow is broad and tested; remaining product work should be limited to defects found during judged-path validation. |
-| New-rubric evidence readiness | 76% | The strongest missing proof is authorised IndicTrans2 quality, bilingual sign-off and measured Windows deployment. |
-| Submission and demo readiness | 82% | The materials exist, but the deck must be realigned to the new weights and updated with final measured evidence. |
+| Product implementation | 93% | The committed workflow is broad and tested; remaining product work should be limited to defects found during judged-path validation. |
+| New-rubric evidence readiness | 78% | Role-based onboarding is now evidenced; the strongest missing proof remains authorised IndicTrans2 quality, bilingual sign-off and measured Windows deployment. |
+| Submission and demo readiness | 85% | The onboarding/demo runbook is ready, but the deck must still be realigned to the new weights and updated with final measured evidence. |
 | Production acceptance | 0 of 3 external gates | Model access, bilingual review and target Windows evidence are not yet recorded. |
 
 The July release-candidate claim remains valid. The new evaluation matrix means that evidence, deployment measurement and adoption material now require another focused pass.
@@ -47,7 +47,7 @@ The July release-candidate claim remains valid. The new evaluation matrix means 
 | --- | ---: | --- | --- | --- |
 | Solution efficiency | 30% | End-to-end text/document/audio/video flow; six directions; exact limits; local queue; review and offline package | Current 12-sample translation report uses NLLB, not the intended IndicTrans2 path; no bilingual sign-off; limited representative corpus | IndicTrans2 inventory plus a reviewer-signed, six-direction agriculture benchmark with preservation, terminology, latency and memory evidence |
 | Ease of use | 30% | Clear three-stage interface; first admin; actionable failure states; mobile layout; reusable library; 3.5-minute demo and fallback | Final deck is architecture-heavy; realistic completed result must be visible immediately; accessibility and novice UAT need final records | Three novice personas complete the journey without developer intervention; desktop/mobile/keyboard checks pass; live and fallback demos are rehearsed and timed |
-| Test evidence | 10% | 69 automated tests, 20 adversarial regressions, media boundaries, failure drill, CI and clean-install rehearsal | Evidence is spread across documents; requirement-to-test traceability and defect closure need a single judge-readable view | One evidence index maps each critical journey/edge case to test ID, result, environment, artifact and closed/open defect |
+| Test evidence | 10% | 71 automated tests, 20 adversarial regressions, media boundaries, failure drill, CI and clean-install rehearsal | Evidence is spread across documents; requirement-to-test traceability and defect closure need a single judge-readable view | One evidence index maps each critical journey/edge case to test ID, result, environment, artifact and closed/open defect |
 | Deployment | 20% | PowerShell setup/start, preflight, model inventory, logging, queue recovery, backup/restore, cleanup and support bundle | No measured clean Windows 11 baseline run; Python launcher ambiguity remains possible; rollback and setup time are not yet demonstrated on target | Fresh Windows machine completes documented install, model cache, preflight, real job, restart, backup/restore and rollback with timing and screenshots/logs |
 | Handover and training | 10% | Architecture, user/admin/UAT/privacy/licence/support/troubleshooting documents exist | Current user/support guides are concise rather than a complete adoption package; ownership, training agenda and handover acceptance need stronger artifacts | BAIF handover pack includes quick starts, ownership matrix, operating calendar, support/escalation flow, training plan, exercises and signed acceptance checklist |
 
@@ -115,6 +115,7 @@ Goal: protect the 30% ease-of-use score using realistic novice journeys.
 - [ ] Replace technical or ambiguous user-facing errors found in UAT with specific recovery guidance.
 - [ ] Time three personas: trainer, administrator and offline field recipient. Record confusion points and close all severity-1/2 usability defects.
 - [ ] Capture final real-model screenshots and a short fallback walkthrough from the same release commit.
+- [x] Add a state-aware first-run checklist that routes administrators/trainers directly to System readiness, first translation or user approvals.
 
 Experience release gate: a first-time trainer completes translate -> inspect trust cues -> correct -> approve -> download -> open offline with no terminal use and no coaching beyond the user guide.
 
@@ -142,6 +143,7 @@ Goal: make the remaining 20% easy to assess in under two minutes.
 - [ ] Consolidate automated, adversarial, browser, quality, media, Windows, recovery and UAT results into a traceability matrix.
 - [ ] Give every defect an ID, severity, discovered-by test, disposition, release commit and retest evidence.
 - [ ] Create a one-page trainer quick start with screenshots and a one-page admin start/stop/recovery card.
+- [x] Create a printable role-based BAIF onboarding runbook covering administrator, trainer, field recipient, internal demo, recovery and handover acceptance.
 - [ ] Expand the handover pack with system owner, model/data owner, reviewer owner, backup owner, first-line support and escalation contacts/roles.
 - [ ] Add daily/weekly/monthly operating checks, retention rules, update process, model-change approval and incident/support workflow.
 - [ ] Prepare a 60-minute administrator session, 45-minute trainer session and 20-minute field-recipient orientation with exercises and completion checks.
@@ -217,3 +219,32 @@ No fuzzy translation reuse, hosted translation, live field translation, decorati
 3. Reserve the clean BAIF-spec Windows 11 machine and prepare the measured deployment acceptance sheet.
 
 Until these are complete, describe VaaniSetu as a verified, demo-ready release candidate, not fully production-approved.
+
+## Session ledger
+
+### 5 Aug 21:02 - onboarding and runbook slice
+
+Completed:
+
+- Added a signed-in **Start here** panel with worker, access and first-translation readiness, one next action, and a direct runbook link.
+- Added the printable `BAIF_ONBOARDING_RUNBOOK.html` and stylesheet with role-based administrator, trainer, field-recipient and internal-demo paths, fast recovery and handover acceptance.
+- Hardened Windows setup to select Python 3.11/3.10 explicitly, create/use a private `.venv`, stop early on unsupported Python and print one clear next step.
+- Added the runbook to the README, user/admin guides, handover index, submission index, release-policy gate and candidate bundle.
+
+Evidence:
+
+- 71/71 tests pass; Python compilation, frontend syntax, `pip check` and repository release policy pass.
+- Focused onboarding endpoint/asset/Windows-launcher tests pass.
+- Real browser first-admin and Start here journeys pass on desktop and 390 x 844 mobile with no horizontal overflow or console warnings/errors.
+- The standalone runbook renders on desktop/mobile under the existing strict content-security policy.
+
+Blockers:
+
+- PowerShell was unavailable on the local Mac; execute the revised setup/start scripts on the clean BAIF-spec Windows 11 acceptance machine before claiming measured deployment readiness.
+- IndicTrans2 access, Hindi/Marathi reviewer sign-off and target Windows evidence remain the three external production gates.
+
+Next three priorities:
+
+1. Cache and inventory the authorised IndicTrans2 checkpoints, then run all six directions with explicit provenance.
+2. Expand the reviewer corpus and schedule Hindi/Marathi quality sign-off.
+3. Run the revised onboarding/install path on the clean Windows 11 baseline and record hands-on time, downloads, disk, preflight and UAT.

@@ -1,5 +1,7 @@
 # Trainer User Guide
 
+For a first session, open the [BAIF onboarding runbook](BAIF_ONBOARDING_RUNBOOK.html) and follow **Trainer or reviewer: first translation**. The signed-in workspace also shows a state-aware **Start here** checklist until the worker, account and first completed translation are ready.
+
 1. Open the VaaniSetu address provided by the administrator. Request access if needed; wait for approval, then sign in.
 2. Choose source and target languages. Auto-detect is available for text/documents, not audio/video.
 3. Use **Record**, **Text**, or **Upload**. For video, optionally request captioned or translated-audio output.

@@ -3,7 +3,26 @@ $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
 if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
-    throw "Python 3.10 or 3.11 is required. Install Python, then run this setup again."
+    throw "Python 3.10 or 3.11 is required. Install it from python.org with the Python launcher, then run this setup again."
+}
+
+$PythonVersion = $null
+foreach ($Candidate in @("3.11", "3.10")) {
+    & py "-$Candidate" -c "import sys; raise SystemExit(0 if sys.version_info[:2] == tuple(map(int, '$Candidate'.split('.'))) else 1)" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $PythonVersion = $Candidate
+        break
+    }
+}
+if (-not $PythonVersion) {
+    throw "VaaniSetu needs Python 3.10 or 3.11. Install one of those versions from python.org, then rerun this script."
+}
+
+$VenvPython = Join-Path (Get-Location) ".venv\Scripts\python.exe"
+if (-not (Test-Path $VenvPython)) {
+    Write-Host "Creating the private VaaniSetu Python environment..."
+    & py "-$PythonVersion" -m venv .venv
+    if ($LASTEXITCODE -ne 0) { throw "Could not create the VaaniSetu Python environment." }
 }
 
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
@@ -16,6 +35,8 @@ if (-not (Get-Command tesseract -ErrorAction SilentlyContinue) -and (Get-Command
     winget install --exact --id tesseract-ocr.tesseract --accept-package-agreements --accept-source-agreements
 }
 
-py scripts\one_click_setup.py --profile balanced
+& $VenvPython scripts\one_click_setup.py --profile balanced
+if ($LASTEXITCODE -ne 0) { throw "VaaniSetu setup did not complete. Read the final message above, correct it, and rerun this script." }
 Write-Host ""
-Write-Host "VaaniSetu setup is complete. Start it with scripts\start_baif_worker.ps1"
+Write-Host "VaaniSetu setup is complete."
+Write-Host "Next: run .\scripts\start_baif_worker.ps1 and open http://127.0.0.1:8501"

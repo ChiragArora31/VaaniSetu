@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css?v=20260728-rc1" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260805-onboarding" />
   </head>
   <body>
     <main class="shell">
@@ -39,7 +39,8 @@
           </label>
           <label>
             <span>Password</span>
-            <input id="authPassword" name="password" type="password" autocomplete="current-password" required minlength="10" />
+            <input id="authPassword" name="password" type="password" autocomplete="current-password" required minlength="10" aria-describedby="authPasswordHint" />
+            <small class="field-hint" id="authPasswordHint">Use your account password.</small>
           </label>
           <div class="auth-actions">
             <button class="primary-action" id="authSubmit" type="submit">Sign in</button>
@@ -48,6 +49,33 @@
           <p class="auth-message" id="authMessage"></p>
         </form>
       </section>
+
+      <details class="onboarding-panel hidden" id="onboardingPanel" data-auth-required>
+        <summary>
+          <span>Start here</span>
+          <span class="status-chip" id="onboardingProgress">Checking readiness</span>
+        </summary>
+        <div class="onboarding-content">
+          <div class="onboarding-list" aria-live="polite">
+            <div class="onboarding-item" id="onboardingSystem">
+              <span class="onboarding-check" data-step="1" aria-hidden="true">1</span>
+              <div><strong>Worker ready</strong><span id="onboardingSystemCopy">Checking local models and tools.</span></div>
+            </div>
+            <div class="onboarding-item" id="onboardingAccess">
+              <span class="onboarding-check" data-step="2" aria-hidden="true">2</span>
+              <div><strong>Access ready</strong><span id="onboardingAccessCopy">Confirming your approved account.</span></div>
+            </div>
+            <div class="onboarding-item" id="onboardingFirstJob">
+              <span class="onboarding-check" data-step="3" aria-hidden="true">3</span>
+              <div><strong>First translation</strong><span id="onboardingFirstJobCopy">Start with a short text, then review and download it.</span></div>
+            </div>
+          </div>
+          <div class="onboarding-actions">
+            <button class="primary-action compact" id="onboardingNext" type="button">View system setup</button>
+            <a class="secondary-action compact" href="/onboarding" target="_blank" rel="noopener">Open BAIF runbook</a>
+          </div>
+        </div>
+      </details>
 
       <details class="admin-panel hidden" id="adminPanel">
         <summary>
@@ -309,6 +337,6 @@
       </details>
     </main>
 
-    <script src="/static/app.js?v=20260728-rc1"></script>
+    <script src="/static/app.js?v=20260805-onboarding"></script>
   </body>
 </html>

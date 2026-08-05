@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VaaniSetu BAIF Onboarding Runbook</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="BAIF_ONBOARDING_RUNBOOK.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">BAIF handover and demo guide</p>
+      <h1>VaaniSetu onboarding runbook</h1>
+      <p class="lede">The shortest safe path from a clean BAIF worker to a reviewed translation package that opens offline in the field.</p>
+
+      <div class="meta">
+        <div><span>Administrator hands-on time</span><strong>About 10 minutes after downloads</strong></div>
+        <div><span>Trainer onboarding</span><strong>About 5 minutes</strong></div>
+        <div><span>Field recipient onboarding</span><strong>About 2 minutes</strong></div>
+      </div>
+
+      <div class="callout warning">
+        Software and model downloads are a one-time controlled-office activity and depend on internet speed. Do not promise a fixed download time. Normal BAIF jobs run locally after setup, and exported packages work without field internet.
+      </div>
+
+      <nav class="role-nav" aria-label="Choose your role">
+        <a href="#administrator">BAIF administrator</a>
+        <a href="#trainer">Trainer or reviewer</a>
+        <a href="#field">Field recipient</a>
+        <a href="#demo">Internal demo team</a>
+      </nav>
+
+      <h2 id="administrator">1. BAIF administrator: install and hand over</h2>
+
+      <h3>Before starting</h3>
+      <div class="check-grid">
+        <div>Windows 11, at least 16 GB RAM, six CPU cores and 20 GB free disk are available.</div>
+        <div>Python 3.10 or 3.11 is installed from python.org with the Python launcher.</div>
+        <div>Internet is available for controlled setup and approved model downloads.</div>
+        <div>The authorised team account has accepted the intended IndicTrans2 model terms.</div>
+        <div>The repository is in a BAIF-approved local folder, not a public sync folder.</div>
+        <div>BAIF has named the administrator, reviewer and backup owner.</div>
+      </div>
+
+      <h3>Install once</h3>
+      <ol class="steps">
+        <li>Open PowerShell in the VaaniSetu folder.</li>
+        <li>Run <code>.\scripts\setup_baif_worker.ps1</code>. The script selects Python 3.11 or 3.10, creates a local <code>.venv</code>, installs dependencies and prepares models.</li>
+        <li>Run <code>.\scripts\start_baif_worker.ps1</code>. Leave this PowerShell window open while VaaniSetu is in use.</li>
+        <li>Open <code>http://127.0.0.1:8501</code> on the worker. BAIF LAN users should use the approved address supplied by IT.</li>
+        <li>Create the first administrator with a unique password of at least 10 characters.</li>
+        <li>Open <strong>System</strong>. <strong>Ready to translate</strong> is sufficient for a controlled engineering demo when the shown backend is named honestly. BAIF production handover requires <strong>Production ready</strong>, a passing command-line preflight and the approved model inventory.</li>
+      </ol>
+
+      <h3>Approve the first trainer</h3>
+      <ol class="steps">
+        <li>Ask the trainer to choose <strong>Request access</strong>, enter their own account details and submit.</li>
+        <li>In the administrator session, open <strong>User approvals</strong> and choose <strong>Approve</strong>.</li>
+        <li>Ask the trainer to sign in. Never share the administrator account for routine translation.</li>
+      </ol>
+
+      <h3>Two-minute acceptance check</h3>
+      <ol class="steps">
+        <li>Choose English to Hindi, open <strong>Text</strong>, enter a short non-confidential agriculture sentence containing a number and unit, then translate.</li>
+        <li>Confirm the result identifies the local translation route and preserves the number/unit.</li>
+        <li>Correct and approve the output, download the package, disconnect from VaaniSetu and open <code>CONTENTS.html</code> from the extracted ZIP.</li>
+      </ol>
+
+      <h2 id="trainer">2. Trainer or reviewer: first translation</h2>
+      <ol class="steps">
+        <li>Open the VaaniSetu address. Choose <strong>Request access</strong> if you do not yet have an approved account.</li>
+        <li>Sign in after the administrator confirms approval.</li>
+        <li>Choose the source language and <strong>Translate to</strong> language. Source and target must be different.</li>
+        <li>Choose <strong>Record</strong>, <strong>Text</strong> or <strong>Upload</strong>. For a first run, use a short text sample.</li>
+        <li>Choose only the outputs needed. Text is always produced; voice and video outputs take longer.</li>
+        <li>Start translation and leave the page open. Progress and safe cancellation remain visible.</li>
+        <li>Review the route, warnings, original and translated text. Machine output is a draft.</li>
+        <li>Edit <strong>Corrected translation</strong>, inspect the difference, then choose <strong>Approve final</strong>.</li>
+        <li>Download the ZIP. Use <strong>Reusable library</strong> to reopen, rerun or safely delete previous work.</li>
+      </ol>
+
+      <div class="callout danger">
+        Health, pesticide, financial, safety and legally consequential content always requires an appropriate human reviewer. Do not distribute an unreviewed machine translation as final guidance.
+      </div>
+
+      <h2 id="field">3. Field recipient: use the package offline</h2>
+      <ol class="steps">
+        <li>Copy the approved ZIP to the field device and extract it.</li>
+        <li>Open <code>CONTENTS.html</code>. Use its direct links to text, subtitles, audio or video.</li>
+        <li>No VaaniSetu server or internet connection is required for these exported files.</li>
+        <li>If any checksum verification fails or the package looks changed, stop and request a fresh approved package.</li>
+      </ol>
+
+      <h2 id="demo">4. Internal demo: reliable judge path</h2>
+
+      <h3>Before entering the room</h3>
+      <div class="check-grid">
+        <div>The exact release commit, local models and System readiness have been checked.</div>
+        <div>The public agriculture sample contains no BAIF-confidential content.</div>
+        <div>The final deck, prepared approved package and fallback walkthrough are available offline.</div>
+        <div>Browser zoom is 100%, notifications are off and the machine is connected to power.</div>
+        <div>The demo account is active and the browser is already signed in.</div>
+        <div>No hosted translator, runtime model download or unlicensed asset is enabled.</div>
+      </div>
+
+      <h3>Three-and-a-half-minute walkthrough</h3>
+      <table>
+        <thead><tr><th>Time</th><th>Show</th><th>Judge takeaway</th></tr></thead>
+        <tbody>
+          <tr><td>0:00-0:30</td><td>BAIF problem and office-to-field outcome</td><td>Translation happens centrally; approved learning remains usable offline.</td></tr>
+          <tr><td>0:30-1:10</td><td>Translate the prepared English agriculture text to Hindi</td><td>One clear browser workflow runs on the local CPU worker.</td></tr>
+          <tr><td>1:10-1:45</td><td>Trust information, preservation and glossary cues</td><td>Quality risk is visible rather than hidden.</td></tr>
+          <tr><td>1:45-2:25</td><td>Correct, inspect differences and approve</td><td>A human owns the final version.</td></tr>
+          <tr><td>2:25-2:50</td><td>Run the exact source again</td><td>Approved local reuse is fast and auditable.</td></tr>
+          <tr><td>2:50-3:20</td><td>Open the downloaded package offline</td><td>The field recipient does not need the server or internet.</td></tr>
+          <tr><td>3:20-3:30</td><td>Close on quality, Windows and handover evidence</td><td>VaaniSetu is measurable, operable and transferable to BAIF.</td></tr>
+        </tbody>
+      </table>
+
+      <p>If the live model is slow or unavailable, say so once, play the prepared walkthrough and open the pre-verified offline package. Never switch to a hosted translation service.</p>
+
+      <h2>5. Fast recovery</h2>
+      <table>
+        <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
+        <tbody>
+          <tr><td>System says Needs setup</td><td>Administrator opens System, completes the named local setup action and reruns preflight. Trainers should not diagnose models.</td></tr>
+          <tr><td>Access requested</td><td>Administrator opens User approvals and approves the named account.</td></tr>
+          <tr><td>Job failed after restart</td><td>Confirm System readiness, then use Run again. Completed history remains available.</td></tr>
+          <tr><td>Low disk warning</td><td>Back up required packages, preview cleanup, then apply retention cleanup. Do not manually remove authentication or review folders.</td></tr>
+          <tr><td>Voice/video output missing</td><td>Use the available text/subtitles, then ask the administrator to check optional speech/media readiness.</td></tr>
+          <tr><td>Package checksum fails</td><td>Do not use it. Redownload the approved package and verify again.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>6. Handover complete when</h2>
+      <div class="check-grid">
+        <div>A BAIF administrator can start/stop the worker and read System readiness.</div>
+        <div>A trainer can request access and complete translate, review, approve and download.</div>
+        <div>A field recipient can open the extracted package without VaaniSetu or internet.</div>
+        <div>The administrator can back up, restore a test copy and generate a redacted support bundle.</div>
+        <div>The named Hindi/Marathi reviewers understand approval responsibility.</div>
+        <div>Owners, release commit, model inventory, machine profile and unresolved limitations are recorded.</div>
+      </div>
+
+      <h3>Escalation record</h3>
+      <p>Share the release commit, time, job ID, System/preflight result and recovery already attempted. Generate the privacy-safe support bundle. Do not send credentials, model tokens, BAIF source content or translated content unless BAIF explicitly authorises a secure transfer.</p>
+
+      <footer>
+        VaaniSetu BAIF onboarding runbook. This guide is intentionally role-based: trainers use the browser; administrators handle installation and recovery; field recipients use approved offline packages.
+      </footer>
+    </main>
+  </body>
+</html>

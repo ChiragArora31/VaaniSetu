@@ -21,6 +21,10 @@ const state = {
   batchRunning: false,
   batchCancelRequested: false,
   glossaryTimer: null,
+  onboarding: {
+    systemReady: false,
+    hasCompletedJob: false,
+  },
 };
 
 const els = {
@@ -89,6 +93,7 @@ const els = {
   authUsername: document.querySelector("#authUsername"),
   authDisplayName: document.querySelector("#authDisplayName"),
   authPassword: document.querySelector("#authPassword"),
+  authPasswordHint: document.querySelector("#authPasswordHint"),
   authSubmit: document.querySelector("#authSubmit"),
   authSwitch: document.querySelector("#authSwitch"),
   authMessage: document.querySelector("#authMessage"),
@@ -119,6 +124,16 @@ const els = {
   diffSummary: document.querySelector("#diffSummary"),
   machineDiff: document.querySelector("#machineDiff"),
   correctedDiff: document.querySelector("#correctedDiff"),
+  onboardingPanel: document.querySelector("#onboardingPanel"),
+  onboardingProgress: document.querySelector("#onboardingProgress"),
+  onboardingSystem: document.querySelector("#onboardingSystem"),
+  onboardingSystemCopy: document.querySelector("#onboardingSystemCopy"),
+  onboardingAccess: document.querySelector("#onboardingAccess"),
+  onboardingAccessCopy: document.querySelector("#onboardingAccessCopy"),
+  onboardingFirstJob: document.querySelector("#onboardingFirstJob"),
+  onboardingFirstJobCopy: document.querySelector("#onboardingFirstJobCopy"),
+  onboardingNext: document.querySelector("#onboardingNext"),
+  systemPanel: document.querySelector(".system-panel"),
 };
 
 const uploadLimits = {
@@ -159,6 +174,7 @@ function setAuthMode(mode) {
     els.authSubmit.textContent = "Create admin";
     els.authSwitch.classList.add("hidden");
     els.authPassword.autocomplete = "new-password";
+    els.authPasswordHint.textContent = "Use at least 10 characters and keep this administrator password private.";
     return;
   }
   if (mode === "register") {
@@ -168,6 +184,7 @@ function setAuthMode(mode) {
     els.authSwitch.textContent = "Back to sign in";
     els.authSwitch.classList.remove("hidden");
     els.authPassword.autocomplete = "new-password";
+    els.authPasswordHint.textContent = "Use at least 10 characters. You will sign in after an administrator approves the account.";
     return;
   }
   els.authTitle.textContent = "Sign in";
@@ -176,6 +193,54 @@ function setAuthMode(mode) {
   els.authSwitch.textContent = "Request access";
   els.authSwitch.classList.remove("hidden");
   els.authPassword.autocomplete = "current-password";
+  els.authPasswordHint.textContent = "Use your approved VaaniSetu account password.";
+}
+
+function setOnboardingItem(element, complete) {
+  element.classList.toggle("complete", complete);
+  const marker = element.querySelector(".onboarding-check");
+  marker.textContent = complete ? "✓" : marker.dataset.step;
+}
+
+function renderOnboarding() {
+  if (!state.auth.user || !els.onboardingPanel) return;
+  const accessReady = state.auth.user.status === "active";
+  const completed = [state.onboarding.systemReady, accessReady, state.onboarding.hasCompletedJob];
+  const completeCount = completed.filter(Boolean).length;
+
+  setOnboardingItem(els.onboardingSystem, state.onboarding.systemReady);
+  setOnboardingItem(els.onboardingAccess, accessReady);
+  setOnboardingItem(els.onboardingFirstJob, state.onboarding.hasCompletedJob);
+  els.onboardingSystemCopy.textContent = state.onboarding.systemReady
+    ? "Local translation is available."
+    : "An administrator must complete the named System setup action.";
+  els.onboardingAccessCopy.textContent = state.auth.user.role === "admin"
+    ? "Administrator account is active. Approve trainers under User approvals."
+    : "Your account is approved and ready to translate.";
+  els.onboardingFirstJobCopy.textContent = state.onboarding.hasCompletedJob
+    ? "A completed translation is available in the reusable library."
+    : "Start with a short text, review it, then download the offline package.";
+  els.onboardingProgress.textContent = completeCount === 3 ? "Ready" : `${completeCount} of 3 ready`;
+  els.onboardingProgress.classList.toggle("ready", completeCount === 3);
+  els.onboardingProgress.classList.toggle("attention", completeCount < 3);
+
+  if (!els.onboardingPanel.dataset.initialized) {
+    els.onboardingPanel.open = completeCount < 3;
+    els.onboardingPanel.dataset.initialized = "true";
+  }
+  if (!state.onboarding.systemReady) {
+    els.onboardingNext.textContent = "View system setup";
+    els.onboardingNext.disabled = false;
+  } else if (!state.onboarding.hasCompletedJob) {
+    els.onboardingNext.textContent = "Start first translation";
+    els.onboardingNext.disabled = false;
+  } else if (state.auth.user.role === "admin") {
+    els.onboardingNext.textContent = "Review user approvals";
+    els.onboardingNext.disabled = false;
+  } else {
+    els.onboardingNext.textContent = "Onboarding complete";
+    els.onboardingNext.disabled = true;
+  }
 }
 
 function showWorkspace(user) {
@@ -186,6 +251,7 @@ function showWorkspace(user) {
   els.logoutButton.classList.remove("hidden");
   els.adminPanel.classList.toggle("hidden", user.role !== "admin");
   if (user.role === "admin") loadUsers();
+  renderOnboarding();
   loadHistory();
   loadImpact();
 }
@@ -992,8 +1058,16 @@ async function loadHistory() {
     const response = await apiFetch(`/library?${params.toString()}`);
     if (!response.ok) return;
     const payload = await response.json();
+    if (!query) {
+      state.onboarding.hasCompletedJob = (payload.items || []).some((item) => item.status === "succeeded" || item.result);
+      renderOnboarding();
+    }
     renderHistory(payload.items || []);
   } catch {
+    if (!els.librarySearch?.value.trim()) {
+      state.onboarding.hasCompletedJob = false;
+      renderOnboarding();
+    }
     renderHistory([]);
   }
 }
@@ -1215,6 +1289,7 @@ async function loadHealth() {
     if (!response.ok) throw new Error("Health request failed");
     const payload = await response.json();
     const operationalReady = payload.ok && payload.portable_speech_ready;
+    state.onboarding.systemReady = operationalReady;
     els.healthChip.textContent = payload.production_ready
       ? "Production ready"
       : operationalReady
@@ -1223,7 +1298,9 @@ async function loadHealth() {
     els.healthChip.classList.toggle("ready", operationalReady);
     els.healthChip.classList.toggle("attention", !operationalReady);
     renderReadiness(payload.checks || []);
+    renderOnboarding();
   } catch {
+    state.onboarding.systemReady = false;
     els.healthChip.textContent = "Unavailable";
     els.healthChip.classList.add("attention");
     els.readinessList.innerHTML = "";
@@ -1231,6 +1308,7 @@ async function loadHealth() {
     row.className = "readiness-item";
     row.innerHTML = '<span class="readiness-dot"></span><div><p>Backend health</p><span>Start the API server to see model readiness.</span></div>';
     els.readinessList.appendChild(row);
+    renderOnboarding();
   }
 }
 
@@ -1595,6 +1673,24 @@ els.deleteJob.addEventListener("click", () => deleteSavedJob(state.currentQueueJ
 
 els.adminPanel.addEventListener("toggle", () => {
   if (els.adminPanel.open) loadUsers();
+});
+
+els.onboardingNext.addEventListener("click", () => {
+  if (!state.onboarding.systemReady) {
+    els.systemPanel.open = true;
+    els.systemPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (!state.onboarding.hasCompletedJob) {
+    setInputMode("text");
+    document.querySelector(".translator-surface").scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => els.textInput.focus(), 350);
+    return;
+  }
+  if (state.auth.user?.role === "admin") {
+    els.adminPanel.open = true;
+    els.adminPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 });
 
 if ("speechSynthesis" in window) {

@@ -112,8 +112,20 @@ job_manager = JobManager(
 auth_store = AuthStore(OUTPUT_DIR / ".auth" / "auth.json")
 review_store = ReviewStore(OUTPUT_DIR / ".reviews")
 FRONTEND_DIR = BASE_DIR / "frontend"
+ONBOARDING_RUNBOOK = BASE_DIR / "BAIF_ONBOARDING_RUNBOOK.html"
+ONBOARDING_STYLES = BASE_DIR / "BAIF_ONBOARDING_RUNBOOK.css"
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+
+@app.get("/onboarding", include_in_schema=False)
+def onboarding_runbook():
+    return FileResponse(ONBOARDING_RUNBOOK, media_type="text/html")
+
+
+@app.get("/BAIF_ONBOARDING_RUNBOOK.css", include_in_schema=False)
+def onboarding_styles():
+    return FileResponse(ONBOARDING_STYLES, media_type="text/css")
 
 
 class TextRequest(BaseModel):

@@ -16,6 +16,8 @@ DEFAULT_OUTPUT = ROOT / "outputs" / "VaaniSetu_Submission_Candidate.zip"
 REQUIRED = [
     "submission/VaaniSetu_Final_Hackathon_Deck.pptx",
     "SUBMISSION_RUNBOOK.md",
+    "BAIF_ONBOARDING_RUNBOOK.html",
+    "BAIF_ONBOARDING_RUNBOOK.css",
     "README.md",
     "IMPLEMENTATION_ROADMAP.md",
     "HACKATHON_REQUIREMENTS_AUDIT.md",

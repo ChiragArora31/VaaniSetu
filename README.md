@@ -6,7 +6,7 @@ Normal jobs run on the configured worker. They do not silently download models, 
 
 ## Current status
 
-Product engineering and internal submission work are complete. The release candidate has 69 automated tests, including 20 adversarial regressions, plus real-model browser/video, recovery, package-integrity and full-boundary stress evidence.
+Product engineering and internal submission work are complete. The release candidate has 71 automated tests, including 20 adversarial regressions, plus real-model browser/video, onboarding, recovery, package-integrity and full-boundary stress evidence.
 
 Three external acceptance gates remain before an unrestricted production claim:
 
@@ -141,6 +141,7 @@ Backups contain operational content and belong only in BAIF-approved encrypted s
 
 | Need | Document |
 | --- | --- |
+| First-time setup, trainer onboarding and demo | [BAIF onboarding runbook](BAIF_ONBOARDING_RUNBOOK.html) |
 | Three-minute team snapshot | [NOW.md](NOW.md) |
 | Current completion and next work | [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) |
 | Organiser requirement mapping | [HACKATHON_REQUIREMENTS_AUDIT.md](HACKATHON_REQUIREMENTS_AUDIT.md) |

@@ -18,6 +18,7 @@ The supported formats and enforced limits are in `DELIVERY_COMPATIBILITY.md`. Ex
 
 ## Handover contents
 
+- Canonical first-time onboarding: `BAIF_ONBOARDING_RUNBOOK.html`
 - Current status and finishing plan: `IMPLEMENTATION_ROADMAP.md`, `RELEASE_CHECKLIST.md`
 - Setup and architecture: `README.md`, `BAIF_ARCHITECTURE_NOTE.md`, `config/model_manifest.json`
 - Operation: `USER_GUIDE.md`, `ADMIN_GUIDE.md`, `TROUBLESHOOTING.md`
