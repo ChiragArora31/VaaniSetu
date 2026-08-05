@@ -1,12 +1,26 @@
 # BAIF Hackathon Requirements Audit
 
 Initial audit: 16 July 2026
-Last reviewed: 28 July 2026
-Source of truth: the five organiser screenshots supplied by the team on 16 July 2026. No additional organiser requirement is assumed.
+Last reviewed: 5 August 2026
+Source of truth: the organiser screenshots supplied by the team on 16 July 2026 plus the 5 August 2026 implementation-review email containing the weighted evaluation criteria and timeline. No requirement beyond those supplied materials is assumed.
 
 ## Executive conclusion
 
 VaaniSetu is aligned to the requested product: a production-ready, zero-license-cost web application that runs on BAIF's CPU-only Windows office infrastructure, translates English/Hindi/Marathi learning material, and creates reusable outputs for offline field use. The remaining external gates are model-account acceptance, bilingual human sign-off, and proof on the target Windows machine. They are tracked separately and do not block independent product work.
+
+The 5 August rubric makes the remaining proof especially important: solution efficiency and ease of use are worth 30% each, deployment is worth 20%, and test evidence plus handover/training are worth 10% each. The implementation is a release candidate; the final submission must now convert its capabilities into measured IndicTrans2, novice-journey, Windows and adoption evidence.
+
+## Implementation-review scoring criteria received 5 August
+
+| Criterion | Weight | Organiser emphasis | VaaniSetu finishing response |
+| --- | ---: | --- | --- |
+| Solution efficiency | 30% | Working end-to-end core journey; translation accuracy; language, format and scenario coverage | Run the final local IndicTrans2 path, expand the six-direction agriculture corpus, obtain bilingual sign-off and report preservation/performance evidence |
+| Ease of use | 30% | Clear, time-boxed walkthrough demonstrating journey, value and impact with a fallback | Complete novice persona UAT, final accessibility/mobile checks, real-product deck visuals, timed live demo and offline fallback |
+| Test evidence | 10% | Documented critical journeys, edge cases, results and understood defects | Consolidate automated, adversarial, browser, media and UAT results into one traceability/defect evidence index |
+| Deployment | 20% | Repeatable configuration/setup, prerequisites, downloads, rollback and logging | Measure a clean BAIF-spec Windows install, model cache, recovery, backup/restore, rollback and support flow |
+| Handover and training | 10% | Ownership, support/runbook, adoption and documentation sufficient without the team | Expand quick starts, ownership/escalation, operating calendar, training exercises, KT and acceptance records |
+
+Timeline received with the rubric: implementation phase 15 July-21 August, submission deadline 21 August, tentative finals 25-27 August and tentative winner announcement 31 August.
 
 ## Requirement-by-requirement compliance
 
