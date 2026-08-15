@@ -39,7 +39,8 @@ from scripts.verify_package import verify as verify_package
 from core.user_messages import user_safe_error
 from core.transcriber import WhisperTranscriber, get_transcriber
 from core.video_processor import burn_subtitles
-from scripts.operations import recommended_worker_profile
+from scripts.operations import preflight, recommended_worker_profile
+from scripts.validate_baif_samples import build_report, inspect_sample
 
 
 class TextUtilsTest(unittest.TestCase):
@@ -255,6 +256,35 @@ class OperationsRecommendationTest(unittest.TestCase):
         self.assertEqual(recommended_worker_profile(32, 8)["profile"], "quality")
         self.assertEqual(recommended_worker_profile(16, 6)["worker_count"], 1)
 
+    def test_preflight_requires_private_local_asr_and_translation_routes(self):
+        names = [
+            "FFmpeg",
+            "ffprobe",
+            "Automatic OCR",
+            "Whisper model",
+            "Local translation route",
+            "IndicTrans2 en-indic",
+            "IndicTrans2 indic-en",
+            "IndicTrans2 indic-indic",
+        ]
+        checks = [SimpleNamespace(name=name, ok=True, detail="ready", required_for="acceptance") for name in names]
+        with tempfile.TemporaryDirectory() as directory:
+            output_root = Path(directory)
+            report = output_root / "preflight.json"
+            with patch("scripts.operations.OUTPUT_DIR", output_root), patch(
+                "scripts.operations.ensure_directories"
+            ), patch("scripts.operations._total_memory_gb", return_value=16), patch(
+                "scripts.operations.collect_health_checks", return_value=checks
+            ), patch("scripts.operations.ALLOW_MODEL_DOWNLOAD", False), patch(
+                "scripts.operations.ENABLE_HOSTED_TRANSLATION", False
+            ):
+                self.assertEqual(preflight(report, port=0), 0)
+            gates = json.loads(report.read_text(encoding="utf-8"))["gates"]
+            self.assertTrue(gates["whisper_model_ready"])
+            self.assertTrue(gates["local_translation_ready"])
+            self.assertTrue(gates["runtime_model_downloads_disabled"])
+            self.assertTrue(gates["hosted_translation_disabled"])
+
 
 class MediaConstraintTest(unittest.TestCase):
     def test_audio_duration_limit_is_30_minutes(self):
@@ -278,6 +308,32 @@ class MediaConstraintTest(unittest.TestCase):
                 "video",
                 MediaInfo("video", ".mp4", duration_seconds=60, has_audio=True, has_video=True, width=3840, height=2160),
             )
+
+
+class BaifSampleValidationTest(unittest.TestCase):
+    def test_privacy_safe_inventory_validates_real_media_boundaries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sample = root / "401.1.mp4"
+            sample.write_bytes(b"approved-baif-video")
+            media = MediaInfo(
+                "video",
+                ".mp4",
+                duration_seconds=342.937,
+                has_audio=True,
+                has_video=True,
+                width=1920,
+                height=1080,
+            )
+            with patch("scripts.validate_baif_samples.inspect_media", return_value=media):
+                record = inspect_sample(sample, root)
+            report = build_report(root, [record])
+            rendered = json.dumps(report)
+            self.assertEqual(record["status"], "passed")
+            self.assertEqual(record["resolution"], "1920x1080")
+            self.assertEqual(report["summary"]["total_duration_minutes"], 5.72)
+            self.assertNotIn(str(root), rendered)
+            self.assertNotIn("approved-baif-video", rendered)
 
 
 class PipelineTest(unittest.TestCase):
@@ -602,6 +658,10 @@ class OnboardingDeliveryTest(unittest.TestCase):
         stylesheet = TestClient(api_module.app).get("/BAIF_ONBOARDING_RUNBOOK.css")
         self.assertEqual(stylesheet.status_code, 200)
         self.assertIn("text/css", stylesheet.headers["content-type"])
+        windows_guide = TestClient(api_module.app).get("/windows-handover")
+        self.assertEqual(windows_guide.status_code, 200)
+        self.assertIn("text/html", windows_guide.headers["content-type"])
+        self.assertIn("windows_acceptance.ps1", windows_guide.text)
         for expected in (
             "BAIF administrator",
             "Trainer or reviewer",
@@ -616,6 +676,7 @@ class OnboardingDeliveryTest(unittest.TestCase):
         script = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
         setup = (ROOT / "scripts" / "setup_baif_worker.ps1").read_text(encoding="utf-8")
         start = (ROOT / "scripts" / "start_baif_worker.ps1").read_text(encoding="utf-8")
+        acceptance = (ROOT / "scripts" / "windows_acceptance.ps1").read_text(encoding="utf-8")
 
         self.assertIn('id="onboardingPanel"', index)
         self.assertIn('href="/onboarding"', index)
@@ -624,6 +685,8 @@ class OnboardingDeliveryTest(unittest.TestCase):
         self.assertIn('.venv\\Scripts\\python.exe', setup)
         self.assertIn('.venv\\Scripts\\python.exe', start)
         self.assertNotIn("py -m uvicorn", start)
+        self.assertIn('[string]$HostAddress = "127.0.0.1"', start)
+        self.assertIn("validate_baif_samples.py", acceptance)
 
 
 class ReviewWorkflowTest(unittest.TestCase):
@@ -793,7 +856,21 @@ class ReviewWorkflowTest(unittest.TestCase):
 
 class TranscriberSelectionTest(unittest.TestCase):
     def test_default_transcriber_is_whisper(self):
-        self.assertIsInstance(get_transcriber(allow_model_download=False), WhisperTranscriber)
+        transcriber = get_transcriber(allow_model_download=False)
+        self.assertIsInstance(transcriber, WhisperTranscriber)
+        self.assertTrue(str(transcriber.model_path).endswith("faster-whisper-large-v3"))
+
+    def test_whisper_does_not_seed_instruction_text_into_quiet_media(self):
+        captured = {}
+
+        class FakeModel:
+            def transcribe(self, _path, **kwargs):
+                captured.update(kwargs)
+                return iter([]), SimpleNamespace(language=kwargs["language"])
+
+        result = WhisperTranscriber._transcribe_once(FakeModel(), Path("quiet.wav"), "mr", vad_filter=True)
+        self.assertEqual(result.text, "")
+        self.assertIsNone(captured["initial_prompt"])
 
 
 class JobManagerTest(unittest.TestCase):

@@ -11,9 +11,10 @@ import uuid
 
 from fastapi import Cookie, Depends, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from markdown_it import MarkdownIt
 
 from config.languages import language_names
 from config.settings import (
@@ -114,6 +115,7 @@ review_store = ReviewStore(OUTPUT_DIR / ".reviews")
 FRONTEND_DIR = BASE_DIR / "frontend"
 ONBOARDING_RUNBOOK = BASE_DIR / "BAIF_ONBOARDING_RUNBOOK.html"
 ONBOARDING_STYLES = BASE_DIR / "BAIF_ONBOARDING_RUNBOOK.css"
+SETUP_GUIDE = BASE_DIR / "SETUP.md"
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
@@ -126,6 +128,20 @@ def onboarding_runbook():
 @app.get("/BAIF_ONBOARDING_RUNBOOK.css", include_in_schema=False)
 def onboarding_styles():
     return FileResponse(ONBOARDING_STYLES, media_type="text/css")
+
+
+@app.get("/windows-handover", include_in_schema=False)
+def windows_handover_runbook():
+    content = MarkdownIt("commonmark", {"html": False}).enable("table").render(
+        SETUP_GUIDE.read_text(encoding="utf-8")
+    )
+    return HTMLResponse(
+        "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<title>VaaniSetu Windows handover</title>"
+        "<link rel='stylesheet' href='/BAIF_ONBOARDING_RUNBOOK.css'></head>"
+        f"<body><main><article class='markdown-runbook'>{content}</article></main></body></html>"
+    )
 
 
 class TextRequest(BaseModel):

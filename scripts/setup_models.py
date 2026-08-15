@@ -25,8 +25,8 @@ MODELS = {
         ROOT / "models" / "whisper" / "faster-whisper-base",
     ),
     "whisper-balanced": (
-        "Systran/faster-whisper-small",
-        ROOT / "models" / "whisper" / "faster-whisper-small",
+        "Systran/faster-whisper-large-v3",
+        ROOT / "models" / "whisper" / "faster-whisper-large-v3",
     ),
     "whisper-quality": (
         "Systran/faster-whisper-large-v3",
@@ -95,6 +95,7 @@ GATED_OPTIONAL_MODELS = set(
 )
 
 REVISION_ENV = {
+    "whisper-balanced": "BAIF_WHISPER_REVISION",
     "whisper-quality": "BAIF_WHISPER_REVISION",
     "indictrans-en-indic": "BAIF_INDICTRANS_EN_INDIC_REVISION",
     "indictrans-indic-en": "BAIF_INDICTRANS_INDIC_EN_REVISION",

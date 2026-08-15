@@ -358,7 +358,11 @@ class TranslationPipeline:
                 else:
                     raise exc
 
-            _status(status, "Transcribing speech with open-source model...", 0.35)
+            _status(
+                status,
+                "Transcribing speech locally. This is the longest video step; keep this page open...",
+                0.35,
+            )
             source = get_language(source_language)
             self.transcriber.allow_model_download = options.allow_model_download
             transcription = self.transcriber.transcribe(transcription_input, source.whisper_code)

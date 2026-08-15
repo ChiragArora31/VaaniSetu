@@ -11,7 +11,11 @@
     <main>
       <p class="eyebrow">BAIF handover and demo guide</p>
       <h1>VaaniSetu onboarding runbook</h1>
-      <p class="lede">The shortest safe path from a clean BAIF worker to a reviewed translation package that opens offline in the field.</p>
+      <p class="lede">The safe path from a clean Windows 11 BAIF worker to a reviewed translation package that opens offline in the field.</p>
+
+      <div class="callout success">
+        <strong>Windows release tester:</strong> use the complete, copy/paste-ready <a href="/windows-handover">Windows setup, acceptance and handover runbook</a>. It includes zero-to-ready installation, BAIF video validation, evidence capture, recovery and the final go/no-go record.
+      </div>
 
       <div class="meta">
         <div><span>Administrator hands-on time</span><strong>About 10 minutes after downloads</strong></div>
@@ -57,6 +61,15 @@
         <li>Ask the trainer to choose <strong>Request access</strong>, enter their own account details and submit.</li>
         <li>In the administrator session, open <strong>User approvals</strong> and choose <strong>Approve</strong>.</li>
         <li>Ask the trainer to sign in. Never share the administrator account for routine translation.</li>
+      </ol>
+
+      <h3>Release acceptance before real BAIF content</h3>
+      <ol class="steps">
+        <li>Keep the approved BAIF videos outside Git in a local folder such as <code>C:\BAIF-Test-Data\Videos</code>.</li>
+        <li>Stop the worker so port 8501 is free, then run <code>.\scripts\windows_acceptance.ps1 -VideosPath "C:\BAIF-Test-Data\Videos"</code>.</li>
+        <li>Do not continue unless every check passes and <code>outputs\windows_acceptance\acceptance_summary.json</code> says <code>passed</code>.</li>
+        <li>Start locally with <code>.\scripts\start_baif_worker.ps1</code>. LAN listening requires the explicit <code>-HostAddress 0.0.0.0</code> option and BAIF IT approval.</li>
+        <li>Run <code>401.1.mp4</code> first with reviewer-confirmed source language (the technical probe indicates Marathi), Hindi target and subtitles on. Add optional speech/video only after the core package passes.</li>
       </ol>
 
       <h3>Two-minute acceptance check</h3>
@@ -141,6 +154,19 @@
         <div>The named Hindi/Marathi reviewers understand approval responsibility.</div>
         <div>Owners, release commit, model inventory, machine profile and unresolved limitations are recorded.</div>
       </div>
+
+      <h3>Acceptance record</h3>
+      <table>
+        <tbody>
+          <tr><th>Tester / date</th><td class="write-in"></td></tr>
+          <tr><th>Windows machine / release commit</th><td class="write-in"></td></tr>
+          <tr><th>Automated acceptance result</th><td class="write-in"></td></tr>
+          <tr><th>BAIF video job IDs / timings</th><td class="write-in"></td></tr>
+          <tr><th>Hindi reviewer / Marathi reviewer</th><td class="write-in"></td></tr>
+          <tr><th>Unresolved limitations and owner</th><td class="write-in"></td></tr>
+          <tr><th>Decision</th><td>□ Go for controlled BAIF UAT &nbsp;&nbsp; □ No-go; correct and retest</td></tr>
+        </tbody>
+      </table>
 
       <h3>Escalation record</h3>
       <p>Share the release commit, time, job ID, System/preflight result and recovery already attempted. Generate the privacy-safe support bundle. Do not send credentials, model tokens, BAIF source content or translated content unless BAIF explicitly authorises a secure transfer.</p>

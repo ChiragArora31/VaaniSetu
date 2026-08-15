@@ -1,4 +1,4 @@
-# Open-Source Compliance
+# Licensing
 
 VaaniSetu's judged production path uses models and software that can be run on provider-owned infrastructure without paid APIs or per-request usage fees.
 

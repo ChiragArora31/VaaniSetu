@@ -84,11 +84,11 @@ MODEL_PROFILES = {
     },
     "balanced": {
         "label": "Balanced",
-        "description": "Recommended default for provider CPU or small GPU machines.",
-        "whisper_repo": "Systran/faster-whisper-small",
-        "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-small",
+        "description": "Recommended BAIF CPU mode: higher-accuracy Marathi/Hindi ASR with controlled single-worker execution.",
+        "whisper_repo": "Systran/faster-whisper-large-v3",
+        "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-large-v3",
         "whisper_compute_type": "int8",
-        "asr_beam_size": 5,
+        "asr_beam_size": 3,
         "translation_beam_size": 2,
     },
     "quality": {
@@ -132,7 +132,7 @@ INDIC_CONFORMER_DEVICE = os.getenv("BAIF_INDIC_CONFORMER_DEVICE", "auto").strip(
 
 TRANSLATION_BACKEND = os.getenv("BAIF_TRANSLATION_BACKEND", "auto").lower()
 ALLOW_PREVIEW_TRANSLATOR = os.getenv("BAIF_ALLOW_PREVIEW_TRANSLATOR", "0") == "1"
-ALLOW_MODEL_DOWNLOAD = os.getenv("BAIF_ALLOW_MODEL_DOWNLOAD", "1") == "1"
+ALLOW_MODEL_DOWNLOAD = os.getenv("BAIF_ALLOW_MODEL_DOWNLOAD", "0") == "1"
 ENABLE_HOSTED_TRANSLATION = os.getenv("BAIF_ENABLE_HOSTED_TRANSLATION", "0") == "1"
 SECURE_SESSION_COOKIE = os.getenv("BAIF_SECURE_SESSION_COOKIE", "0") == "1"
 HOSTED_TRANSLATION_PROVIDER = os.getenv("BAIF_HOSTED_TRANSLATION_PROVIDER", "mymemory").lower()

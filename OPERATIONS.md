@@ -1,6 +1,8 @@
-# Administrator Guide
+# Operations Guide
 
 Start with the [BAIF onboarding runbook](BAIF_ONBOARDING_RUNBOOK.html). It gives one role-based path for installation, first administrator, trainer approval, acceptance testing, field handoff and internal demonstration.
+
+For a new Windows machine or formal release test, use [Windows Setup and Handover](SETUP.md). It is the canonical zero-to-ready procedure and includes the automated gate, real BAIF video cases and go/no-go record.
 
 ## Install and start
 
@@ -36,3 +38,25 @@ The backup contains accounts, reviews, job metadata, and content artifacts; stor
 ## Restore and upgrade
 
 Stop the worker, preserve the current `outputs` folder, verify the backup, then run `python scripts/operations.py restore BACKUP.zip --force` and `python scripts/operations.py migrate`. Restart and perform the UAT smoke path. Never restore an unknown ZIP.
+
+## Troubleshooting
+
+| Symptom | Safe recovery |
+| --- | --- |
+| Translation model not ready | Stop production jobs, cache the required IndicTrans2 assets during controlled setup, rerun preflight and keep runtime downloads disabled. |
+| OCR unavailable | Install Tesseract with `eng`, `hin` and `mar` data; confirm preflight. Use selectable-text PDFs meanwhile. |
+| No speech detected | Confirm the file contains audible speech, choose the spoken language and retry with a short clean sample. |
+| Voice output missing | Use the text/subtitle outputs, install the configured local TTS model and rerun preflight. |
+| Worker disk is low | Back up required packages, preview cleanup and then remove expired jobs through the supported cleanup command. Never manually delete `.auth` or `.reviews`. |
+| Job interrupted after restart | The durable queue marks it as failed; restore readiness and use **Run again**. |
+| Package will not open | Run the package verifier and redownload if any checksum fails. Never ignore a mismatch. |
+| Port 8501 is busy | Stop the old worker or choose an approved alternate port. Do not run competing model workers. |
+| Repeated sign-in failures | Wait for the throttle window and verify the account remains active. |
+
+## Support ownership
+
+BAIF owns first-line operation: user approval, readiness checks, retention, backups and basic retries. The implementation team handles reproducible application defects and model/setup escalation. Language-quality questions go to the designated Hindi and Marathi reviewers; infrastructure and security incidents follow BAIF's incident process.
+
+For escalation, generate a privacy-safe support bundle and provide the release commit, preflight result, failure time, job ID and recovery already attempted. Never attach confidential source material unless BAIF explicitly authorises a secure transfer.
+
+Knowledge transfer is complete when an administrator can install the worker, approve a trainer, execute the acceptance personas, verify an offline package, restore a disposable backup and produce a redacted support bundle.

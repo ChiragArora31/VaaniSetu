@@ -30,6 +30,11 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue) -and (Get-Command wi
     winget install --exact --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
 }
 
+if (-not (Get-Command git -ErrorAction SilentlyContinue) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+    Write-Host "Installing Git for release integrity checks..."
+    winget install --exact --id Git.Git --accept-package-agreements --accept-source-agreements
+}
+
 if (-not (Get-Command tesseract -ErrorAction SilentlyContinue) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Tesseract OCR..."
     winget install --exact --id tesseract-ocr.tesseract --accept-package-agreements --accept-source-agreements
@@ -39,4 +44,4 @@ if (-not (Get-Command tesseract -ErrorAction SilentlyContinue) -and (Get-Command
 if ($LASTEXITCODE -ne 0) { throw "VaaniSetu setup did not complete. Read the final message above, correct it, and rerun this script." }
 Write-Host ""
 Write-Host "VaaniSetu setup is complete."
-Write-Host "Next: run .\scripts\start_baif_worker.ps1 and open http://127.0.0.1:8501"
+Write-Host "Next: reopen PowerShell, run the Windows acceptance command in SETUP.md, then start VaaniSetu."

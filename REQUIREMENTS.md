@@ -1,7 +1,7 @@
-# BAIF Hackathon Requirements Audit
+# Requirements Alignment
 
 Initial audit: 16 July 2026
-Last reviewed: 5 August 2026
+Last reviewed: 15 August 2026
 Source of truth: the organiser screenshots supplied by the team on 16 July 2026 plus the 5 August 2026 implementation-review email containing the weighted evaluation criteria and timeline. No requirement beyond those supplied materials is assumed.
 
 ## Executive conclusion
@@ -52,7 +52,7 @@ Timeline received with the rubric: implementation phase 15 July-21 August, submi
 1. Accept the AI4Bharat/IndicTrans2 model access terms in the team Hugging Face account and cache the intended checkpoints without sharing credentials.
 2. Obtain Hindi and Marathi reviewer approval for the benchmark, glossary and representative outputs.
 3. Run installation, preflight, processing and UAT on a clean Windows 11 CPU-only machine matching BAIF's baseline.
-4. Use approved representative BAIF material if it is later supplied; until then use public agriculture content.
+4. Eight BAIF videos are now supplied and technically validated in place. Complete the shortest full-pipeline Windows run and bilingual review; keep BAIF content out of Git/public evidence.
 5. Create the release tag and conduct the BAIF IT knowledge-transfer session after the three acceptance gates above.
 
 ## Audit risks to keep visible
@@ -61,4 +61,4 @@ Timeline received with the rubric: implementation phase 15 July-21 August, submi
 - An internet connection at the office does not authorise sending BAIF content to third-party translation services.
 - “Offline” means downloaded field outputs work without VaaniSetu; the office translation worker itself is not a live field app.
 - Quality claims must always name the model/backend and distinguish machine output from approved human corrections.
-- The final demo shows the core trainer journey before operational depth or optional document formats; follow [SUBMISSION_RUNBOOK.md](SUBMISSION_RUNBOOK.md).
+- The final demo shows the core trainer journey before operational depth or optional document formats; follow [DEMO.md](DEMO.md).

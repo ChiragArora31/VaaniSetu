@@ -20,7 +20,14 @@ from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from config.settings import MODEL_DIR, OUTPUT_DIR, TEMP_DIR, ensure_directories
+from config.settings import (
+    ALLOW_MODEL_DOWNLOAD,
+    ENABLE_HOSTED_TRANSLATION,
+    MODEL_DIR,
+    OUTPUT_DIR,
+    TEMP_DIR,
+    ensure_directories,
+)
 from core.health import collect_health_checks
 
 
@@ -113,7 +120,13 @@ def preflight(output: Path | None = None, port: int = 8501) -> int:
         "ffmpeg_ready": next((item["ok"] for item in checks if item["name"] == "FFmpeg"), False),
         "ffprobe_ready": next((item["ok"] for item in checks if item["name"] == "ffprobe"), False),
         "ocr_ready": next((item["ok"] for item in checks if item["name"] == "Automatic OCR"), False),
+        "whisper_model_ready": next((item["ok"] for item in checks if item["name"] == "Whisper model"), False),
+        "local_translation_ready": next(
+            (item["ok"] for item in checks if item["name"] == "Local translation route"), False
+        ),
         "quality_models_ready": all(next((item["ok"] for item in checks if item["name"] == f"IndicTrans2 {direction}"), False) for direction in ("en-indic", "indic-en", "indic-indic")),
+        "runtime_model_downloads_disabled": not ALLOW_MODEL_DOWNLOAD,
+        "hosted_translation_disabled": not ENABLE_HOSTED_TRANSLATION,
     }
     cpu_count = os.cpu_count()
     payload = {"generated_at": _utc(), "platform": platform.platform(), "python": platform.python_version(), "cpu_count": cpu_count, "memory_gb": memory_gb, "disk_free_gb": round(disk.free / 1024**3, 1), "port": port, "recommendation": recommended_worker_profile(memory_gb, cpu_count), "gates": gates, "checks": checks, "ready": all(gates.values())}

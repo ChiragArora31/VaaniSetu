@@ -1,48 +1,45 @@
-# VaaniSetu Handover Pack
+# Handover
 
-## Solution and scope
+VaaniSetu is delivered as a managed local/on-prem worker for authorised BAIF staff. Normal jobs do not call paid APIs, silently download models or send content to hosted translation services. Field recipients use reviewed exports and verified offline packages rather than running the model stack themselves.
 
-VaaniSetu is a local/on-prem browser application for authorised BAIF staff to translate English, Hindi, and Marathi text, documents, recordings, audio, and video. One CPU worker holds the models and files; normal jobs do not call paid APIs or silently download models. Field recipients use the exported ZIP, text, audio, video, or subtitle files offline.
+## Handover package
 
-The supported formats and enforced limits are in `DELIVERY_COMPATIBILITY.md`. Exact Office layout preservation is not promised: translated TXT, Markdown, and table exports are reviewable and can be reflowed into BAIF templates.
+| Need | Primary resource |
+| --- | --- |
+| Install and certify a Windows worker | `SETUP.md`, `scripts/windows_acceptance.ps1` |
+| Train users | `BAIF_ONBOARDING_RUNBOOK.html`, `USAGE.md` |
+| Operate, recover and support | `OPERATIONS.md`, `scripts/operations.py` |
+| Approve a release | `ACCEPTANCE.md`, `TESTING.md` |
+| Understand constraints | `ARCHITECTURE.md`, `COMPATIBILITY.md` |
+| Govern data and licences | `PRIVACY.md`, `LICENSING.md` |
+| Present the solution | `DEMO.md`, `submission/VaaniSetu_Final_Hackathon_Deck.pptx` |
 
-## Process flow
+The privacy-safe impact view/export contains aggregate counts only. Multi-file batches remain sequential to preserve the single-worker CPU and memory boundary.
 
-1. An administrator installs dependencies/models and completes the preflight.
-2. The first administrator creates an account; later users request access and require approval.
-3. A trainer records, pastes, or uploads content and chooses the language pair and outputs.
-4. The single model worker extracts/transcribes, translates, validates, synthesises optional speech, and packages outputs.
-5. A trainer reviews the machine output, saves a corrected version, and approves it.
-6. Exact approved source segments may be reused locally with provenance; the user can opt out.
-7. The integrity manifest proves the downloaded package is intact and usable without the server.
+## Ownership
 
-## Handover contents
+- BAIF administrator: accounts, readiness, retention, backups and routine recovery
+- Trainer/reviewer: source selection, output review, correction and approval
+- Language reviewers: Hindi/Marathi terminology, transcript and translation sign-off
+- BAIF IT: machine, model inventory, network controls, upgrade and restore approval
+- Implementation team: reproducible defects and model/setup escalation
 
-- Canonical first-time onboarding: `BAIF_ONBOARDING_RUNBOOK.html`
-- Current status and finishing plan: `IMPLEMENTATION_ROADMAP.md`, `RELEASE_CHECKLIST.md`
-- Setup and architecture: `README.md`, `BAIF_ARCHITECTURE_NOTE.md`, `config/model_manifest.json`
-- Operation: `USER_GUIDE.md`, `ADMIN_GUIDE.md`, `TROUBLESHOOTING.md`
-- Governance: `PRIVACY.md`, `OPEN_SOURCE_COMPLIANCE.md`, `SUPPORT_MODEL.md`
-- Acceptance: `UAT.md`, `RELEASE_CHECKLIST.md`, `benchmarks/README.md`
-- Engineering evidence: `TEST_EVIDENCE.md`
-- Organiser alignment: `HACKATHON_REQUIREMENTS_AUDIT.md`
-- Submission: `submission/VaaniSetu_Final_Hackathon_Deck.pptx`, `SUBMISSION_RUNBOOK.md`, `scripts/build_submission_bundle.py`
-- Recovery: `scripts/operations.py`, `scripts/verify_package.py`, `scripts/failure_drill.py`
+## Completion criteria
 
-The runtime includes a privacy-safe impact view/export containing aggregate counts only. It never includes source or translated content. Multi-file batches remain sequential and therefore preserve the one-worker CPU safety boundary.
+Knowledge transfer is complete when BAIF can independently:
 
-The source repository is engineering-complete. The final handover release should be tagged only after the model inventory, bilingual approval and target Windows UAT are recorded.
+1. install and pass preflight on the supported Windows worker;
+2. approve a trainer and complete the three acceptance personas;
+3. process and review the required BAIF video cases;
+4. verify a package without the server/network;
+5. create and restore a disposable backup; and
+6. produce and inspect a privacy-safe support bundle.
 
-## Assumptions and external acceptance
+Record the release commit, machine profile, model inventory, reviewers, operational owners and unresolved limitations. Tag the production release only after every external item in `ACCEPTANCE.md` is evidenced.
 
-- BAIF supplies a Windows 11 CPU worker with at least 16 GB RAM and adequate free disk.
-- An authorised team account accepts the AI4Bharat model terms and caches the three IndicTrans2 checkpoints.
-- Hindi and Marathi reviewers approve representative BAIF terminology and benchmark material.
-- The engineering seed benchmark is evidence of tooling, not BAIF linguistic approval.
+## Known boundaries
 
-## Known risks
-
-- Accuracy varies with dialect, noise, OCR quality, and model availability. Human review remains required for health, safety, pesticide, financial, or legally consequential content.
-- NLLB is a non-commercial fallback and cannot support an unrestricted production-license claim.
-- Natural Marathi/Hindi TTS availability depends on cached Indic Parler/Piper voices; browser/eSpeak speech is a lower-quality fallback.
-- Cooperative cancellation stops at the next stage boundary; an active model call is not force-killed.
+- Machine output is a draft until the appropriate reviewer approves it.
+- NLLB is a non-commercial engineering fallback and cannot support an unrestricted production claim.
+- Optional natural speech depends on the locally cached voice model; text/subtitles remain the dependable baseline.
+- Cancellation is cooperative and takes effect at a processing boundary; active native model calls are not force-killed.

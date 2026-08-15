@@ -11,6 +11,6 @@ The generated ZIP lives under `outputs/` and is intentionally not committed beca
 
 Canonical presentation: [VaaniSetu_Final_Hackathon_Deck.pptx](VaaniSetu_Final_Hackathon_Deck.pptx)
 
-Demo script: [SUBMISSION_RUNBOOK.md](../SUBMISSION_RUNBOOK.md)
+Demo script: [DEMO.md](../DEMO.md)
 
 BAIF onboarding and handover path: [BAIF_ONBOARDING_RUNBOOK.html](../BAIF_ONBOARDING_RUNBOOK.html)
