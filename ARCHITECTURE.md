@@ -1,4 +1,4 @@
-# BAIF Architecture Note
+# Architecture
 
 ## Recommended delivery model
 
@@ -6,7 +6,7 @@ VaaniSetu should be delivered as a local/on-prem open-source model worker with a
 
 This means BAIF installs the versioned Python environment, media/OCR tools, and approved model assets once on an office workstation or LAN server. Users open a web interface on that same machine or office network. The worker performs document extraction, transcription, translation, speech synthesis, subtitle generation, and packaging.
 
-## Why this fits the hackathon constraints
+## Why this fits BAIF's constraints
 
 The Q&A clarification says internet is available at BAIF premises for installation and translation, but not guaranteed in the field. This points to a central translation workflow:
 

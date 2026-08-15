@@ -38,19 +38,6 @@ class TranscriptionResult:
     language: str | None
 
 
-_SCRIPT_PROMPTS = {
-    "hi": (
-        "यह हिन्दी भाषण है। प्रतिलेखन केवल देवनागरी लिपि में करें। "
-        "उर्दू, अरबी या रोमन लिपि का उपयोग न करें।"
-    ),
-    "mr": (
-        "हे मराठी भाषण आहे. प्रतिलेखन फक्त देवनागरी लिपीत करा. "
-        "उर्दू, अरबी किंवा रोमन लिपी वापरू नका."
-    ),
-    "en": "This is English speech. Transcribe clearly in English.",
-}
-
-
 class WhisperTranscriber:
     def __init__(
         self,
@@ -123,7 +110,11 @@ class WhisperTranscriber:
             str(audio_path),
             language=source_language_code,
             task="transcribe",
-            initial_prompt=_SCRIPT_PROMPTS.get(source_language_code),
+            # Whisper treats this as prior transcript text, not an instruction.
+            # Natural-language instructions can be echoed during quiet media and
+            # become a false transcript, so BAIF jobs rely on the explicit
+            # language code and VAD instead.
+            initial_prompt=None,
             vad_filter=vad_filter,
             vad_parameters={"min_silence_duration_ms": ASR_VAD_MIN_SILENCE_MS},
             beam_size=ASR_BEAM_SIZE,

@@ -1,4 +1,4 @@
-# Trainer User Guide
+# Usage Guide
 
 For a first session, open the [BAIF onboarding runbook](BAIF_ONBOARDING_RUNBOOK.html) and follow **Trainer or reviewer: first translation**. The signed-in workspace also shows a state-aware **Start here** checklist until the worker, account and first completed translation are ready.
 

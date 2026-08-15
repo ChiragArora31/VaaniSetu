@@ -1,3 +1,10 @@
+param(
+    [ValidateSet("127.0.0.1", "0.0.0.0")]
+    [string]$HostAddress = "127.0.0.1",
+    [ValidateRange(1024, 65535)]
+    [int]$Port = 8501
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
@@ -9,6 +16,10 @@ if (-not (Test-Path $VenvPython)) {
 }
 & $VenvPython scripts\operations.py migrate
 if ($LASTEXITCODE -ne 0) { throw "VaaniSetu could not prepare its local data. See the message above." }
-Write-Host "VaaniSetu is starting at http://127.0.0.1:8501"
+if ($HostAddress -eq "0.0.0.0") {
+    Write-Warning "LAN mode is enabled. Use it only on a BAIF-approved private network; never expose this port to the public internet."
+}
+$DisplayHost = if ($HostAddress -eq "0.0.0.0") { "<this-computer-IP>" } else { $HostAddress }
+Write-Host "VaaniSetu is starting at http://${DisplayHost}:$Port"
 Write-Host "Keep this window open while VaaniSetu is in use. Press Ctrl+C to stop it safely."
-& $VenvPython -m uvicorn app:app --host 0.0.0.0 --port 8501
+& $VenvPython -m uvicorn app:app --host $HostAddress --port $Port

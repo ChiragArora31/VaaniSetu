@@ -1,6 +1,6 @@
-# Submission and Demo Runbook
+# Demo Guide
 
-Last rehearsed: 28 July 2026
+Last reviewed: 15 August 2026
 
 Use this as the single judge-demo script. The prepared path uses public, non-confidential agriculture content and cached local models.
 
@@ -22,7 +22,7 @@ Use this as the single judge-demo script. The prepared path uses public, non-con
 | 1:45–2:20 | Human review; edit if useful; **Approve final** | Approval atomically saves exactly what is visible, versions it and creates an auditable approved package. |
 | 2:20–2:45 | Translate the same source again | Exact approved content returns from local translation memory in under a second; model guesses are never used for fuzzy reuse. |
 | 2:45–3:10 | Download package; open `CONTENTS.html` | Text, captions, speech/video and checksums travel together and open without VaaniSetu or field internet. |
-| 3:10–3:30 | Slides 4–5 | Close on evidence: 71 tests, 20 adversarial regressions, six directions, full media limits, and only three clearly named external gates. |
+| 3:10–3:30 | Slides 4–5 | Close on evidence: 74 tests, 20 adversarial regressions, six directions, full media limits, and only three clearly named external gates. |
 
 ## Prepared public video proof
 
@@ -65,4 +65,4 @@ Run all six with `python scripts/failure_drill.py`.
 
 ## Stop/go rule
 
-Submit when the internal release checklist is green. A production acceptance claim is allowed only after all three external gates are evidenced; until then call this a verified release candidate.
+Submit when the engineering checks in `ACCEPTANCE.md` are green. A production acceptance claim is allowed only after all external gates are evidenced; until then call this a verified release candidate.

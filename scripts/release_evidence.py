@@ -22,8 +22,13 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def tracked_files() -> list[Path]:
-    result = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, check=True, capture_output=True)
+def repository_files() -> list[Path]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
     return [ROOT / value.decode() for value in result.stdout.split(b"\0") if value and (ROOT / value.decode()).is_file()]
 
 
@@ -31,7 +36,10 @@ def main() -> int:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     generated_at = datetime.now(timezone.utc).isoformat()
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
-    sources = [{"path": path.relative_to(ROOT).as_posix(), "bytes": path.stat().st_size, "sha256": sha256(path)} for path in tracked_files()]
+    sources = [
+        {"path": path.relative_to(ROOT).as_posix(), "bytes": path.stat().st_size, "sha256": sha256(path)}
+        for path in repository_files()
+    ]
     (OUTPUT / "source_manifest.json").write_text(json.dumps({"generated_at": generated_at, "git_commit": commit, "files": sources}, indent=2), encoding="utf-8")
     components = []
     for distribution in sorted(distributions(), key=lambda item: (item.metadata.get("Name") or "").casefold()):

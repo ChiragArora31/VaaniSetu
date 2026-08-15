@@ -1,4 +1,4 @@
-# BAIF Delivery Compatibility
+# Compatibility
 
 ## Target environment
 
@@ -46,4 +46,4 @@ Engineering compatibility is proven by automated limits, browser/media E2E and f
 2. Hindi/Marathi reviewer sign-off; and
 3. clean Windows 11 baseline installation, preflight and UAT.
 
-Setup and acceptance commands are maintained in [README.md](README.md), [ADMIN_GUIDE.md](ADMIN_GUIDE.md), [UAT.md](UAT.md) and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+Setup and acceptance commands are maintained in [README.md](README.md), [SETUP.md](SETUP.md), [OPERATIONS.md](OPERATIONS.md) and [ACCEPTANCE.md](ACCEPTANCE.md).
