@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import time
+from typing import Callable
 
 from config.settings import (
     ALLOW_MODEL_DOWNLOAD,
@@ -12,7 +14,10 @@ from config.settings import (
     ASR_BEST_OF,
     ASR_CONDITION_ON_PREVIOUS_TEXT,
     ASR_LOG_PROB_THRESHOLD,
+    ASR_MAX_REALTIME_FACTOR,
+    ASR_MIN_TIMEOUT_SECONDS,
     ASR_NO_SPEECH_THRESHOLD,
+    ASR_TEMPERATURE,
     ASR_VAD_MIN_SILENCE_MS,
     DEFAULT_WHISPER_MODEL,
     INDIC_CONFORMER_DECODER,
@@ -36,6 +41,9 @@ class TranscriptionResult:
     text: str
     segments: list[Segment]
     language: str | None
+
+
+ProgressCallback = Callable[[float, float, float | None], None]
 
 
 class WhisperTranscriber:
@@ -89,13 +97,21 @@ class WhisperTranscriber:
             ) from exc
         return self._model
 
-    def transcribe(self, audio_path: Path, source_language_code: str) -> TranscriptionResult:
+    def transcribe(
+        self,
+        audio_path: Path,
+        source_language_code: str,
+        progress_callback: ProgressCallback | None = None,
+    ) -> TranscriptionResult:
         model = self._load_model()
         try:
-            result = self._transcribe_once(model, audio_path, source_language_code, vad_filter=True)
-            if result.text:
-                return result
-            return self._transcribe_once(model, audio_path, source_language_code, vad_filter=False)
+            return self._transcribe_once(
+                model,
+                audio_path,
+                source_language_code,
+                vad_filter=True,
+                progress_callback=progress_callback,
+            )
         except Exception as exc:
             raise TranscriptionError(f"Transcription failed: {exc}") from exc
 
@@ -105,6 +121,7 @@ class WhisperTranscriber:
         audio_path: Path,
         source_language_code: str,
         vad_filter: bool,
+        progress_callback: ProgressCallback | None = None,
     ) -> TranscriptionResult:
         segments_iter, info = model.transcribe(
             str(audio_path),
@@ -119,6 +136,7 @@ class WhisperTranscriber:
             vad_parameters={"min_silence_duration_ms": ASR_VAD_MIN_SILENCE_MS},
             beam_size=ASR_BEAM_SIZE,
             best_of=ASR_BEST_OF,
+            temperature=ASR_TEMPERATURE,
             condition_on_previous_text=ASR_CONDITION_ON_PREVIOUS_TEXT,
             no_speech_threshold=ASR_NO_SPEECH_THRESHOLD,
             log_prob_threshold=ASR_LOG_PROB_THRESHOLD,
@@ -126,7 +144,24 @@ class WhisperTranscriber:
         )
         segments: list[Segment] = []
         transcript_parts: list[str] = []
+        started = time.monotonic()
+        duration = float(getattr(info, "duration", 0.0) or 0.0)
+        timeout_seconds = max(ASR_MIN_TIMEOUT_SECONDS, duration * ASR_MAX_REALTIME_FACTOR)
+        if progress_callback:
+            progress_callback(0.0, 0.0, duration or None)
         for segment in segments_iter:
+            elapsed = time.monotonic() - started
+            if elapsed > timeout_seconds:
+                raise TranscriptionError(
+                    f"Speech recognition exceeded its {timeout_seconds / 60:.0f}-minute safety limit. "
+                    "Try the fast profile or a shorter recording."
+                )
+            if progress_callback:
+                progress_callback(
+                    min(0.99, float(segment.end) / duration) if duration else 0.0,
+                    elapsed,
+                    duration or None,
+                )
             text = (segment.text or "").strip()
             if not text:
                 continue
@@ -173,7 +208,12 @@ class IndicConformerTranscriber:
             raise TranscriptionError(f"IndicConformer model is unavailable: {exc}") from exc
         return self._model
 
-    def transcribe(self, audio_path: Path, source_language_code: str) -> TranscriptionResult:
+    def transcribe(
+        self,
+        audio_path: Path,
+        source_language_code: str,
+        progress_callback: ProgressCallback | None = None,
+    ) -> TranscriptionResult:
         if source_language_code not in {"hi", "mr"}:
             raise TranscriptionError("IndicConformer is enabled only for supported Indian source languages.")
         try:
@@ -191,6 +231,8 @@ class IndicConformerTranscriber:
             raise
         except Exception as exc:
             raise TranscriptionError(f"IndicConformer transcription failed: {exc}") from exc
+        if progress_callback:
+            progress_callback(1.0, 0.0, None)
         return TranscriptionResult(
             text=text,
             segments=[Segment(start=0.0, end=5.0, text=text)] if text else [],

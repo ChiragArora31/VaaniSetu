@@ -13,6 +13,8 @@ Confirmed minimum:
 
 VaaniSetu keeps one heavy model worker by default. Preflight recommends `balanced` on the minimum baseline, permits `quality` only with measured headroom (normally at least 32 GB RAM/eight cores), and rejects systems below 16 GB.
 
+macOS arm64 can be used for engineering and team testing with Python 3.10/3.11, FFmpeg and Tesseract. It is not the formal BAIF production target: an 8 GB Mac completed the corrected balanced pipeline on the shortest real BAIF sample, but production acceptance must still run on the Windows baseline above. Use the developer setup in [README.md](README.md), then validate private samples with `python scripts/validate_baif_samples.py PATH_TO_VIDEOS --process-shortest`; keep generated content under ignored `outputs/`.
+
 Internet may be used at BAIF premises during controlled installation/model caching. Normal jobs run locally without paid APIs or silent model downloads. Translation happens at the office; exported packages work offline in the field.
 
 ## Enforced inputs

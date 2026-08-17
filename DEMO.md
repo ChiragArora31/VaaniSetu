@@ -22,7 +22,7 @@ Use this as the single judge-demo script. The prepared path uses public, non-con
 | 1:45–2:20 | Human review; edit if useful; **Approve final** | Approval atomically saves exactly what is visible, versions it and creates an auditable approved package. |
 | 2:20–2:45 | Translate the same source again | Exact approved content returns from local translation memory in under a second; model guesses are never used for fuzzy reuse. |
 | 2:45–3:10 | Download package; open `CONTENTS.html` | Text, captions, speech/video and checksums travel together and open without VaaniSetu or field internet. |
-| 3:10–3:30 | Slides 4–5 | Close on evidence: 74 tests, 20 adversarial regressions, six directions, full media limits, and only three clearly named external gates. |
+| 3:10–3:30 | Slides 4–5 | Close on evidence: 77 tests, 20 adversarial regressions, six directions, real BAIF end-to-end completion, full media limits, and only three clearly named external gates. |
 
 ## Prepared public video proof
 

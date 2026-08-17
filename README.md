@@ -8,8 +8,9 @@ The product is designed for a managed Windows 11 CPU worker at the BAIF office. 
 
 VaaniSetu is a verified release candidate ready for controlled Windows acceptance testing.
 
-- 74 automated tests, including 20 adversarial security and recovery regressions
+- 77 automated tests, including 20 adversarial security and recovery regressions
 - All eight BAIF-supplied videos validated in place for format, size, duration, resolution and streams
+- The real 5:43 BAIF sample completed the full local pipeline in 5:09 on an 8 GB engineering Mac; transcript/translation content remains private
 - Real browser, public-video, offline-package, backup/restore, failure-drill and boundary-stress evidence
 - Privacy-safe release evidence, source manifest, SBOM, model inventory and submission builder
 
@@ -48,6 +49,7 @@ Production approval remains intentionally gated by the target Windows run, accep
 - Health, preflight, metrics and privacy-safe aggregate impact reporting
 - Model inventory, backup/restore, retention cleanup and redacted support bundles
 - Runtime downloads and hosted translation disabled by default
+- Visible segment-level video transcription progress, ETA and an elapsed-time safety guard
 
 ## Architecture
 

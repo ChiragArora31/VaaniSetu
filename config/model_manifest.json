@@ -2,7 +2,8 @@
   "schema_version": 1,
   "policy": "Every production model must be locally cached and recorded in outputs/model_inventory.json before release.",
   "models": [
-    {"capability":"ASR (balanced and quality)","name":"faster-whisper-large-v3","source":"https://huggingface.co/Systran/faster-whisper-large-v3","license":"MIT","revision_env":"BAIF_WHISPER_REVISION","required_profiles":["balanced","quality"]},
+    {"capability":"ASR (balanced)","name":"faster-whisper-large-v3-turbo","source":"https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo","license":"MIT","revision_env":"BAIF_WHISPER_TURBO_REVISION","required_profile":"balanced"},
+    {"capability":"ASR (quality)","name":"faster-whisper-large-v3","source":"https://huggingface.co/Systran/faster-whisper-large-v3","license":"MIT","revision_env":"BAIF_WHISPER_REVISION","required_profile":"quality"},
     {"capability":"ASR fast fallback","name":"faster-whisper-base","source":"https://huggingface.co/Systran/faster-whisper-base","license":"MIT","revision_env":"BAIF_WHISPER_REVISION","required_profile":"fast"},
     {"capability":"ASR alternative","name":"indic-conformer-600m-multilingual","source":"https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual","license":"MIT","revision_env":"BAIF_INDIC_CONFORMER_REVISION","production_required":false},
     {"capability":"Translation English to Indic (balanced)","name":"indictrans2-en-indic-dist-200M","source":"https://huggingface.co/ai4bharat/indictrans2-en-indic-dist-200M","license":"MIT","revision_env":"BAIF_INDICTRANS_EN_INDIC_REVISION","required_profile":"balanced"},

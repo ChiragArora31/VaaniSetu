@@ -365,7 +365,20 @@ class TranslationPipeline:
             )
             source = get_language(source_language)
             self.transcriber.allow_model_download = options.allow_model_download
-            transcription = self.transcriber.transcribe(transcription_input, source.whisper_code)
+            def report_asr_progress(fraction: float, elapsed: float, duration: float | None) -> None:
+                percent = max(0, min(99, round(fraction * 100)))
+                elapsed_minutes = elapsed / 60
+                detail = f"{percent}% of audio analysed; {elapsed_minutes:.1f} min elapsed"
+                if duration and fraction > 0.02:
+                    eta_minutes = max(0.0, elapsed * (1 / fraction - 1) / 60)
+                    detail += f"; about {eta_minutes:.1f} min remaining"
+                _status(status, f"Transcribing speech locally — {detail}", 0.35 + 0.25 * fraction)
+
+            transcription = self.transcriber.transcribe(
+                transcription_input,
+                source.whisper_code,
+                progress_callback=report_asr_progress,
+            )
             cleaned_text, did_cleanup = clean_indic_asr_text(transcription.text, source.whisper_code)
             result.original_text = cleaned_text
             if not _has_meaningful_speech(result.original_text):
