@@ -52,11 +52,6 @@ def _directory_bytes(path: Path) -> int:
 
 def _total_memory_gb() -> float | None:
     try:
-        import psutil
-        return round(psutil.virtual_memory().total / 1024**3, 1)
-    except ImportError:
-        pass
-    try:
         if platform.system() == "Windows":
             import ctypes
             class MemoryStatus(ctypes.Structure):
@@ -67,8 +62,16 @@ def _total_memory_gb() -> float | None:
         if platform.system() == "Darwin":
             value = subprocess.run(["sysctl", "-n", "hw.memsize"], check=True, capture_output=True, text=True).stdout.strip()
             return round(int(value) / 1024**3, 1)
-        return round((os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")) / 1024**3, 1)
     except (AttributeError, OSError, ValueError, subprocess.SubprocessError):
+        pass
+    try:
+        import psutil
+        return round(psutil.virtual_memory().total / 1024**3, 1)
+    except ImportError:
+        pass
+    try:
+        return round((os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")) / 1024**3, 1)
+    except (AttributeError, OSError, ValueError):
         return None
 
 

@@ -57,7 +57,7 @@ cd C:\VaaniSetu
 .\scripts\setup_baif_worker.ps1
 ```
 
-The script selects Python 3.11/3.10, creates the private `.venv`, installs pinned packages, installs FFmpeg/Tesseract when Windows Package Manager is available, caches OCR languages and downloads the balanced CPU model set. The balanced set now uses Whisper large-v3 because the supplied Marathi BAIF narration exposed unacceptable errors in the smaller model. Downloads can take a long time; do not close the window.
+The script selects Python 3.11/3.10, creates the private `.venv`, installs pinned packages, installs FFmpeg/Tesseract when Windows Package Manager is available, caches OCR languages and downloads the balanced CPU model set. The balanced set uses multilingual large-v3-turbo INT8: it completed the real 5:43 BAIF sample end to end on the engineering Mac while the previous large-v3/beam-3 default did not. Downloads can take a long time; do not close the window.
 
 ### IndicTrans2 access
 
@@ -81,7 +81,7 @@ Stop VaaniSetu if it is already running; port 8501 must be free. Then run:
 .\scripts\windows_acceptance.ps1 -VideosPath "C:\BAIF-Test-Data\Videos"
 ```
 
-This performs dependency integrity, 74 automated tests, repository/privacy policy, production preflight, model inventory and all-video compatibility checks. It writes:
+This performs dependency integrity, 77 automated tests, repository/privacy policy, production preflight, model inventory and all-video compatibility checks. It writes:
 
 - `outputs\windows_acceptance\acceptance_summary.json`
 - `outputs\windows_acceptance\acceptance.log`
@@ -90,7 +90,7 @@ This performs dependency integrity, 74 automated tests, repository/privacy polic
 - `outputs\windows_acceptance\model_inventory.json`
 - `outputs\windows_acceptance\baif_sample_validation.json`
 
-Expected result: every check says `PASSED` and `acceptance_summary.json` says `"status": "passed"`. Preflight now requires the large-v3 ASR model, all configured IndicTrans2 directions, local translation, FFmpeg/ffprobe, OCR, 16 GB RAM, 20 GB free disk, hosted translation off and runtime model downloads off. A failed preflight is a stop signal, not a warning to ignore. Correct the named issue and rerun the entire command.
+Expected result: every check says `PASSED` and `acceptance_summary.json` says `"status": "passed"`. Preflight requires the balanced large-v3-turbo ASR model, all configured IndicTrans2 directions, local translation, FFmpeg/ffprobe, OCR, 16 GB RAM, 20 GB free disk, hosted translation off and runtime model downloads off. A failed preflight is a stop signal, not a warning to ignore. Correct the named issue and rerun the entire command.
 
 The supplied BAIF set should report 8/8 compatible videos, about 70.55 minutes total, with audio and 1920×1080 video streams. A different count or hash means the tester must confirm which approved set was supplied; do not silently substitute files.
 

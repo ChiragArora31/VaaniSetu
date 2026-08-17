@@ -256,6 +256,15 @@ class OperationsRecommendationTest(unittest.TestCase):
         self.assertEqual(recommended_worker_profile(32, 8)["profile"], "quality")
         self.assertEqual(recommended_worker_profile(16, 6)["worker_count"], 1)
 
+    def test_macos_memory_uses_native_hardware_value(self):
+        from scripts.operations import _total_memory_gb
+
+        with patch("scripts.operations.platform.system", return_value="Darwin"), patch(
+            "scripts.operations.subprocess.run",
+            return_value=SimpleNamespace(stdout=str(8 * 1024**3)),
+        ):
+            self.assertEqual(_total_memory_gb(), 8.0)
+
     def test_preflight_requires_private_local_asr_and_translation_routes(self):
         names = [
             "FFmpeg",
@@ -858,7 +867,7 @@ class TranscriberSelectionTest(unittest.TestCase):
     def test_default_transcriber_is_whisper(self):
         transcriber = get_transcriber(allow_model_download=False)
         self.assertIsInstance(transcriber, WhisperTranscriber)
-        self.assertTrue(str(transcriber.model_path).endswith("faster-whisper-large-v3"))
+        self.assertTrue(str(transcriber.model_path).endswith("faster-whisper-large-v3-turbo"))
 
     def test_whisper_does_not_seed_instruction_text_into_quiet_media(self):
         captured = {}
@@ -871,6 +880,42 @@ class TranscriberSelectionTest(unittest.TestCase):
         result = WhisperTranscriber._transcribe_once(FakeModel(), Path("quiet.wav"), "mr", vad_filter=True)
         self.assertEqual(result.text, "")
         self.assertIsNone(captured["initial_prompt"])
+        self.assertEqual(captured["beam_size"], 1)
+        self.assertEqual(captured["best_of"], 1)
+        self.assertEqual(captured["temperature"], 0.0)
+
+    def test_whisper_reports_segment_progress(self):
+        updates = []
+
+        class FakeSegment:
+            start = 0.0
+            end = 25.0
+            text = "नमस्कार"
+
+        class FakeModel:
+            def transcribe(self, _path, **_kwargs):
+                return iter([FakeSegment()]), SimpleNamespace(language="mr", duration=100.0)
+
+        result = WhisperTranscriber._transcribe_once(
+            FakeModel(), Path("speech.wav"), "mr", vad_filter=True,
+            progress_callback=lambda *values: updates.append(values),
+        )
+        self.assertEqual(result.text, "नमस्कार")
+        self.assertEqual(updates[-1][0], 0.25)
+
+    def test_whisper_does_not_repeat_a_long_silent_file_without_vad(self):
+        calls = []
+
+        class FakeModel:
+            def transcribe(self, _path, **kwargs):
+                calls.append(kwargs["vad_filter"])
+                return iter([]), SimpleNamespace(language="mr", duration=600.0)
+
+        transcriber = WhisperTranscriber()
+        transcriber._model = FakeModel()
+        result = transcriber.transcribe(Path("quiet-long.wav"), "mr")
+        self.assertEqual(result.text, "")
+        self.assertEqual(calls, [True])
 
 
 class JobManagerTest(unittest.TestCase):

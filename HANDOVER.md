@@ -43,3 +43,4 @@ Record the release commit, machine profile, model inventory, reviewers, operatio
 - NLLB is a non-commercial engineering fallback and cannot support an unrestricted production claim.
 - Optional natural speech depends on the locally cached voice model; text/subtitles remain the dependable baseline.
 - Cancellation is cooperative and takes effect at a processing boundary; active native model calls are not force-killed.
+- The balanced laptop profile is the supported default. Use `quality` only after a representative-media benchmark; do not switch production workers to large-v3 by assumption.

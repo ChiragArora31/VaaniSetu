@@ -1,12 +1,12 @@
 # Testing and Evidence
 
-Last reviewed: 15 August 2026
+Last reviewed: 17 August 2026
 
 Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is intentionally recorded as a non-target machine; BAIF's clean Windows 11/16 GB acceptance remains external.
 
 ## Automated release gate
 
-- **74/74 tests pass** locally, including scanned-PDF OCR, BAIF-media evidence privacy, private-model preflight, no-speech prompt regression and onboarding delivery checks.
+- **77/77 tests pass** locally, including scanned-PDF OCR, BAIF-media evidence privacy, native macOS memory detection, ASR progress reporting, no-speech retry regression and onboarding delivery checks.
 - **20 adversarial regressions** cover corrupt/malformed state, traversal/symlink escape, queue saturation/cancellation races, hostile password cost, bounded auth/session state, partial uploads, filename boundaries, oversized/duplicate archives and malformed manifests.
 - Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
 - Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.
@@ -67,8 +67,10 @@ Peak benchmark memory was 964 MB. Preferred terminology misses remain visible in
 - All 8/8 pass the enforced file-size, duration, resolution, audio-stream and video-stream checks.
 - Total material is 70.55 minutes and 200,997,684 bytes; every file is 1920×1080 H.264/AAC and remains below the 15-minute/200 MB per-video boundary.
 - Privacy-safe hashes and metadata are generated with `python scripts/validate_baif_samples.py PATH_TO_VIDEOS` into the ignored `outputs/baif_sample_validation.json` report.
-- Short probes identify Marathi narration. Whisper-small is error-heavy on this material; large-v3 materially improves audible speech and also exposed an instruction-prompt echo on quiet sections. The balanced profile now uses large-v3, and the prompt echo is removed with a regression test. Full-video quality still requires the target Windows run and Marathi transcript review before output approval.
-- The shortest real video (`401.1.mp4`, 5:43) was also started through the complete local large-v3 pipeline on this 8 GB Mac with hosted translation and runtime downloads disabled. Transcription remained active inside CTranslate2 at the one-hour cutoff (about 10.5x wall-clock real time; roughly 4.4 GB peak process footprint), so the run was stopped without claiming a package or quality pass. This is an honest performance failure on a machine that preflight rejects, and makes the measured 16 GB Windows completion test a release gate rather than a formality.
+- Short probes identify Marathi narration. Whisper-small is error-heavy on this material. The original balanced large-v3/beam-3 configuration retained better speech but exceeded one hour on the 8 GB Mac and exposed an instruction-prompt echo on quiet sections. That configuration is no longer the laptop default; large-v3 remains available only through the explicit `quality` profile.
+- The corrected `balanced` profile uses multilingual large-v3-turbo INT8 with deterministic single-beam decoding, VAD, no instruction prompt and no second full-file retry after an empty VAD result. It emits segment-level progress/ETA and stops at a configurable elapsed-time guard instead of continuing indefinitely.
+- A 60-second excerpt of the real `401.1.mp4` completed ASR in **35.03 seconds** (0.584× real time). The full 5:43 audio completed ASR in **228.63 seconds** (0.667× real time), producing 33 timed segments and covering 342.14 of 342.96 seconds.
+- The same 5:43 file then passed the complete application path on the 8 GB Mac in **308.69 seconds**: inspection, audio extraction, ASR, local NLLB CTranslate2 INT8 Marathi→Hindi translation, SRT/VTT and a verified offline ZIP. The report excludes transcript/translation content. This is an engineering completion result, not Marathi/Hindi linguistic approval.
 
 ## Failure and offline evidence
 
@@ -85,4 +87,4 @@ Both the standard and approved review packages verify cleanly. Migration, backup
 
 ## Honest remaining proof
 
-Preflight correctly marks this 8 GB Mac unsupported under BAIF's 16 GB minimum and reports the intended IndicTrans2 checkpoints absent. The only external evidence still required is accepted/cached IndicTrans2 inventory, Hindi/Marathi reviewer sign-off and a clean Windows 11 baseline/full-BAIF-video run.
+Preflight correctly marks this 8 GB Mac unsupported under BAIF's 16 GB production minimum and reports the intended IndicTrans2 checkpoints absent. The performance defect is closed on the real shortest video; the remaining external evidence is accepted/cached IndicTrans2 inventory, Hindi/Marathi reviewer sign-off and a clean Windows 11 baseline/full-BAIF-video run.

@@ -79,16 +79,18 @@ MODEL_PROFILES = {
         "whisper_repo": "Systran/faster-whisper-base",
         "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-base",
         "whisper_compute_type": "int8",
-        "asr_beam_size": 3,
+        "asr_beam_size": 1,
+        "asr_best_of": 1,
         "translation_beam_size": 1,
     },
     "balanced": {
         "label": "Balanced",
-        "description": "Recommended BAIF CPU mode: higher-accuracy Marathi/Hindi ASR with controlled single-worker execution.",
-        "whisper_repo": "Systran/faster-whisper-large-v3",
-        "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-large-v3",
+        "description": "Recommended BAIF laptop mode: multilingual turbo ASR with bounded, visible processing.",
+        "whisper_repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-large-v3-turbo",
         "whisper_compute_type": "int8",
-        "asr_beam_size": 3,
+        "asr_beam_size": 1,
+        "asr_best_of": 1,
         "translation_beam_size": 2,
     },
     "quality": {
@@ -98,6 +100,7 @@ MODEL_PROFILES = {
         "whisper_dir": MODEL_DIR / "whisper" / "faster-whisper-large-v3",
         "whisper_compute_type": "auto",
         "asr_beam_size": 5,
+        "asr_best_of": 5,
         "translation_beam_size": 4,
     },
 }
@@ -113,7 +116,10 @@ WHISPER_DEVICE = os.getenv("BAIF_WHISPER_DEVICE", "auto")
 WHISPER_COMPUTE_TYPE = os.getenv("BAIF_WHISPER_COMPUTE_TYPE", str(ACTIVE_MODEL_PROFILE["whisper_compute_type"]))
 WHISPER_CPU_THREADS = int(os.getenv("BAIF_WHISPER_CPU_THREADS", "0"))
 ASR_BEAM_SIZE = int(os.getenv("BAIF_ASR_BEAM_SIZE", str(ACTIVE_MODEL_PROFILE["asr_beam_size"])))
-ASR_BEST_OF = int(os.getenv("BAIF_ASR_BEST_OF", "5"))
+ASR_BEST_OF = int(os.getenv("BAIF_ASR_BEST_OF", str(ACTIVE_MODEL_PROFILE["asr_best_of"])))
+ASR_TEMPERATURE = float(os.getenv("BAIF_ASR_TEMPERATURE", "0"))
+ASR_MAX_REALTIME_FACTOR = max(1.0, float(os.getenv("BAIF_ASR_MAX_REALTIME_FACTOR", "4")))
+ASR_MIN_TIMEOUT_SECONDS = max(60, int(os.getenv("BAIF_ASR_MIN_TIMEOUT_SECONDS", "180")))
 ASR_VAD_MIN_SILENCE_MS = int(os.getenv("BAIF_ASR_VAD_MIN_SILENCE_MS", "500"))
 ASR_CONDITION_ON_PREVIOUS_TEXT = os.getenv("BAIF_ASR_CONDITION_ON_PREVIOUS_TEXT", "0") == "1"
 ASR_NO_SPEECH_THRESHOLD = float(os.getenv("BAIF_ASR_NO_SPEECH_THRESHOLD", "0.65"))
