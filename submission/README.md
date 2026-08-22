@@ -13,4 +13,6 @@ Canonical presentation: [VaaniSetu_Final_Hackathon_Deck.pptx](VaaniSetu_Final_Ha
 
 Demo script: [DEMO.md](../DEMO.md)
 
+Final compliance and readiness audit: [AUDIT.md](../AUDIT.md)
+
 BAIF onboarding and handover path: [BAIF_ONBOARDING_RUNBOOK.html](../BAIF_ONBOARDING_RUNBOOK.html)

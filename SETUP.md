@@ -145,7 +145,7 @@ Start with the shortest supplied file, `401.1.mp4` (about 5 minutes 43 seconds):
 1. Choose **Marathi → Hindi**.
 2. Open **Upload** and select `401.1.mp4` from the external BAIF test-data folder.
 3. For the first pass, keep subtitles on and optional speech, caption burn-in and translated-audio video off. This isolates ASR + translation + offline packaging.
-4. Start translation and leave the page open. Large-v3 is accuracy-first and may take substantial CPU time; do not promise an instant result. Record start/end time, peak memory from Task Manager, job ID, warnings, ASR backend and translation backend.
+4. Start translation and leave the page open. The balanced multilingual large-v3-turbo profile is CPU-bounded but a long video can still take several minutes; use the visible stage, elapsed time and ETA instead of assuming the page is stuck. Record start/end time, peak memory from Task Manager, job ID, warnings, ASR backend and translation backend.
 5. Ask the Marathi reviewer to compare representative transcript sections against the audio. Ask the Hindi reviewer to assess adequacy, fluency, agriculture/livestock terminology, names, numbers, units and safety meaning.
 6. Correct and approve only after review. Download the ZIP.
 7. Repeat with `401.2 HOUSING OF GOAT.mp4` because its topic and title are directly relevant to livestock training.

@@ -15,6 +15,7 @@ DEFAULT_OUTPUT = ROOT / "outputs" / "VaaniSetu_Submission_Candidate.zip"
 
 REQUIRED = [
     "submission/VaaniSetu_Final_Hackathon_Deck.pptx",
+    "AUDIT.md",
     "DEMO.md",
     "BAIF_ONBOARDING_RUNBOOK.html",
     "BAIF_ONBOARDING_RUNBOOK.css",
@@ -33,6 +34,7 @@ REQUIRED = [
     "samples/README.md",
     "samples/demo_agriculture.txt",
     "samples/demo_agriculture.csv",
+    "scripts/demo_smoke_test.py",
     "outputs/release_evidence/source_manifest.json",
     "outputs/release_evidence/python_sbom.cdx.json",
     "outputs/quality_report.json",

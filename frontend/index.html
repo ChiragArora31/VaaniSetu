@@ -95,9 +95,9 @@
           <label>
             <span>Source</span>
             <select id="sourceLanguage">
+              <option selected>English</option>
               <option>Hindi</option>
               <option>Marathi</option>
-              <option>English</option>
               <option>Auto detect</option>
             </select>
           </label>
@@ -105,8 +105,8 @@
           <label>
             <span>Translate to</span>
             <select id="targetLanguage">
+              <option selected>Hindi</option>
               <option>Marathi</option>
-              <option>Hindi</option>
               <option>English</option>
             </select>
           </label>
@@ -121,11 +121,11 @@
         <details class="output-options" id="outputOptions">
           <summary>
             <span>Output package</span>
-            <span id="outputSummary">Translated text, voice, subtitles</span>
+            <span id="outputSummary">Translated text, subtitles</span>
           </summary>
           <div class="output-option-grid">
             <label class="check-option">
-              <input id="makeTts" type="checkbox" checked />
+              <input id="makeTts" type="checkbox" />
               <span><strong>Translated voice</strong><small>Offline WAV and MP3 when available</small></span>
             </label>
             <label class="check-option">

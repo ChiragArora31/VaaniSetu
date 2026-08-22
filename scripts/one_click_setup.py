@@ -35,7 +35,10 @@ def main() -> None:
     args = parser.parse_args()
 
     python = sys.executable
-    run([python, "-m", "pip", "install", "--upgrade", "pip"])
+    # Torch 2.12 requires setuptools<82. Keep the packaging toolchain current
+    # within that compatibility boundary instead of leaving the venv bootstrap
+    # version in place or installing an incompatible major release.
+    run([python, "-m", "pip", "install", "--upgrade", "pip", "setuptools<82", "wheel"])
     requirements = "requirements.txt" if args.minimal else (
         "requirements-quality.txt" if args.profile == "quality" else "requirements-full.txt"
     )

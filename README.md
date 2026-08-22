@@ -10,7 +10,7 @@ VaaniSetu is a verified release candidate ready for controlled Windows acceptanc
 
 - 77 automated tests, including 20 adversarial security and recovery regressions
 - All eight BAIF-supplied videos validated in place for format, size, duration, resolution and streams
-- The real 5:43 BAIF sample completed the full local pipeline in 5:09 on an 8 GB engineering Mac; transcript/translation content remains private
+- The real 5:43 BAIF sample completed the final full local pipeline in 4:20 on an 8 GB engineering Mac; transcript/translation content remains private
 - Real browser, public-video, offline-package, backup/restore, failure-drill and boundary-stress evidence
 - Privacy-safe release evidence, source manifest, SBOM, model inventory and submission builder
 
@@ -102,6 +102,7 @@ node --check frontend/app.js
 python -m unittest discover -s tests -v
 python -m pip check
 python scripts/release_check.py
+python scripts/demo_smoke_test.py --full
 python scripts/failure_drill.py
 python scripts/release_evidence.py
 python scripts/build_submission_bundle.py
@@ -124,6 +125,7 @@ Quality scores are engineering evidence, not linguistic approval. NLLB remains a
 | Model and dependency licences | [Licensing](LICENSING.md) |
 | BAIF ownership and knowledge transfer | [Handover](HANDOVER.md) |
 | Requirement traceability | [Requirements](REQUIREMENTS.md) |
+| Final compliance, risk and judge-readiness audit | [Audit](AUDIT.md) |
 | Judge walkthrough and fallback | [Demo](DEMO.md) |
 
 The browser-served onboarding guide is available at `/onboarding` after startup. The final five-slide deck is in [submission](submission/README.md).

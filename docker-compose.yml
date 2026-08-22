@@ -4,7 +4,7 @@ services:
     ports:
       - "8501:8501"
     environment:
-      BAIF_MODEL_PROFILE: "quality"
+      BAIF_MODEL_PROFILE: "balanced"
       BAIF_ALLOW_MODEL_DOWNLOAD: "0"
     volumes:
       - ./models:/app/models

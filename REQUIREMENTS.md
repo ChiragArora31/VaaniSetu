@@ -1,16 +1,16 @@
 # Requirements Alignment
 
 Initial audit: 16 July 2026
-Last reviewed: 15 August 2026
-Source of truth: the organiser screenshots supplied by the team on 16 July 2026 plus the 5 August 2026 implementation-review email containing the weighted evaluation criteria and timeline. No requirement beyond those supplied materials is assumed.
+Last reviewed: 22 August 2026
+Source of truth: all organiser screenshots and communications supplied for the final audit, reconciled in [AUDIT.md](AUDIT.md). The weighted implementation-review email is dated 4 August 2026 in the supplied screenshot. No requirement beyond those supplied materials is assumed.
 
 ## Executive conclusion
 
 VaaniSetu is aligned to the requested product: a production-ready, zero-license-cost web application that runs on BAIF's CPU-only Windows office infrastructure, translates English/Hindi/Marathi learning material, and creates reusable outputs for offline field use. The remaining external gates are model-account acceptance, bilingual human sign-off, and proof on the target Windows machine. They are tracked separately and do not block independent product work.
 
-The 5 August rubric makes the remaining proof especially important: solution efficiency and ease of use are worth 30% each, deployment is worth 20%, and test evidence plus handover/training are worth 10% each. The implementation is a release candidate; the final submission must now convert its capabilities into measured IndicTrans2, novice-journey, Windows and adoption evidence.
+The 4 August rubric makes the remaining proof especially important: solution efficiency and ease of use are worth 30% each, deployment is worth 20%, and test evidence plus handover/training are worth 10% each. The implementation is a release candidate; the final submission must now convert its capabilities into measured IndicTrans2, novice-journey, Windows and adoption evidence.
 
-## Implementation-review scoring criteria received 5 August
+## Implementation-review scoring criteria received 4 August
 
 | Criterion | Weight | Organiser emphasis | VaaniSetu finishing response |
 | --- | ---: | --- | --- |

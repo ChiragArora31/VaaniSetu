@@ -1,6 +1,6 @@
 # Testing and Evidence
 
-Last reviewed: 17 August 2026
+Last reviewed: 22 August 2026
 
 Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is intentionally recorded as a non-target machine; BAIF's clean Windows 11/16 GB acceptance remains external.
 
@@ -11,7 +11,7 @@ Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3
 - Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
 - Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.
 - The GitHub Actions workflow repeats the suite on a clean Ubuntu runner with FFmpeg and English/Hindi/Marathi OCR data.
-- A detached clean checkout at commit `791ec1c5` completed the documented minimal/no-model setup from an empty virtual environment, migration, all 69 tests in 4.28 seconds, and repository policy checks.
+- The final release gate validates all local Markdown/HTML documentation links in addition to required guides, generated/private paths and credential patterns.
 
 Run:
 
@@ -49,11 +49,11 @@ The 12-sample, six-direction engineering gate passed with local **NLLB-200 CTran
 | Marathi → English | 48.62 | 0 |
 | Marathi → Hindi | 79.41 | 0 |
 
-Peak benchmark memory was 964 MB. Preferred terminology misses remain visible in `outputs/translation_reviewer_worksheet.csv`; these engineering scores are not IndicTrans2 readiness or bilingual approval.
+Peak benchmark memory was approximately 1.2 GB in the final run. Preferred terminology misses remain visible in `outputs/translation_reviewer_worksheet.csv`; English→Hindi terminology was the weakest seed result. These engineering scores are not IndicTrans2 readiness or bilingual approval.
 
 ## Real browser and media E2E
 
-- Real browser English→Hindi processing used NLLB CTranslate2 INT8 in **43.8 seconds** and preserved `25 kg` plus `1800-123-456`.
+- Final real browser English→Hindi processing used NLLB CTranslate2 INT8 in **10.6 seconds**, preserved `25 kg`, `1800-123-456` and `BAIF`, and produced a verified nine-file package when optional speech was enabled for that test.
 - Atomic human approval created the approved package; the same source then reused the approved correction in **0.6 seconds**.
 - Text, public TXT/CSV batch upload, library reopen, keyboard tabs and 390×844 mobile layout passed with no duplicate IDs, unlabeled controls, horizontal overflow or console errors.
 - The first-admin onboarding checklist and printable BAIF runbook pass desktop/mobile browser checks with actionable state transitions, no horizontal overflow and no console warnings/errors.
@@ -69,8 +69,8 @@ Peak benchmark memory was 964 MB. Preferred terminology misses remain visible in
 - Privacy-safe hashes and metadata are generated with `python scripts/validate_baif_samples.py PATH_TO_VIDEOS` into the ignored `outputs/baif_sample_validation.json` report.
 - Short probes identify Marathi narration. Whisper-small is error-heavy on this material. The original balanced large-v3/beam-3 configuration retained better speech but exceeded one hour on the 8 GB Mac and exposed an instruction-prompt echo on quiet sections. That configuration is no longer the laptop default; large-v3 remains available only through the explicit `quality` profile.
 - The corrected `balanced` profile uses multilingual large-v3-turbo INT8 with deterministic single-beam decoding, VAD, no instruction prompt and no second full-file retry after an empty VAD result. It emits segment-level progress/ETA and stops at a configurable elapsed-time guard instead of continuing indefinitely.
-- A 60-second excerpt of the real `401.1.mp4` completed ASR in **35.03 seconds** (0.584× real time). The full 5:43 audio completed ASR in **228.63 seconds** (0.667× real time), producing 33 timed segments and covering 342.14 of 342.96 seconds.
-- The same 5:43 file then passed the complete application path on the 8 GB Mac in **308.69 seconds**: inspection, audio extraction, ASR, local NLLB CTranslate2 INT8 Marathi→Hindi translation, SRT/VTT and a verified offline ZIP. The report excludes transcript/translation content. This is an engineering completion result, not Marathi/Hindi linguistic approval.
+- A 60-second excerpt of the real `401.1.mp4` completed ASR in **35.03 seconds** (0.584× real time). In the final audit, the full 5:43 audio reached translation after **237.0 seconds**, producing 33 timed segments.
+- The final 22 August run passed the complete 5:43 application path on the 8 GB Mac in **259.61 seconds**: inspection, audio extraction, multilingual large-v3-turbo ASR, local NLLB CTranslate2 INT8 Marathi→Hindi translation, SRT/VTT and a verified offline ZIP. Runtime downloads and hosted translation were disabled; there were no warnings. The privacy-safe report excludes transcript/translation content. This is engineering completion evidence, not Marathi/Hindi linguistic approval.
 
 ## Failure and offline evidence
 
@@ -84,6 +84,8 @@ Peak benchmark memory was 964 MB. Preferred terminology misses remain visible in
 6. server-free `CONTENTS.html` playback/links.
 
 Both the standard and approved review packages verify cleanly. Migration, backup/checksum restore, cleanup dry-run, redacted support bundle, model inventory, source manifest and SBOM generation also pass.
+
+The final dependency audit closed the two pypdf denial-of-service advisories by upgrading to 6.15.0. Remaining findings are constrained to the PyTorch/Transformers model toolchain and the newest setuptools fix that conflicts with the pinned PyTorch compatibility bound. VaaniSetu never accepts user-supplied models/checkpoints and normal runtime downloads are disabled; these versions remain a post-demo compatibility-tested upgrade item rather than a rushed release change.
 
 ## Honest remaining proof
 

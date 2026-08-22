@@ -1,16 +1,17 @@
 # Demo Guide
 
-Last reviewed: 15 August 2026
+Last reviewed: 22 August 2026
 
 Use this as the single judge-demo script. The prepared path uses public, non-confidential agriculture content and cached local models.
 
 ## Before the room
 
-1. Start the worker with `scripts/start_baif_worker.ps1` on Windows or `python -m uvicorn app:app --host 127.0.0.1 --port 8501` elsewhere.
-2. Confirm `System: Ready to translate`, one admin account, at least 20 GB free disk, and hosted translation/model downloads disabled.
-3. Keep [the final deck](submission/VaaniSetu_Final_Hackathon_Deck.pptx), `outputs/VaaniSetu_Submission_Candidate.zip`, and the prepared demo package available offline.
-4. Open `samples/demo_agriculture.txt`; set **English → Hindi** and leave optional speech off for the fastest live path.
-5. Never promise IndicTrans2 approval, bilingual acceptance, or Windows proof until the named external evidence exists.
+1. Run `python scripts/demo_smoke_test.py --full`. Do not continue if any check is false.
+2. Start the worker with `scripts/start_baif_worker.ps1` on Windows or `python -m uvicorn app:app --host 127.0.0.1 --port 8501` elsewhere. Port 8501 is the only application port required for the local demo.
+3. Confirm `System: Ready to translate`, one approved demo account, at least 20 GB free disk, and hosted translation/model downloads disabled.
+4. Keep [the final deck](submission/VaaniSetu_Final_Hackathon_Deck.pptx), `outputs/VaaniSetu_Submission_Candidate.zip`, and the prepared demo package available offline.
+5. Open `samples/demo_agriculture.txt`; confirm **English → Hindi**, subtitles on and optional speech off for the fastest live path.
+6. Never promise IndicTrans2 approval, bilingual acceptance, or Windows proof until the named external evidence exists.
 
 ## 3½-minute judge path
 
