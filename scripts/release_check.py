@@ -71,6 +71,12 @@ def main() -> int:
             target = _local_link_target(ROOT / path, match.group(1))
             if target is not None and not target.exists():
                 failures.append(f"Broken local documentation link in {path}: {match.group(1)}")
+    setup_guide = (ROOT / "SETUP.md").read_text(encoding="utf-8")
+    windows_setup = (ROOT / "scripts" / "setup_baif_worker.ps1").read_text(encoding="utf-8")
+    if "Desktop development with C++" not in setup_guide:
+        failures.append("Windows setup guide omits the required C++ build workload.")
+    if "Microsoft.VisualStudio.Component.VC.Tools.x86.x64" not in windows_setup:
+        failures.append("Windows setup script does not preflight the IndicTransToolkit C++ compiler.")
     glossary = json.loads((ROOT / "config" / "agriculture_glossary.json").read_text(encoding="utf-8"))
     if not glossary.get("version") or len(glossary.get("terms", [])) < 10: failures.append("Agriculture glossary is not versioned or sufficiently populated.")
     if failures:

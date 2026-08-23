@@ -25,6 +25,7 @@ python scripts/release_check.py
 
 ## Defects closed in the final adversarial pass
 
+- A clean Windows setup exposed IndicTransToolkit's native C++ compiler requirement. The public prerequisites now name the exact **Desktop development with C++** workload, and the setup script checks for the MSVC x64/x86 toolchain before creating/downloading the environment instead of failing deep inside `pip`.
 - Corrupt review records are quarantined and recovered instead of crashing the workflow.
 - Corrupt/non-object job reports fail with an actionable response instead of breaking history/download views.
 - Final approval atomically persists exactly the visible correction; duplicate saves/approvals no longer create false versions or memory rows.

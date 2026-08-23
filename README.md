@@ -71,7 +71,7 @@ One managed worker keeps model versions, memory use and operational support pred
 
 ## Start on Windows 11
 
-Requirements: Windows 11, Python 3.10/3.11, at least 16 GB RAM, six or more CPU cores and 20 GB free disk.
+Requirements: Windows 11, Python 3.10/3.11, [Microsoft C++ Build Tools](https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc?view=msvc-170) with **Desktop development with C++**, at least 16 GB RAM, six or more CPU cores and 20 GB free disk.
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass

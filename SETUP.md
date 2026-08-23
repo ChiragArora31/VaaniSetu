@@ -28,19 +28,24 @@ Keep the generated `outputs\windows_acceptance` folder with the private release 
 
 ## 2. Prepare the computer from zero
 
-1. Sign in with a Windows account allowed to install Python, FFmpeg and Tesseract.
+1. Sign in with a Windows account allowed to install Python, Microsoft C++ Build Tools, FFmpeg and Tesseract.
 2. Connect to the controlled office internet and power.
 3. Install 64-bit Python 3.11 from python.org. In the installer, enable the Python launcher. Python 3.10 is supported if 3.11 is unavailable; do not use 3.9, 3.12 or 3.13. Install Git for Windows as well; it is used to prove the exact source release.
-4. Open PowerShell and confirm:
+4. Install [Microsoft C++ Build Tools](https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc?view=msvc-170). In the Visual Studio Installer, select **Desktop development with C++** and retain its recommended MSVC x64/x86 compiler and Windows SDK components. This compiler is required to build IndicTransToolkit; installing only the Visual C++ Redistributable does not provide it.
+5. Close and reopen PowerShell, then confirm:
 
    ```powershell
    py -0p
    py -3.11 --version  # or: py -3.10 --version
    git --version
+   $VsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+   & $VsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
    ```
 
-5. Copy or extract the release into a simple local path such as `C:\VaaniSetu`. Do not use OneDrive, a public sync folder, Downloads shared by multiple users, or a path controlled by an untrusted account.
-6. Keep the BAIF test videos outside the repository, for example `C:\BAIF-Test-Data\Videos`. Never add them to Git or the submission ZIP.
+   The last command must print a Visual Studio or Build Tools installation path. If it prints nothing, open Visual Studio Installer, choose **Modify**, add **Desktop development with C++**, and rerun the check.
+
+6. Copy or extract the release into a simple local path such as `C:\VaaniSetu`. Do not use OneDrive, a public sync folder, Downloads shared by multiple users, or a path controlled by an untrusted account.
+7. Keep the BAIF test videos outside the repository, for example `C:\BAIF-Test-Data\Videos`. Never add them to Git or the submission ZIP.
 
 If PowerShell blocks the project scripts, allow them only in the current window:
 
@@ -58,6 +63,8 @@ cd C:\VaaniSetu
 ```
 
 The script selects Python 3.11/3.10, creates the private `.venv`, installs pinned packages, installs FFmpeg/Tesseract when Windows Package Manager is available, caches OCR languages and downloads the balanced CPU model set. The balanced set uses multilingual large-v3-turbo INT8: it completed the real 5:43 BAIF sample end to end on the engineering Mac while the previous large-v3/beam-3 default did not. Downloads can take a long time; do not close the window.
+
+The script checks the C++ compiler before any large installation starts. If it reports `Microsoft Visual C++ 14.0 or greater is required` or says that C++ Build Tools are missing, install/modify the Build Tools workload described in section 2, reopen PowerShell and rerun the same setup command. A failed run may leave `.venv`; rerunning is safe and resumes the installation.
 
 ### IndicTrans2 access
 
