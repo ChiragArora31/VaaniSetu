@@ -18,6 +18,23 @@ if (-not $PythonVersion) {
     throw "VaaniSetu needs Python 3.10 or 3.11. Install one of those versions from python.org, then rerun this script."
 }
 
+$CppBuildToolsComponent = "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+$HasCppBuildTools = [bool](Get-Command cl.exe -ErrorAction SilentlyContinue)
+$VsWhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+if (-not $HasCppBuildTools -and (Test-Path $VsWhere)) {
+    $CppInstallPath = & $VsWhere -latest -products * -requires $CppBuildToolsComponent -property installationPath
+    $HasCppBuildTools = -not [string]::IsNullOrWhiteSpace(($CppInstallPath | Select-Object -First 1))
+}
+if (-not $HasCppBuildTools) {
+    throw @"
+Microsoft C++ Build Tools are required to install IndicTransToolkit.
+Install Microsoft C++ Build Tools and select the "Desktop development with C++" workload, including the MSVC x64/x86 compiler and a Windows SDK.
+Official installer guidance: https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc?view=msvc-170
+After installation, close and reopen PowerShell, then run this setup script again. The Visual C++ Redistributable alone is not sufficient.
+"@
+}
+Write-Host "Microsoft C++ Build Tools prerequisite found."
+
 $VenvPython = Join-Path (Get-Location) ".venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {
     Write-Host "Creating the private VaaniSetu Python environment..."

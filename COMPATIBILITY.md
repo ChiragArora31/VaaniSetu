@@ -9,6 +9,7 @@ Confirmed minimum:
 - 16 GB DDR4/DDR5 RAM
 - 512 GB or 1 TB SSD/HDD
 - Microsoft Office 2020 or later for BAIF-side document workflows
+- Microsoft C++ Build Tools with the **Desktop development with C++** workload for the one-time IndicTransToolkit installation
 - No GPU assumption
 
 VaaniSetu keeps one heavy model worker by default. Preflight recommends `balanced` on the minimum baseline, permits `quality` only with measured headroom (normally at least 32 GB RAM/eight cores), and rejects systems below 16 GB.
