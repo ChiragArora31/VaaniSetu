@@ -1,3 +1,7 @@
+param(
+    [switch]$InstallApprovedSystemTools
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
@@ -42,19 +46,30 @@ if (-not (Test-Path $VenvPython)) {
     if ($LASTEXITCODE -ne 0) { throw "Could not create the VaaniSetu Python environment." }
 }
 
-if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
-    Write-Host "Installing FFmpeg..."
-    winget install --exact --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
+$SystemTools = @(
+    @{ Command = "ffmpeg"; Package = "Gyan.FFmpeg"; Label = "FFmpeg" },
+    @{ Command = "git"; Package = "Git.Git"; Label = "Git" },
+    @{ Command = "tesseract"; Package = "tesseract-ocr.tesseract"; Label = "Tesseract OCR" }
+)
+$MissingSystemTools = @($SystemTools | Where-Object { -not (Get-Command $_.Command -ErrorAction SilentlyContinue) })
+if ($MissingSystemTools.Count -gt 0 -and -not $InstallApprovedSystemTools) {
+    $MissingLabels = ($MissingSystemTools | ForEach-Object { $_.Label }) -join ", "
+    throw @"
+Missing required system tools: $MissingLabels.
+Install them only through an IT/organiser-approved method. After approval, either install them manually or rerun this script with -InstallApprovedSystemTools to use Windows Package Manager.
+Do not use that switch on a shared Hackathon laptop without explicit organiser approval.
+"@
 }
-
-if (-not (Get-Command git -ErrorAction SilentlyContinue) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
-    Write-Host "Installing Git for release integrity checks..."
-    winget install --exact --id Git.Git --accept-package-agreements --accept-source-agreements
-}
-
-if (-not (Get-Command tesseract -ErrorAction SilentlyContinue) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
-    Write-Host "Installing Tesseract OCR..."
-    winget install --exact --id tesseract-ocr.tesseract --accept-package-agreements --accept-source-agreements
+if ($MissingSystemTools.Count -gt 0) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        throw "Windows Package Manager is unavailable. Ask IT/the organiser to install the approved system prerequisites, then rerun setup."
+    }
+    foreach ($Tool in $MissingSystemTools) {
+        Write-Host "Installing approved prerequisite: $($Tool.Label)..."
+        & winget install --exact --id $Tool.Package --accept-package-agreements --accept-source-agreements
+        if ($LASTEXITCODE -ne 0) { throw "Could not install $($Tool.Label)." }
+    }
+    Write-Host "Approved system tools were installed. Reopen PowerShell after setup so their command paths are refreshed."
 }
 
 & $VenvPython scripts\one_click_setup.py --profile balanced

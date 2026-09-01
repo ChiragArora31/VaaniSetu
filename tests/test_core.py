@@ -9,6 +9,7 @@ import unittest
 import zipfile
 import time
 import shutil
+from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -34,7 +35,8 @@ from core.pipeline import ProcessingOptions, TranslationPipeline, _validate_medi
 from core.review_store import ReviewStore
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
 from core.text_utils import detect_language_name, normalize_text, split_for_translation
-from core.translator import HostedHttpTranslator, TranslationError
+from core.translator import AutoTranslator, TranslationError, get_translator
+from config.settings import ENABLE_HOSTED_TRANSLATION
 from scripts.verify_package import verify as verify_package
 from core.user_messages import user_safe_error
 from core.transcriber import WhisperTranscriber, get_transcriber
@@ -71,12 +73,20 @@ class TextUtilsTest(unittest.TestCase):
 
 class TranslationQualityTest(unittest.TestCase):
     def test_protects_and_restores_numbers_units_urls_and_email(self):
-        source = "Apply 25 kg on 2.5 acres; see https://baif.org or ask field@example.org."
+        source = "Apply 25 kg on 2.5 acres; call 1800-123-456, see https://baif.org or ask field@example.org."
         protected = protect_invariants(source)
         self.assertNotIn("25 kg", protected.text)
         restored = restore_invariants("Translated " + protected.text, protected.values)
-        for value in ("25 kg", "2.5 acres", "https://baif.org", "field@example.org"):
+        for value in ("25 kg", "2.5 acres", "1800-123-456", "https://baif.org", "field@example.org"):
             self.assertIn(value, restored)
+
+    def test_restores_model_mutated_placeholder_without_leaking_marker(self):
+        restored = restore_invariants("कॉल ZXQQ0000QXZ करें", ("1800-123-456",))
+        self.assertEqual(restored, "कॉल 1800-123-456 करें")
+        self.assertNotIn("ZXQ", restored)
+        heavily_mutated = restore_invariants("कॉल ZXQA0000QXZ करें", ("1800-123-456",))
+        self.assertIn("1800-123-456", heavily_mutated)
+        self.assertNotIn("ZXQ", heavily_mutated)
 
     def test_translation_gate_finds_missing_values_wrong_script_and_glossary(self):
         findings = validate_translation("Apply 25 kg compost", "apply compost", "English", "Hindi")
@@ -287,7 +297,8 @@ class OperationsRecommendationTest(unittest.TestCase):
             ), patch("scripts.operations.ALLOW_MODEL_DOWNLOAD", False), patch(
                 "scripts.operations.ENABLE_HOSTED_TRANSLATION", False
             ):
-                self.assertEqual(preflight(report, port=0), 0)
+                with redirect_stdout(io.StringIO()):
+                    self.assertEqual(preflight(report, port=0), 0)
             gates = json.loads(report.read_text(encoding="utf-8"))["gates"]
             self.assertTrue(gates["whisper_model_ready"])
             self.assertTrue(gates["local_translation_ready"])
@@ -519,16 +530,21 @@ class DocumentProcessorTest(unittest.TestCase):
 
 
 class TranslationGuardTest(unittest.TestCase):
-    def test_rejects_unchanged_cross_language_output(self):
-        with self.assertRaises(TranslationError):
-            HostedHttpTranslator._validate_output("how are you", "how are you", "Hindi")
+    def test_hosted_translation_is_hard_disabled(self):
+        self.assertFalse(ENABLE_HOSTED_TRANSLATION)
 
-    def test_rejects_wrong_target_script(self):
-        with self.assertRaises(TranslationError):
-            HostedHttpTranslator._validate_output("hello", "namaste", "Hindi")
+    def test_hosted_endpoint_is_absent_from_runtime(self):
+        source = (ROOT / "core" / "translator.py").read_text(encoding="utf-8")
+        self.assertNotIn("api.mymemory", source)
+        self.assertNotIn("requests.get", source)
+        self.assertFalse(hasattr(AutoTranslator(), "hosted"))
 
-    def test_accepts_target_script(self):
-        HostedHttpTranslator._validate_output("hello", "नमस्ते", "Hindi")
+    def test_hosted_backend_name_is_rejected(self):
+        get_translator.cache_clear()
+        with patch("core.translator.TRANSLATION_BACKEND", "hosted"):
+            with self.assertRaisesRegex(TranslationError, "Unknown translation backend"):
+                get_translator()
+        get_translator.cache_clear()
 
     def test_setup_error_is_local_and_privacy_clear(self):
         message = user_safe_error("IndicTrans2 dependencies are not installed")

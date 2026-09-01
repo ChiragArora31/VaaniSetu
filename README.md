@@ -8,9 +8,9 @@ The product is designed for a managed Windows 11 CPU worker at the BAIF office. 
 
 VaaniSetu is a verified release candidate ready for controlled Windows acceptance testing.
 
-- 77 automated tests, including 20 adversarial security and recovery regressions
+- 78 automated tests, including 20 adversarial security and recovery regressions
 - All eight BAIF-supplied videos validated in place for format, size, duration, resolution and streams
-- The real 5:43 BAIF sample completed the final full local pipeline in 4:20 on an 8 GB engineering Mac; transcript/translation content remains private
+- The real 5:43 BAIF sample completed the final full local pipeline in 3:47 on an 8 GB engineering Mac; transcript/translation content remains private
 - Real browser, public-video, offline-package, backup/restore, failure-drill and boundary-stress evidence
 - Privacy-safe release evidence, source manifest, SBOM, model inventory and submission builder
 
@@ -48,7 +48,7 @@ Production approval remains intentionally gated by the target Windows run, accep
 - Durable single-worker queue, cancellation and restart recovery
 - Health, preflight, metrics and privacy-safe aggregate impact reporting
 - Model inventory, backup/restore, retention cleanup and redacted support bundles
-- Runtime downloads and hosted translation disabled by default
+- Runtime model downloads disabled; no hosted translation route in the release
 - Visible segment-level video transcription progress, ETA and an elapsed-time safety guard
 
 ## Architecture
@@ -69,12 +69,17 @@ flowchart LR
 
 One managed worker keeps model versions, memory use and operational support predictable. Translation happens at the office; downloaded packages work independently in the field. The rationale and component boundaries are documented in [Architecture](ARCHITECTURE.md).
 
+## Where VaaniSetu fits alongside Bhashini
+
+[Bhashini](https://dibd-bhashini.gitbook.io/bhashini-apis) provides a broad Indian-language model and API ecosystem across capabilities such as speech recognition, translation and speech generation. VaaniSetu does not claim superior model accuracy without a controlled benchmark. It is a BAIF-specific, locally operated content workflow: governed inputs, visible provenance, agricultural review prompts, human approval, exact approved reuse, durable job history, failure recovery and integrity-checked offline field packages.
+
+Bhashini is a strong fit when national language breadth or hosted API integration is the priority. VaaniSetu is designed for controlled office-to-field operations where review, privacy, reuse and offline distribution matter alongside translation. Its adapter boundary can support a future BAIF-approved model; no Bhashini service is called by the current release.
+
 ## Start on Windows 11
 
 Requirements: Windows 11, Python 3.10/3.11, [Microsoft C++ Build Tools](https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc?view=msvc-170) with **Desktop development with C++**, at least 16 GB RAM, six or more CPU cores and 20 GB free disk.
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\setup_baif_worker.ps1
 .\scripts\windows_acceptance.ps1 -VideosPath "C:\BAIF-Test-Data\Videos"
 .\scripts\start_baif_worker.ps1

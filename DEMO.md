@@ -1,69 +1,86 @@
-# Demo Guide
+# Demo Runbook
 
-Last reviewed: 22 August 2026
+Last reviewed: 1 September 2026
 
-Use this as the single judge-demo script. The prepared path uses public, non-confidential agriculture content and cached local models.
+This is the single operating script for the 30-minute implementation review on 9 September 2026. Keep the live path core-first, local, and time-boxed. Use only public, synthetic, or organiser-approved content on the event device.
 
-## Before the room
+## Event-device rules
 
-1. Run `python scripts/demo_smoke_test.py --full`. Do not continue if any check is false.
-2. Start the worker with `scripts/start_baif_worker.ps1` on Windows or `python -m uvicorn app:app --host 127.0.0.1 --port 8501` elsewhere. Port 8501 is the only application port required for the local demo.
-3. Confirm `System: Ready to translate`, one approved demo account, at least 20 GB free disk, and hosted translation/model downloads disabled.
-4. Keep [the final deck](submission/VaaniSetu_Final_Hackathon_Deck.pptx), `outputs/VaaniSetu_Submission_Candidate.zip`, and the prepared demo package available offline.
-5. Open `samples/demo_agriculture.txt`; confirm **English → Hindi**, subtitles on and optional speech off for the fastest live path.
-6. Never promise IndicTrans2 approval, bilingual acceptance, or Windows proof until the named external evidence exists.
+- Use the organiser-provided Windows 11 laptop only for the hackathon demonstration.
+- Obtain organiser approval before installing the documented Python, Microsoft C++ Build Tools, FFmpeg, Git, or Tesseract prerequisites. Do not change security policy to bypass a restriction.
+- Connect only to the HSBC Guest network or the presenter's hotspot when setup connectivity is required. Never use corporate Wi-Fi, wired LAN, HSBC systems, or confidential/customer data.
+- Copy only required demo files by USB. Never leave the drive unattended; remove it immediately after transfer and take it away after the demo.
+- Do not leave personal credentials signed in. Save files temporarily, transfer only what must be retained, and delete the application, models, outputs, caches, and temporary content before returning the device.
+- The team owns technical troubleshooting. Bring the verified team laptop, power adapter, final deck, release ZIP, and offline evidence as the screen-share fallback.
 
-## 3½-minute judge path
+## Two-hour setup window
 
-| Time | Show | Say |
+1. Confirm written approval for the software list, then follow [Setup](SETUP.md) from a clean Windows 11 account.
+2. Run `python scripts/demo_smoke_test.py --full`. Stop if any required check is false.
+3. Start with `scripts/start_baif_worker.ps1`; confirm only `127.0.0.1:8501` is in use and the browser shows **Ready to translate**.
+4. Confirm the balanced profile, one approved demo account, at least 20 GB free disk, and no runtime model download or hosted translation route.
+5. Open the final deck and verify the prepared public-video evidence, backup walkthrough, and offline package without internet.
+6. Close unrelated apps, notifications, personal sessions, terminals, and browser tabs. Keep one clean application tab and the deck ready.
+
+## Recommended 30-minute run of show
+
+| Time | Action | Presenter focus |
 | --- | --- | --- |
-| 0:00–0:30 | Slide 1 | BAIF translates in Pune, but learning must remain usable in the field without internet. VaaniSetu is the controlled bridge, not a one-off translator. |
-| 0:30–1:10 | Paste the sample and translate | One authenticated, CPU-only local worker accepts text, recordings, documents, audio and video. Limits and language checks happen before expensive processing. |
-| 1:10–1:45 | Trust card and glossary | The backend, timing, script/invariant checks and agricultural terminology are visible. Machine output is explicitly a draft. |
-| 1:45–2:20 | Human review; edit if useful; **Approve final** | Approval atomically saves exactly what is visible, versions it and creates an auditable approved package. |
-| 2:20–2:45 | Translate the same source again | Exact approved content returns from local translation memory in under a second; model guesses are never used for fuzzy reuse. |
-| 2:45–3:10 | Download package; open `CONTENTS.html` | Text, captions, speech/video and checksums travel together and open without VaaniSetu or field internet. |
-| 3:10–3:30 | Slides 4–5 | Close on evidence: 77 tests, 20 adversarial regressions, six directions, real BAIF end-to-end completion, full media limits, and only three clearly named external gates. |
+| 0:00–2:00 | Problem and users | BAIF prepares learning content at the office; farmers and field teams need accurate Hindi, Marathi, or English material that remains usable offline. |
+| 2:00–4:00 | Readiness and architecture | Show the local worker, CPU profile, supported languages, human review, and offline export boundary. |
+| 4:00–8:00 | Live English → Hindi text | Use `samples/demo_agriculture.txt`. Point out input validation, agricultural terminology, preserved numbers/units, timing, and model provenance. |
+| 8:00–11:00 | Review and approve | Correct only if needed, save, and approve the visible text. Explain that machine output is a draft and approval is versioned. |
+| 11:00–13:00 | Exact reuse | Submit the identical source again. Show the approved local result returning without another model run; VaaniSetu never performs fuzzy automatic reuse. |
+| 13:00–16:00 | Take content offline | Download the package, open `CONTENTS.html`, show captions/media links and checksums, then disconnect network if permitted. |
+| 16:00–18:00 | Realistic media evidence | Show the prepared public-video result and privacy-safe BAIF validation evidence. Do not live-process a multi-minute video on CPU. Explain visible stage progress and expected CPU latency. |
+| 18:00–23:00 | Product differentiation and evidence | Use the final slides: BAIF workflow, durable library, failure handling, test evidence, deployment, handover, and honest limitations. |
+| 23:00–28:00 | Panel questions | Keep answers tied to implemented evidence; do not claim benchmark superiority or bilingual approval. |
+| 28:00–30:00 | Buffer | Recover from a slow screen share or open the prepared evidence path. Do not add an untested feature. |
 
-## Prepared public video proof
+## Safest live input
 
-- Input: `outputs/demo_assets/Agriculture_First.webm` — 239.501 seconds, 600×480, 16,491,593 bytes.
-- Source and licence: Wikimedia Commons, **CC BY 3.0**, attribution **Indian Diplomacy**.
-- Verified flow: local Whisper → NLLB CTranslate2 INT8 → Hindi text/SRT/VTT/speech/video → integrity ZIP.
-- Latest machine-readable evidence: `outputs/demo_e2e_report.json`.
+Use a short synthetic agricultural sentence containing a number and unit, for example:
 
-The public video is a repeatable engineering/demo fixture. It is not a bilingual quality approval sample.
+> Apply 25 kg of compost per acre before using pesticide.
 
-## Backup path
+Select English → Hindi, subtitles on, and speech off for the fastest path. A full BAIF video is deliberately not the live centrepiece: CPU transcription and media encoding are real, useful capabilities, but their latency is unsuitable for an 18-minute demonstration window.
 
-If the live worker is slow or unavailable:
+## Prepared evidence path
 
-1. Continue from the final deck.
-2. Play `outputs/VaaniSetu_Backup_Walkthrough.mp4`.
-3. Open the prepared verified ZIP and its server-free `CONTENTS.html`.
-4. Show the real-model screenshot and `outputs/quality_report.json`; do not switch to a hosted translator.
+- Public fixture: `outputs/demo_assets/Agriculture_First.webm` — 239.501 seconds, 600×480, 16,491,593 bytes.
+- Source/licence: Wikimedia Commons, CC BY 3.0, attribution Indian Diplomacy.
+- Verified flow: local Whisper → local NLLB CTranslate2 INT8 → Hindi text/SRT/VTT/speech/video → integrity ZIP.
+- Machine-readable evidence: `outputs/demo_e2e_report.json`.
+- Backup walkthrough: `outputs/VaaniSetu_Backup_Walkthrough.mp4`.
 
-## Failure cards
+This proves engineering completion, not bilingual acceptance. Use the release report for private BAIF-video completion evidence; do not copy BAIF source media or generated content into the public repository or event screenshots.
 
-| Failure | Expected response |
+## Recovery cards
+
+| Failure | Recovery |
 | --- | --- |
-| Model unavailable | Actionable local setup message; content is not sent elsewhere. |
-| Low disk | Job rejected before partial job directories are created; administrator archives or cleans old jobs. |
-| Cancel pressed | Cancellation wins the completion race and becomes durable. |
-| Worker restart | Interrupted jobs become explicit recoverable failures; completed history remains. |
-| ZIP changed | Checksum verification rejects tampering or injected files. |
-| Field internet absent | Extracted package and `CONTENTS.html` continue to work offline. |
+| Event laptop setup is blocked | Use the verified team laptop through screen share; show the release evidence and offline package. |
+| Worker or model is unavailable | Show the actionable readiness error, then use the prepared walkthrough and package. Never switch to a hosted translator. |
+| Live job is unexpectedly slow | Leave it queued, explain the visible stages, and open the completed evidence. |
+| Low disk | Stop; archive or clean old jobs. VaaniSetu rejects the job before creating partial output. |
+| Worker restart | Restart once. Interrupted work becomes an explicit recoverable failure; completed history remains. |
+| Package is changed | Run the checksum verifier; tampering or injected files must fail verification. |
+| Field internet is absent | Extract the package and open `CONTENTS.html`; the field recipient does not need VaaniSetu. |
 
-Run all six with `python scripts/failure_drill.py`.
+Run the six deterministic engineering drills with `python scripts/failure_drill.py`.
 
-## Likely judge questions
+## Defensible Bhashini answer
 
-- **Why one worker?** It bounds memory on BAIF's CPU baseline and makes queue/recovery behaviour predictable.
-- **How is quality handled?** Invariant/script/glossary checks expose risk; human correction and approval remain authoritative.
-- **What scales?** More trainers share the managed worker and queue; approved exact translations remove repeated model work. A second worker is a measured deployment decision, not an accidental fork.
-- **Why no cloud API?** BAIF content stays on the configured worker, avoids paid licences and remains operable with cached models.
-- **What is unfinished?** Only authorised IndicTrans2 caching/terms, Hindi/Marathi sign-off, and clean Windows 11 baseline acceptance.
+Bhashini is a broad Indian-language model and API ecosystem. VaaniSetu does not claim a more accurate foundation model without a controlled benchmark. Its differentiation is the BAIF-specific operating workflow around local processing: input limits, visible provenance, agricultural review prompts, human approval, exact approved reuse, durable history, failure recovery, and integrity-checked offline field packages. Bhashini is the stronger fit when national language breadth or hosted API integration is the priority; VaaniSetu is designed for controlled office-to-field content operations and can adopt an approved future model adapter.
+
+## After the demo
+
+1. Transfer only approved evidence that must be retained.
+2. Sign out of VaaniSetu, Git hosting, email, and every other application.
+3. Delete the repository, models, runtime outputs, downloads, caches, and temporary files created for the demo.
+4. Remove the USB drive, disconnect from the network, close the browser, and return the device to the organisers.
+5. Confirm no credentials or BAIF/HSBC data remain.
 
 ## Stop/go rule
 
-Submit when the engineering checks in `ACCEPTANCE.md` are green. A production acceptance claim is allowed only after all external gates are evidenced; until then call this a verified release candidate.
+Proceed only when [Acceptance](ACCEPTANCE.md) is green for the chosen device and the fallback path has been opened successfully. Call the build a verified release candidate until Windows 11 acceptance, authorised production-model inventory, and Hindi/Marathi reviewer sign-off are evidenced.
