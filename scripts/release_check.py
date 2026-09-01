@@ -77,6 +77,18 @@ def main() -> int:
         failures.append("Windows setup guide omits the required C++ build workload.")
     if "Microsoft.VisualStudio.Component.VC.Tools.x86.x64" not in windows_setup:
         failures.append("Windows setup script does not preflight the IndicTransToolkit C++ compiler.")
+    if "InstallApprovedSystemTools" not in windows_setup:
+        failures.append("Windows setup does not require an explicit approved system-tool installation switch.")
+    demo_guide = (ROOT / "DEMO.md").read_text(encoding="utf-8")
+    for required_phrase in ("HSBC Guest", "30-minute", "Bhashini", "After the demo"):
+        if required_phrase not in demo_guide:
+            failures.append(f"Final demo runbook omits required event guidance: {required_phrase}")
+    translator_source = (ROOT / "core" / "translator.py").read_text(encoding="utf-8")
+    settings_source = (ROOT / "config" / "settings.py").read_text(encoding="utf-8")
+    if "api.mymemory" in translator_source or "requests.get" in translator_source:
+        failures.append("A hosted translation HTTP route remains in the runtime.")
+    if "ENABLE_HOSTED_TRANSLATION = False" not in settings_source:
+        failures.append("Hosted translation is not hard-disabled in configuration.")
     glossary = json.loads((ROOT / "config" / "agriculture_glossary.json").read_text(encoding="utf-8"))
     if not glossary.get("version") or len(glossary.get("terms", [])) < 10: failures.append("Agriculture glossary is not versioned or sufficiently populated.")
     if failures:

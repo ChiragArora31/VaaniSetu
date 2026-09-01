@@ -1,26 +1,37 @@
 # Requirements Alignment
 
 Initial audit: 16 July 2026
-Last reviewed: 22 August 2026
+Last reviewed: 1 September 2026
 Source of truth: all organiser screenshots and communications supplied for the final audit, reconciled in [AUDIT.md](AUDIT.md). The weighted implementation-review email is dated 4 August 2026 in the supplied screenshot. No requirement beyond those supplied materials is assumed.
 
 ## Executive conclusion
 
-VaaniSetu is aligned to the requested product: a production-ready, zero-license-cost web application that runs on BAIF's CPU-only Windows office infrastructure, translates English/Hindi/Marathi learning material, and creates reusable outputs for offline field use. The remaining external gates are model-account acceptance, bilingual human sign-off, and proof on the target Windows machine. They are tracked separately and do not block independent product work.
+VaaniSetu is aligned to the requested product: a production-ready, zero-license-cost web application that runs on BAIF's CPU-only Windows office infrastructure, translates English/Hindi/Marathi learning material, and creates reusable outputs for offline field use. Production acceptance still requires model-account acceptance, bilingual human sign-off and proof on the target Windows machine; event readiness also requires organiser software approval and final submission confirmation. These external gates are tracked separately and do not block independent product work.
 
-The 4 August rubric makes the remaining proof especially important: solution efficiency and ease of use are worth 30% each, deployment is worth 20%, and test evidence plus handover/training are worth 10% each. The implementation is a release candidate; the final submission must now convert its capabilities into measured IndicTrans2, novice-journey, Windows and adoption evidence.
+The latest implementation-review rubric keeps solution efficiency and ease of use at 30% each, assigns 10% each to test evidence, deployment, handover/training and explicit differentiation from Bhashini or similar solutions. It supersedes the 4 August weighting only where the weights changed: Deployment is now 10%, and USP/differentiation is a new 10% criterion. The implementation is a release candidate; the final review must convert its capabilities into a reliable journey, target-device evidence and an honest best-fit comparison.
 
-## Implementation-review scoring criteria received 4 August
+## Final implementation-review scoring criteria supplied 1 September
 
 | Criterion | Weight | Organiser emphasis | VaaniSetu finishing response |
 | --- | ---: | --- | --- |
 | Solution efficiency | 30% | Working end-to-end core journey; translation accuracy; language, format and scenario coverage | Run the final local IndicTrans2 path, expand the six-direction agriculture corpus, obtain bilingual sign-off and report preservation/performance evidence |
 | Ease of use | 30% | Clear, time-boxed walkthrough demonstrating journey, value and impact with a fallback | Complete novice persona UAT, final accessibility/mobile checks, real-product deck visuals, timed live demo and offline fallback |
 | Test evidence | 10% | Documented critical journeys, edge cases, results and understood defects | Consolidate automated, adversarial, browser, media and UAT results into one traceability/defect evidence index |
-| Deployment | 20% | Repeatable configuration/setup, prerequisites, downloads, rollback and logging | Measure a clean BAIF-spec Windows install, model cache, recovery, backup/restore, rollback and support flow |
+| Deployment | 10% | Repeatable configuration/setup, prerequisites, downloads, rollback and logging | Measure a clean BAIF-spec Windows install, model cache, recovery, backup/restore, rollback and support flow |
 | Handover and training | 10% | Ownership, support/runbook, adoption and documentation sufficient without the team | Expand quick starts, ownership/escalation, operating calendar, training exercises, KT and acceptance records |
+| USP vs Bhashini or similar solutions | 10% | Like-for-like differentiated value, quantified evidence where available, best-fit scenarios and honest trade-offs | Position VaaniSetu as BAIF's governed local content-production workflow—not as a claim of a superior foundation model; compare privacy, review, exact reuse, offline packaging and operability without inventing accuracy uplift |
 
-Timeline received with the rubric: implementation phase 15 July-21 August, submission deadline 21 August, tentative finals 25-27 August and tentative winner announcement 31 August.
+The later invite schedules VaaniSetu's 30-minute implementation review for 9 September 2026. The suggested allocation is two minutes for the problem, 18 minutes for the core-first demonstration, five minutes for panel questions and five minutes of recovery buffer.
+
+## Event-device requirements supplied 1 September
+
+- Use the organiser-provided vanilla Windows 11 demonstration laptop and begin setup in the allocated setup window; bring a screen-share-ready team laptop and power adapter as fallback.
+- Install only demonstration software approved by the organiser. VaaniSetu's Python, C++ Build Tools, FFmpeg, Tesseract and model requirements therefore need explicit approval before event-device installation.
+- Connect the event laptop only to the HSBC Guest Network or the presenter's mobile hotspot. Never use corporate Wi-Fi or wired/LAN connectivity.
+- Use only demo, public, synthetic or explicitly approved Hackathon data. Do not access or store HSBC internal, customer or confidential data.
+- Use USB storage only when needed for demo files, remove it immediately after transfer/use and never leave it unattended.
+- Store files temporarily, use only demo-required websites, leave no personal credentials signed in, and remove all project/demo files before returning the laptop.
+- The team owns technical troubleshooting; the demo therefore requires a locally verified fallback package and a preconfigured screen-share-ready fallback laptop.
 
 ## Requirement-by-requirement compliance
 

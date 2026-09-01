@@ -7,7 +7,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
 $env:BAIF_ALLOW_MODEL_DOWNLOAD = "0"
-$env:BAIF_ENABLE_HOSTED_TRANSLATION = "0"
 
 $VenvPython = Join-Path (Get-Location) ".venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {

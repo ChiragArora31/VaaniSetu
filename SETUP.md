@@ -8,6 +8,8 @@ Target: Windows 11, 16 GB RAM, six or more CPU cores, 20 GB free disk, CPU-only
 
 This is the zero-to-ready path for a new VaaniSetu worker. Follow it in order. Do not use real BAIF content until the automated acceptance check passes. Do not publish screenshots, transcripts, translations, model tokens or BAIF videos.
 
+On an organiser-provided hackathon laptop, obtain approval for every prerequisite before installation. Use only the HSBC Guest network or the presenter's hotspot, public/synthetic/approved data, and the minimum required USB files. Do not alter security settings. Follow the teardown in [Demo](DEMO.md) before returning the device.
+
 ## 1. Record the acceptance identity
 
 Fill this before setup:
@@ -47,11 +49,7 @@ Keep the generated `outputs\windows_acceptance` folder with the private release 
 6. Copy or extract the release into a simple local path such as `C:\VaaniSetu`. Do not use OneDrive, a public sync folder, Downloads shared by multiple users, or a path controlled by an untrusted account.
 7. Keep the BAIF test videos outside the repository, for example `C:\BAIF-Test-Data\Videos`. Never add them to Git or the submission ZIP.
 
-If PowerShell blocks the project scripts, allow them only in the current window:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-```
+If PowerShell blocks project scripts, stop and ask the device owner or BAIF IT for the approved execution method. Do not change execution policy or other security settings on a shared Hackathon laptop.
 
 ## 3. Install VaaniSetu and its local models
 
@@ -62,7 +60,7 @@ cd C:\VaaniSetu
 .\scripts\setup_baif_worker.ps1
 ```
 
-The script selects Python 3.11/3.10, creates the private `.venv`, installs pinned packages, installs FFmpeg/Tesseract when Windows Package Manager is available, caches OCR languages and downloads the balanced CPU model set. The balanced set uses multilingual large-v3-turbo INT8: it completed the real 5:43 BAIF sample end to end on the engineering Mac while the previous large-v3/beam-3 default did not. Downloads can take a long time; do not close the window.
+The script selects Python 3.11/3.10, creates the private `.venv`, installs pinned packages, caches OCR languages and downloads the balanced CPU model set. It does not silently install system software. If approved prerequisites are missing, install them through the device owner's approved method; only after explicit approval may an administrator rerun `.\scripts\setup_baif_worker.ps1 -InstallApprovedSystemTools` to request FFmpeg, Git and Tesseract through Windows Package Manager. The balanced set uses multilingual large-v3-turbo INT8: it completed the real 5:43 BAIF sample end to end on the engineering Mac while the previous large-v3/beam-3 default did not. Downloads can take a long time; do not close the window.
 
 The script checks the C++ compiler before any large installation starts. If it reports `Microsoft Visual C++ 14.0 or greater is required` or says that C++ Build Tools are missing, install/modify the Build Tools workload described in section 2, reopen PowerShell and rerun the same setup command. A failed run may leave `.venv`; rerunning is safe and resumes the installation.
 
@@ -88,7 +86,7 @@ Stop VaaniSetu if it is already running; port 8501 must be free. Then run:
 .\scripts\windows_acceptance.ps1 -VideosPath "C:\BAIF-Test-Data\Videos"
 ```
 
-This performs dependency integrity, 77 automated tests, repository/privacy policy, production preflight, model inventory and all-video compatibility checks. It writes:
+This performs dependency integrity, 78 automated tests, repository/privacy policy, production preflight, model inventory and all-video compatibility checks. It writes:
 
 - `outputs\windows_acceptance\acceptance_summary.json`
 - `outputs\windows_acceptance\acceptance.log`

@@ -7,7 +7,6 @@ explicit offline installation validation.
 
 from __future__ import annotations
 
-import re
 import gc
 from dataclasses import dataclass
 from functools import lru_cache
@@ -16,12 +15,8 @@ from config.languages import get_language
 from config.settings import (
     ALLOW_MODEL_DOWNLOAD,
     ALLOW_PREVIEW_TRANSLATOR,
-    ENABLE_HOSTED_TRANSLATION,
-    HOSTED_TRANSLATION_PROVIDER,
-    HOSTED_TRANSLATION_TIMEOUT_SECONDS,
     INDICTRANS_MODEL_BY_DIRECTION,
     INDICTRANS_REPO_BY_DIRECTION,
-    MYMEMORY_EMAIL,
     NLLB_CT2_MODEL,
     NLLB_MODEL,
     NLLB_MODEL_ID,
@@ -158,90 +153,6 @@ class IndicTrans2Translator:
             return TranslationResult(text="\n".join(translated), backend="IndicTrans2")
         except Exception as exc:
             raise TranslationError(f"IndicTrans2 translation failed: {exc}") from exc
-
-
-class HostedHttpTranslator:
-    """Provider-side HTTP translation adapter.
-
-    This keeps end users dependency-free. In production, point this abstraction
-    at a provider-owned LibreTranslate/IndicTrans service. The default MyMemory
-    path is useful for a no-key convenience fallback, but it is not the judged
-    open-source production path.
-    """
-
-    _codes = {
-        "English": "en",
-        "Hindi": "hi",
-        "Marathi": "mr",
-    }
-
-    def __init__(self, provider: str = HOSTED_TRANSLATION_PROVIDER):
-        self.provider = provider
-
-    @staticmethod
-    def _validate_output(source: str, translated: str, target_name: str) -> None:
-        normalized_source = " ".join(source.casefold().split())
-        normalized_output = " ".join(translated.casefold().split())
-        if not normalized_output or normalized_output == normalized_source:
-            raise TranslationError("Hosted translation returned untranslated text.")
-        has_devanagari = bool(re.search(r"[\u0900-\u097F]", translated))
-        has_latin = bool(re.search(r"[A-Za-z]", translated))
-        if target_name in {"Hindi", "Marathi"} and not has_devanagari:
-            raise TranslationError("Hosted translation returned text in the wrong script.")
-        if target_name == "English" and not has_latin:
-            raise TranslationError("Hosted translation returned text in the wrong script.")
-
-    def translate_many(self, texts: list[str], source_name: str, target_name: str) -> TranslationResult:
-        if source_name == target_name:
-            return TranslationResult(text="\n".join(texts), backend="same-language")
-        if self.provider != "mymemory":
-            raise TranslationError(f"Unsupported hosted translation provider: {self.provider}")
-
-        try:
-            import requests
-        except ImportError as exc:
-            raise TranslationError("Hosted translation client is not available on the backend.") from exc
-
-        source_code = self._codes[source_name]
-        target_code = self._codes[target_name]
-        translated: list[str] = []
-        for text in texts:
-            if not text.strip():
-                translated.append("")
-                continue
-            params = {
-                "q": text,
-                "langpair": f"{source_code}|{target_code}",
-            }
-            if MYMEMORY_EMAIL:
-                params["de"] = MYMEMORY_EMAIL
-            try:
-                response = requests.get(
-                    "https://api.mymemory.translated.net/get",
-                    params=params,
-                    timeout=HOSTED_TRANSLATION_TIMEOUT_SECONDS,
-                )
-                response.raise_for_status()
-                payload = response.json()
-                if payload.get("responseStatus") != 200:
-                    raise TranslationError(payload.get("responseDetails") or "Hosted translation failed.")
-                translated_text = payload.get("responseData", {}).get("translatedText", "")
-                translated_text = translated_text.strip()
-                self._validate_output(text, translated_text, target_name)
-                translated.append(translated_text)
-            except TranslationError:
-                raise
-            except Exception as exc:
-                raise TranslationError("Hosted translation service is temporarily unavailable.") from exc
-
-        return TranslationResult(
-            text="\n".join(translated),
-            backend=f"hosted-{self.provider}",
-            warning=(
-                "A free hosted convenience fallback produced this translation. "
-                "Use the provider-hosted IndicTrans quality path for judged output."
-            ),
-        )
 
 
 class NllbTranslator:
@@ -518,7 +429,6 @@ class AutoTranslator:
         self.indictrans = IndicTrans2Translator(allow_model_download=allow_model_download)
         self.nllb_ct2 = CTranslate2NllbTranslator()
         self.nllb = NllbTranslator(allow_model_download=allow_model_download)
-        self.hosted = HostedHttpTranslator()
         self.preview = PreviewPhrasebookTranslator()
         self.allow_preview = allow_preview
 
@@ -532,11 +442,6 @@ class AutoTranslator:
             except TranslationError:
                 try:
                     return self.nllb.translate_many(texts, source_name, target_name)
-                except TranslationError:
-                    pass
-            if ENABLE_HOSTED_TRANSLATION:
-                try:
-                    return self.hosted.translate_many(texts, source_name, target_name)
                 except TranslationError:
                     pass
             if not self.allow_preview:

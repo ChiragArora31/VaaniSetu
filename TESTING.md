@@ -1,12 +1,12 @@
 # Testing and Evidence
 
-Last reviewed: 22 August 2026
+Last reviewed: 1 September 2026
 
 Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is intentionally recorded as a non-target machine; BAIF's clean Windows 11/16 GB acceptance remains external.
 
 ## Automated release gate
 
-- **77/77 tests pass** locally, including scanned-PDF OCR, BAIF-media evidence privacy, native macOS memory detection, ASR progress reporting, no-speech retry regression and onboarding delivery checks.
+- **78/78 tests pass** locally, including scanned-PDF OCR, invariant-marker restoration, BAIF-media evidence privacy, native macOS memory detection, ASR progress reporting, no-speech retry regression and onboarding delivery checks.
 - **20 adversarial regressions** cover corrupt/malformed state, traversal/symlink escape, queue saturation/cancellation races, hostile password cost, bounded auth/session state, partial uploads, filename boundaries, oversized/duplicate archives and malformed manifests.
 - Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
 - Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.
@@ -25,6 +25,9 @@ python scripts/release_check.py
 
 ## Defects closed in the final adversarial pass
 
+- A real browser run exposed an NLLB mutation of a protected phone-number marker. Phone numbers are now protected as a single value, restoration tolerates harmless duplicated marker letters, and the exact English→Hindi journey preserves `1800-123-456` without leaking an internal token.
+- The optional hosted MyMemory implementation and configuration surface were removed, so a BAIF runtime job has no hidden cloud translation path even if an environment variable is changed.
+- Shared-event setup no longer silently installs FFmpeg, Git or Tesseract. The Windows script stops with an approval instruction unless an administrator deliberately supplies `-InstallApprovedSystemTools`.
 - A clean Windows setup exposed IndicTransToolkit's native C++ compiler requirement. The public prerequisites now name the exact **Desktop development with C++** workload, and the setup script checks for the MSVC x64/x86 toolchain before creating/downloading the environment instead of failing deep inside `pip`.
 - Corrupt review records are quarantined and recovered instead of crashing the workflow.
 - Corrupt/non-object job reports fail with an actionable response instead of breaking history/download views.
@@ -71,7 +74,7 @@ Peak benchmark memory was approximately 1.2 GB in the final run. Preferred termi
 - Short probes identify Marathi narration. Whisper-small is error-heavy on this material. The original balanced large-v3/beam-3 configuration retained better speech but exceeded one hour on the 8 GB Mac and exposed an instruction-prompt echo on quiet sections. That configuration is no longer the laptop default; large-v3 remains available only through the explicit `quality` profile.
 - The corrected `balanced` profile uses multilingual large-v3-turbo INT8 with deterministic single-beam decoding, VAD, no instruction prompt and no second full-file retry after an empty VAD result. It emits segment-level progress/ETA and stops at a configurable elapsed-time guard instead of continuing indefinitely.
 - A 60-second excerpt of the real `401.1.mp4` completed ASR in **35.03 seconds** (0.584× real time). In the final audit, the full 5:43 audio reached translation after **237.0 seconds**, producing 33 timed segments.
-- The final 22 August run passed the complete 5:43 application path on the 8 GB Mac in **259.61 seconds**: inspection, audio extraction, multilingual large-v3-turbo ASR, local NLLB CTranslate2 INT8 Marathi→Hindi translation, SRT/VTT and a verified offline ZIP. Runtime downloads and hosted translation were disabled; there were no warnings. The privacy-safe report excludes transcript/translation content. This is engineering completion evidence, not Marathi/Hindi linguistic approval.
+- The final 1 September rerun passed the complete 5:43 application path on the 8 GB Mac in **227.22 seconds**: inspection, audio extraction, multilingual large-v3-turbo ASR, local NLLB CTranslate2 INT8 Marathi→Hindi translation, 33 timed segments, SRT/VTT and a verified offline ZIP. Runtime downloads were disabled, no hosted translation route existed, and there were no warnings. The privacy-safe report excludes transcript/translation content. This is engineering completion evidence, not Marathi/Hindi linguistic approval.
 
 ## Failure and offline evidence
 
