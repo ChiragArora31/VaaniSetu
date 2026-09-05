@@ -1,6 +1,6 @@
 # Testing and Evidence
 
-Last reviewed: 1 September 2026
+Last reviewed: 5 September 2026
 
 Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3.10.5. This is intentionally recorded as a non-target machine; BAIF's clean Windows 11/16 GB acceptance remains external.
 
@@ -25,6 +25,7 @@ python scripts/release_check.py
 
 ## Defects closed in the final adversarial pass
 
+- Windows video transcription could select CUDA under faster-whisper's `auto` device mode when an NVIDIA driver was visible but CUDA 12 libraries were absent, causing a `cublas64_12.dll` failure. The application default, Windows launcher and acceptance script now enforce CPU INT8 transcription, matching BAIF's no-GPU requirement.
 - A real browser run exposed an NLLB mutation of a protected phone-number marker. Phone numbers are now protected as a single value, restoration tolerates harmless duplicated marker letters, and the exact English→Hindi journey preserves `1800-123-456` without leaking an internal token.
 - The optional hosted MyMemory implementation and configuration surface were removed, so a BAIF runtime job has no hidden cloud translation path even if an environment variable is changed.
 - Shared-event setup no longer silently installs FFmpeg, Git or Tesseract. The Windows script stops with an approval instruction unless an administrator deliberately supplies `-InstallApprovedSystemTools`.

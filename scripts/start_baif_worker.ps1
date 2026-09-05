@@ -10,6 +10,8 @@ $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
 $env:BAIF_MODEL_PROFILE = if ($env:BAIF_MODEL_PROFILE) { $env:BAIF_MODEL_PROFILE } else { "balanced" }
 $env:BAIF_ALLOW_MODEL_DOWNLOAD = "0"
+$env:BAIF_WHISPER_DEVICE = "cpu"
+$env:BAIF_WHISPER_COMPUTE_TYPE = "int8"
 $VenvPython = Join-Path (Get-Location) ".venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {
     throw "VaaniSetu is not set up yet. Run .\scripts\setup_baif_worker.ps1 once, then start again."

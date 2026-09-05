@@ -112,6 +112,7 @@ The canonical matrix is above. Every meaningful supplied requirement is represen
 
 All reasonably addressable internal P1 items are resolved:
 
+- Forced Windows Whisper execution to CPU INT8 after real Windows testing exposed CUDA auto-detection without the required `cublas64_12.dll`; the default, launcher and acceptance gate now agree with BAIF's no-GPU constraint.
 - Removed the hosted MyMemory code and configuration surface; changing an environment variable can no longer send a translation to that service.
 - Fixed an internal invariant-marker leak found in the final browser run. Phone numbers are protected as one value and mutation-tolerant restoration preserves `1800-123-456` exactly.
 - Changed shared-Windows setup to stop for approval instead of silently installing FFmpeg, Git or Tesseract; an administrator must explicitly request the approved installation switch.
@@ -143,6 +144,7 @@ All reasonably addressable internal P1 items are resolved:
 
 | Problem | Root cause | Fix | Verification |
 | --- | --- | --- | --- |
+| Windows video transcription failed on missing `cublas64_12.dll` | faster-whisper device `auto` selected CUDA when a driver was visible, despite BAIF's CPU-only target | Default and Windows scripts force Whisper `cpu` with `int8`; setup documents verification and rejects random-DLL/CUDA workarounds | Configuration regression checks, transcriber tests and release policy pass |
 | Phone number became `ZXQQ0003QXZ ... 456` in a real Hindi result | The model duplicated a marker letter and the number pattern split a telephone number into groups | Protect structured phone numbers as one invariant and accept bounded marker-letter duplication during restoration | New regression test; repeated live browser result preserves `1800-123-456`; no marker leak |
 | A hidden cloud route could be enabled by configuration | Legacy MyMemory implementation remained behind an off-by-default flag | Removed provider, endpoint, credentials and runtime fallback; release policy prevents reintroduction | 78 tests; source/network search; full local smoke |
 | Event setup could silently install unapproved software | General worker setup assumed an administrator-owned BAIF machine | Default to a clear stop; require explicit `-InstallApprovedSystemTools` after organiser approval | PowerShell/source review; setup and event docs agree |
