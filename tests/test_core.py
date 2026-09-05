@@ -714,6 +714,9 @@ class OnboardingDeliveryTest(unittest.TestCase):
         self.assertIn('.venv\\Scripts\\python.exe', start)
         self.assertNotIn("py -m uvicorn", start)
         self.assertIn('[string]$HostAddress = "127.0.0.1"', start)
+        self.assertIn('$env:BAIF_WHISPER_DEVICE = "cpu"', start)
+        self.assertIn('$env:BAIF_WHISPER_COMPUTE_TYPE = "int8"', start)
+        self.assertIn('$env:BAIF_WHISPER_DEVICE = "cpu"', acceptance)
         self.assertIn("validate_baif_samples.py", acceptance)
 
 

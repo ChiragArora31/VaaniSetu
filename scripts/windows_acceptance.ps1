@@ -7,6 +7,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
 $env:BAIF_ALLOW_MODEL_DOWNLOAD = "0"
+$env:BAIF_WHISPER_DEVICE = "cpu"
+$env:BAIF_WHISPER_COMPUTE_TYPE = "int8"
 
 $VenvPython = Join-Path (Get-Location) ".venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {

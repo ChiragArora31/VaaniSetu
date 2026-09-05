@@ -109,6 +109,14 @@ For testing on the same computer:
 
 Open `http://127.0.0.1:8501`. Keep the PowerShell window open. Press `Ctrl+C` once to stop safely.
 
+The Windows launcher deliberately forces Whisper to `cpu` with `int8` computation. If a manually started worker reports `cublas64_12.dll is not found`, stop it and use `start_baif_worker.ps1`; do not download DLL files or install CUDA. Confirm the effective configuration with:
+
+```powershell
+.\.venv\Scripts\python.exe -c "from config.settings import WHISPER_DEVICE, WHISPER_COMPUTE_TYPE; print(WHISPER_DEVICE, WHISPER_COMPUTE_TYPE)"
+```
+
+The expected output is `cpu int8`.
+
 For an IT-approved private BAIF LAN only:
 
 ```powershell

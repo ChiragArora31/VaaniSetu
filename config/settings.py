@@ -112,7 +112,9 @@ ACTIVE_MODEL_PROFILE = MODEL_PROFILES[MODEL_PROFILE]
 
 DEFAULT_WHISPER_MODEL = os.getenv("BAIF_WHISPER_MODEL", str(ACTIVE_MODEL_PROFILE["whisper_dir"]))
 WHISPER_MODEL_ID = os.getenv("BAIF_WHISPER_MODEL_ID", str(ACTIVE_MODEL_PROFILE["whisper_repo"]))
-WHISPER_DEVICE = os.getenv("BAIF_WHISPER_DEVICE", "auto")
+WHISPER_DEVICE = os.getenv("BAIF_WHISPER_DEVICE", "cpu").strip().lower()
+if WHISPER_DEVICE not in {"cpu", "cuda", "auto"}:
+    WHISPER_DEVICE = "cpu"
 WHISPER_COMPUTE_TYPE = os.getenv("BAIF_WHISPER_COMPUTE_TYPE", str(ACTIVE_MODEL_PROFILE["whisper_compute_type"]))
 WHISPER_CPU_THREADS = int(os.getenv("BAIF_WHISPER_CPU_THREADS", "0"))
 ASR_BEAM_SIZE = int(os.getenv("BAIF_ASR_BEAM_SIZE", str(ACTIVE_MODEL_PROFILE["asr_beam_size"])))

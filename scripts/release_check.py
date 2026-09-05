@@ -79,6 +79,9 @@ def main() -> int:
         failures.append("Windows setup script does not preflight the IndicTransToolkit C++ compiler.")
     if "InstallApprovedSystemTools" not in windows_setup:
         failures.append("Windows setup does not require an explicit approved system-tool installation switch.")
+    windows_start = (ROOT / "scripts" / "start_baif_worker.ps1").read_text(encoding="utf-8")
+    if '$env:BAIF_WHISPER_DEVICE = "cpu"' not in windows_start or '$env:BAIF_WHISPER_COMPUTE_TYPE = "int8"' not in windows_start:
+        failures.append("Windows launcher does not enforce CPU-only INT8 transcription.")
     demo_guide = (ROOT / "DEMO.md").read_text(encoding="utf-8")
     for required_phrase in ("HSBC Guest", "30-minute", "Bhashini", "After the demo"):
         if required_phrase not in demo_guide:
