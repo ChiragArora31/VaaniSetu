@@ -383,8 +383,9 @@ class TranslationPipeline:
             result.original_text = cleaned_text
             if not _has_meaningful_speech(result.original_text):
                 raise PipelineError(
-                    "No clear speech was detected in this file. Please upload audio with audible speech; "
-                    "music-only or heavily mixed songs may not contain transcribable spoken content."
+                    "No clear speech was detected after the safe short-audio retry. Confirm that the selected "
+                    "source language matches the recording and that speech is clearly audible; music-only, "
+                    "very quiet, or heavily mixed audio may not contain transcribable spoken content."
                 )
             try:
                 enforce_text_limit(result.original_text, MAX_TEXT_CHARS)

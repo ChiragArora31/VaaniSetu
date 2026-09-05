@@ -13,6 +13,7 @@ from config.settings import (
     ASR_BEAM_SIZE,
     ASR_BEST_OF,
     ASR_CONDITION_ON_PREVIOUS_TEXT,
+    ASR_EMPTY_RETRY_MAX_SECONDS,
     ASR_LOG_PROB_THRESHOLD,
     ASR_MAX_REALTIME_FACTOR,
     ASR_MIN_TIMEOUT_SECONDS,
@@ -41,6 +42,7 @@ class TranscriptionResult:
     text: str
     segments: list[Segment]
     language: str | None
+    duration_seconds: float = 0.0
 
 
 ProgressCallback = Callable[[float, float, float | None], None]
@@ -105,13 +107,28 @@ class WhisperTranscriber:
     ) -> TranscriptionResult:
         model = self._load_model()
         try:
-            return self._transcribe_once(
+            result = self._transcribe_once(
                 model,
                 audio_path,
                 source_language_code,
                 vad_filter=True,
                 progress_callback=progress_callback,
             )
+            # Silero VAD can occasionally reject low-volume speech. Retry only
+            # short clips: this recovers voice notes without doubling the wait
+            # for long silent/music-heavy recordings or BAIF videos.
+            if (
+                not result.text
+                and 0 < result.duration_seconds <= ASR_EMPTY_RETRY_MAX_SECONDS
+            ):
+                result = self._transcribe_once(
+                    model,
+                    audio_path,
+                    source_language_code,
+                    vad_filter=False,
+                    progress_callback=progress_callback,
+                )
+            return result
         except Exception as exc:
             raise TranscriptionError(f"Transcription failed: {exc}") from exc
 
@@ -171,6 +188,7 @@ class WhisperTranscriber:
             text=" ".join(transcript_parts).strip(),
             segments=segments,
             language=getattr(info, "language", source_language_code),
+            duration_seconds=duration,
         )
 
 

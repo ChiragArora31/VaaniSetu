@@ -939,6 +939,26 @@ class TranscriberSelectionTest(unittest.TestCase):
         self.assertEqual(result.text, "")
         self.assertEqual(calls, [True])
 
+    def test_whisper_retries_a_short_quiet_clip_without_vad(self):
+        calls = []
+
+        class FakeSegment:
+            start = 0.0
+            end = 3.0
+            text = "नमस्कार"
+
+        class FakeModel:
+            def transcribe(self, _path, **kwargs):
+                calls.append(kwargs["vad_filter"])
+                segments = [] if kwargs["vad_filter"] else [FakeSegment()]
+                return iter(segments), SimpleNamespace(language="mr", duration=30.0)
+
+        transcriber = WhisperTranscriber()
+        transcriber._model = FakeModel()
+        result = transcriber.transcribe(Path("quiet-short.wav"), "mr")
+        self.assertEqual(result.text, "नमस्कार")
+        self.assertEqual(calls, [True, False])
+
 
 class JobManagerTest(unittest.TestCase):
     def test_runs_and_persists_a_job_with_real_progress(self):

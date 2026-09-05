@@ -164,6 +164,12 @@ Start with the shortest supplied file, `401.1.mp4` (about 5 minutes 43 seconds):
 7. Repeat with `401.2 HOUSING OF GOAT.mp4` because its topic and title are directly relevant to livestock training.
 8. After the core passes, run one optional captioned-video or translated-speech job and record the extra time. Optional media failure must leave usable text/SRT/VTT outputs.
 
+### If audio reports “No clear speech was detected”
+
+This message means the model ran but found no usable spoken transcript; it is not a missing-model or CUDA error. First confirm the selected source language matches the recording, then play the file locally and verify that a human can clearly hear speech. Test with a 10–30 second voice recording in a quiet room to separate an application problem from a silent, music-only, very quiet or heavily mixed source file.
+
+VaaniSetu automatically makes one additional speech-recognition pass for an empty clip of 90 seconds or less. It deliberately does not repeat long files, because doing so can double CPU processing time without recovering speech. Pull the latest `main`, stop and restart VaaniSetu, and retry the original file. If the short clear recording works but the original does not, improve or isolate the source audio rather than changing model thresholds during acceptance testing. Record the input filename, selected source language, duration and job ID in the test log; do not share confidential audio in public issue trackers.
+
 Do not paste BAIF transcript or translation content into public issues, screenshots or the privacy-safe acceptance folder. Reviewer worksheets must stay in approved private storage.
 
 ## 9. Prove the field package offline

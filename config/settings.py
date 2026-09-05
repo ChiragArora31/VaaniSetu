@@ -126,6 +126,9 @@ ASR_VAD_MIN_SILENCE_MS = int(os.getenv("BAIF_ASR_VAD_MIN_SILENCE_MS", "500"))
 ASR_CONDITION_ON_PREVIOUS_TEXT = os.getenv("BAIF_ASR_CONDITION_ON_PREVIOUS_TEXT", "0") == "1"
 ASR_NO_SPEECH_THRESHOLD = float(os.getenv("BAIF_ASR_NO_SPEECH_THRESHOLD", "0.65"))
 ASR_LOG_PROB_THRESHOLD = float(os.getenv("BAIF_ASR_LOG_PROB_THRESHOLD", "-1.0"))
+# A second pass without VAD can recover quiet voice notes, but repeating a long
+# recording would make a legitimate no-speech result look like a hung job.
+ASR_EMPTY_RETRY_MAX_SECONDS = max(0, int(os.getenv("BAIF_ASR_EMPTY_RETRY_MAX_SECONDS", "90")))
 ASR_BACKEND = os.getenv("BAIF_ASR_BACKEND", "whisper").strip().lower()
 INDIC_CONFORMER_MODEL = os.getenv(
     "BAIF_INDIC_CONFORMER_MODEL",

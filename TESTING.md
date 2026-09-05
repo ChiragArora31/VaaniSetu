@@ -6,7 +6,7 @@ Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3
 
 ## Automated release gate
 
-- **78/78 tests pass** locally, including scanned-PDF OCR, invariant-marker restoration, BAIF-media evidence privacy, native macOS memory detection, ASR progress reporting, no-speech retry regression and onboarding delivery checks.
+- **79/79 tests pass** locally, including scanned-PDF OCR, invariant-marker restoration, BAIF-media evidence privacy, native macOS memory detection, ASR progress reporting, bounded short-audio no-speech recovery and onboarding delivery checks.
 - **20 adversarial regressions** cover corrupt/malformed state, traversal/symlink escape, queue saturation/cancellation races, hostile password cost, bounded auth/session state, partial uploads, filename boundaries, oversized/duplicate archives and malformed manifests.
 - Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
 - Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.

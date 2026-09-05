@@ -146,10 +146,10 @@ All reasonably addressable internal P1 items are resolved:
 | --- | --- | --- | --- |
 | Windows video transcription failed on missing `cublas64_12.dll` | faster-whisper device `auto` selected CUDA when a driver was visible, despite BAIF's CPU-only target | Default and Windows scripts force Whisper `cpu` with `int8`; setup documents verification and rejects random-DLL/CUDA workarounds | Configuration regression checks, transcriber tests and release policy pass |
 | Phone number became `ZXQQ0003QXZ ... 456` in a real Hindi result | The model duplicated a marker letter and the number pattern split a telephone number into groups | Protect structured phone numbers as one invariant and accept bounded marker-letter duplication during restoration | New regression test; repeated live browser result preserves `1800-123-456`; no marker leak |
-| A hidden cloud route could be enabled by configuration | Legacy MyMemory implementation remained behind an off-by-default flag | Removed provider, endpoint, credentials and runtime fallback; release policy prevents reintroduction | 78 tests; source/network search; full local smoke |
+| A hidden cloud route could be enabled by configuration | Legacy MyMemory implementation remained behind an off-by-default flag | Removed provider, endpoint, credentials and runtime fallback; release policy prevents reintroduction | 79 tests; source/network search; full local smoke |
 | Event setup could silently install unapproved software | General worker setup assumed an administrator-owned BAIF machine | Default to a clear stop; require explicit `-InstallApprovedSystemTools` after organiser approval | PowerShell/source review; setup and event docs agree |
 | Demo script and deck did not reflect the final rubric/schedule | Late-August communications arrived after the previous audit | 30-minute core-first runbook, event compliance/teardown, Bhashini best-fit slide and source notes | Five-slide render/visual review; no overflow; local links pass |
-| Crafted PDFs could consume excessive memory/time | Vulnerable pypdf pin | `pypdf==6.15.0` | 78 tests; PDF/OCR/adversarial tests pass; advisory no longer appears in audit |
+| Crafted PDFs could consume excessive memory/time | Vulnerable pypdf pin | `pypdf==6.15.0` | 79 tests; PDF/OCR/adversarial tests pass; advisory no longer appears in audit |
 | Fast demo unexpectedly generated speech | TTS checkbox was selected by default behind collapsed options | Default TTS off; English→Hindi selected | Live DOM/browser verification; full smoke package contains text/subtitles without TTS |
 | Docker exceeded target baseline | Quality profile was hardcoded | Balanced profile and full requirements | Config review; dependency integrity |
 | Local shell startup exposed port 8501 to the LAN | `0.0.0.0` hardcoded | Localhost default plus explicit `BAIF_HOST` override | Source check; localhost live server/browser test |
@@ -166,7 +166,7 @@ Files changed are visible in the final Git diff; no BAIF media, transcripts, cre
 | Test | Result |
 | --- | --- |
 | Python compilation and frontend `node --check` | PASS |
-| Full unit/adversarial suite | PASS — 78/78; 20 adversarial cases |
+| Full unit/adversarial suite | PASS — 79/79; 20 adversarial cases |
 | `pip check` after dependency changes | PASS |
 | Dependency vulnerability audit | 8 known advisories in 3 model-toolchain/build packages; no pypdf advisory; constrained residuals documented below |
 | Release policy, secret/generated-data policy and documentation-link audit | PASS — 90 repository paths |
