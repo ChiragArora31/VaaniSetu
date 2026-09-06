@@ -385,7 +385,7 @@ def _options(
     allow_model_download: bool = True,
 ) -> ProcessingOptions:
     return ProcessingOptions(
-        make_subtitles=make_subtitles,
+        make_subtitles=make_subtitles or burn_captions,
         make_tts=make_tts or merge_translated_audio,
         burn_captions=burn_captions,
         merge_translated_audio=merge_translated_audio,

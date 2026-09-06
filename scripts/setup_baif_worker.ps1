@@ -46,12 +46,21 @@ if (-not (Test-Path $VenvPython)) {
     if ($LASTEXITCODE -ne 0) { throw "Could not create the VaaniSetu Python environment." }
 }
 
+$EspeakPaths = @(
+    (Join-Path $env:ProgramFiles "eSpeak NG\espeak-ng.exe"),
+    $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} "eSpeak NG\espeak-ng.exe" })
+) | Where-Object { $_ }
 $SystemTools = @(
     @{ Command = "ffmpeg"; Package = "Gyan.FFmpeg"; Label = "FFmpeg" },
     @{ Command = "git"; Package = "Git.Git"; Label = "Git" },
-    @{ Command = "tesseract"; Package = "tesseract-ocr.tesseract"; Label = "Tesseract OCR" }
+    @{ Command = "tesseract"; Package = "tesseract-ocr.tesseract"; Label = "Tesseract OCR" },
+    @{ Command = "espeak-ng"; Package = "eSpeak-NG.eSpeak-NG"; Label = "eSpeak NG translated speech"; AlternatePaths = $EspeakPaths }
 )
-$MissingSystemTools = @($SystemTools | Where-Object { -not (Get-Command $_.Command -ErrorAction SilentlyContinue) })
+$MissingSystemTools = @($SystemTools | Where-Object {
+    $CommandMissing = -not (Get-Command $_.Command -ErrorAction SilentlyContinue)
+    $AlternateMissing = -not $_.ContainsKey("AlternatePaths") -or -not ($_.AlternatePaths | Where-Object { Test-Path $_ -PathType Leaf })
+    $CommandMissing -and $AlternateMissing
+})
 if ($MissingSystemTools.Count -gt 0 -and -not $InstallApprovedSystemTools) {
     $MissingLabels = ($MissingSystemTools | ForEach-Object { $_.Label }) -join ", "
     throw @"

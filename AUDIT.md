@@ -115,7 +115,7 @@ All reasonably addressable internal P1 items are resolved:
 - Forced Windows Whisper execution to CPU INT8 after real Windows testing exposed CUDA auto-detection without the required `cublas64_12.dll`; the default, launcher and acceptance gate now agree with BAIF's no-GPU constraint.
 - Removed the hosted MyMemory code and configuration surface; changing an environment variable can no longer send a translation to that service.
 - Fixed an internal invariant-marker leak found in the final browser run. Phone numbers are protected as one value and mutation-tolerant restoration preserves `1800-123-456` exactly.
-- Changed shared-Windows setup to stop for approval instead of silently installing FFmpeg, Git or Tesseract; an administrator must explicitly request the approved installation switch.
+- Changed shared-Windows setup to stop for approval instead of silently installing FFmpeg, Git, Tesseract or eSpeak NG; an administrator must explicitly request the approved installation switch.
 - Rebuilt the runbook around the 9 September 30-minute review, organiser-laptop rules, two presentation paths and full teardown.
 - Replaced the stale final slide with an evidence-safe Bhashini comparison; all five slides render and the overflow test is clean.
 - Fixed the vulnerable `pypdf` 6.14.2 pin by moving to 6.15.0 and rerunning selectable/scanned/corrupt PDF tests.
@@ -146,11 +146,11 @@ All reasonably addressable internal P1 items are resolved:
 | --- | --- | --- | --- |
 | Windows video transcription failed on missing `cublas64_12.dll` | faster-whisper device `auto` selected CUDA when a driver was visible, despite BAIF's CPU-only target | Default and Windows scripts force Whisper `cpu` with `int8`; setup documents verification and rejects random-DLL/CUDA workarounds | Configuration regression checks, transcriber tests and release policy pass |
 | Phone number became `ZXQQ0003QXZ ... 456` in a real Hindi result | The model duplicated a marker letter and the number pattern split a telephone number into groups | Protect structured phone numbers as one invariant and accept bounded marker-letter duplication during restoration | New regression test; repeated live browser result preserves `1800-123-456`; no marker leak |
-| A hidden cloud route could be enabled by configuration | Legacy MyMemory implementation remained behind an off-by-default flag | Removed provider, endpoint, credentials and runtime fallback; release policy prevents reintroduction | 79 tests; source/network search; full local smoke |
+| A hidden cloud route could be enabled by configuration | Legacy MyMemory implementation remained behind an off-by-default flag | Removed provider, endpoint, credentials and runtime fallback; release policy prevents reintroduction | 82 tests; source/network search; full local smoke |
 | Event setup could silently install unapproved software | General worker setup assumed an administrator-owned BAIF machine | Default to a clear stop; require explicit `-InstallApprovedSystemTools` after organiser approval | PowerShell/source review; setup and event docs agree |
 | Demo script and deck did not reflect the final rubric/schedule | Late-August communications arrived after the previous audit | 30-minute core-first runbook, event compliance/teardown, Bhashini best-fit slide and source notes | Five-slide render/visual review; no overflow; local links pass |
-| Crafted PDFs could consume excessive memory/time | Vulnerable pypdf pin | `pypdf==6.15.0` | 79 tests; PDF/OCR/adversarial tests pass; advisory no longer appears in audit |
-| Fast demo unexpectedly generated speech | TTS checkbox was selected by default behind collapsed options | Default TTS off; English→Hindi selected | Live DOM/browser verification; full smoke package contains text/subtitles without TTS |
+| Crafted PDFs could consume excessive memory/time | Vulnerable pypdf pin | `pypdf==6.15.0` | 82 tests; PDF/OCR/adversarial tests pass; advisory no longer appears in audit |
+| Media upload could finish without the WAV/video a tester expected | Media deliverables were opt-in, the source ASR WAV leaked into the ZIP, and TTS failure was swallowed | Audio/video selection now opens and selects recommended target media; source extraction is excluded; missing TTS warns; Windows setup/preflight require eSpeak NG | Media regressions, real FFmpeg/TTS integration and BAIF media rerun |
 | Docker exceeded target baseline | Quality profile was hardcoded | Balanced profile and full requirements | Config review; dependency integrity |
 | Local shell startup exposed port 8501 to the LAN | `0.0.0.0` hardcoded | Localhost default plus explicit `BAIF_HOST` override | Source check; localhost live server/browser test |
 | Serverless config contradicted architecture | Residual Vercel file used ephemeral storage and no local models | Removed `vercel.json` | Release policy and repository review |
@@ -166,7 +166,7 @@ Files changed are visible in the final Git diff; no BAIF media, transcripts, cre
 | Test | Result |
 | --- | --- |
 | Python compilation and frontend `node --check` | PASS |
-| Full unit/adversarial suite | PASS — 79/79; 20 adversarial cases |
+| Full unit/adversarial suite | PASS — 82/82; 20 adversarial cases |
 | `pip check` after dependency changes | PASS |
 | Dependency vulnerability audit | 8 known advisories in 3 model-toolchain/build packages; no pypdf advisory; constrained residuals documented below |
 | Release policy, secret/generated-data policy and documentation-link audit | PASS — 90 repository paths |
@@ -175,10 +175,11 @@ Files changed are visible in the final Git diff; no BAIF media, transcripts, cre
 | Full real-model English→Hindi smoke and offline ZIP verification | PASS — NLLB CTranslate2 INT8, no runtime downloads/hosted API |
 | Six-direction translation engineering gate | PASS — 12/12, all required directions, no critical preservation/script/backend failure |
 | Browser login/workspace/result journey | PASS — local English→Hindi in 5.7 seconds; phone number preserved; approval and exact-memory reuse at 0.0 seconds |
-| Final UI defaults | PASS — English→Hindi, TTS off, subtitles on |
+| Final UI defaults | PASS — text remains fast by default; selecting audio/video visibly enables recommended target-language media outputs |
 | Offline ZIP integrity and server-free contents page | PASS |
 | BAIF sample inventory | PASS — 8/8 technical limits/streams |
 | Real BAIF shortest-video pipeline | PASS — 5:43 Marathi→Hindi completed in 227.22 seconds on the 8 GB engineering Mac; 33 segments; verified ZIP; no warnings |
+| Real BAIF `401.7` full-media pipeline | PASS with one environment limitation — 11:29 Marathi→Hindi completed in 584.09 seconds; Hindi WAV/MP3 and full-duration translated-audio MP4 in verified ZIP; source WAV absent; local caption burn unavailable because this Mac FFmpeg lacks libass, now a blocking Windows preflight gate |
 | Submission deck render/overflow/theme/template fidelity | PASS — five slides, theme hash preserved |
 | Submission evidence/bundle builder | PASS; rebuilt after final verification |
 
@@ -187,7 +188,7 @@ Files changed are visible in the final Git diff; no BAIF media, transcripts, cre
 - The installed fallback translation model is non-commercially licensed and is not the final unrestricted production route.
 - Machine translation scores are not human accuracy evidence. English→Hindi terminology in the small seed is the weakest direction.
 - The actual target Windows worker may differ in CPU, codec support, antivirus overhead, path policy and installation permissions.
-- Optional natural TTS and video dubbing add latency and backend-specific failure modes; text/subtitles are the dependable demo baseline.
+- eSpeak NG provides dependable, compact offline Hindi/Marathi speech but sounds synthetic; the larger natural-voice model remains an explicitly benchmarked post-demo option.
 - Transformers/PyTorch advisories concern untrusted model/checkpoint or training/JIT paths. VaaniSetu uses fixed, locally provisioned model directories and does not accept user-supplied models, but the versions should be upgraded after compatibility testing.
 - Cancellation is cooperative at stage boundaries; a native inference call is not forcibly terminated mid-call.
 - Document exports preserve usable content, not exact Office/PDF layout.

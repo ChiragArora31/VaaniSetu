@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from config.settings import (
     WHISPER_MODEL_ID,
 )
 from core.media_utils import MediaError, require_binary
+from core.tts import resolve_espeak_binary
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,27 @@ def _ffprobe_status() -> tuple[bool, str]:
     return False, f"Missing binary: {FFPROBE_BINARY}"
 
 
+def _subtitle_filter_status(ffmpeg_ok: bool, ffmpeg_detail: str) -> tuple[bool, str]:
+    if not ffmpeg_ok:
+        return False, "FFmpeg is missing"
+    try:
+        result = subprocess.run(
+            [ffmpeg_detail, "-hide_banner", "-filters"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False, "Could not inspect FFmpeg filters"
+    filters = f"{result.stdout}\n{result.stderr}"
+    if result.returncode == 0 and re.search(r"\bsubtitles\b", filters):
+        return True, "FFmpeg subtitles filter is available"
+    return False, "Install a full FFmpeg build with the subtitles/libass filter"
+
+
 def _ocr_status() -> tuple[bool, str]:
     binary = shutil.which("tesseract")
     if not binary or not _package_available("pypdfium2"):
@@ -94,10 +117,24 @@ def _ocr_status() -> tuple[bool, str]:
     return False, "Missing OCR language data: " + ", ".join(missing)
 
 
+def _translated_speech_status() -> tuple[bool, str]:
+    espeak = resolve_espeak_binary()
+    if espeak:
+        return True, f"eSpeak NG: {espeak}"
+    piper = shutil.which(PIPER_BINARY)
+    if piper and any(PIPER_MODEL_DIR.glob("*.onnx")):
+        return True, f"Piper: {piper}"
+    if shutil.which("say") and shutil.which("afconvert"):
+        return True, "macOS local speech engine"
+    return False, f"Missing local translated-speech engine: {ESPEAK_BINARY}"
+
+
 def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> list[HealthCheck]:
     ffmpeg_ok, ffmpeg_detail = _ffmpeg_status()
+    subtitle_filter_ok, subtitle_filter_detail = _subtitle_filter_status(ffmpeg_ok, ffmpeg_detail)
     ffprobe_ok, ffprobe_detail = _ffprobe_status()
     ocr_ok, ocr_detail = _ocr_status()
+    speech_ok, speech_detail = _translated_speech_status()
     nllb_ready = _model_dir_ready(NLLB_MODEL)
     nllb_ct2_ready = (Path(NLLB_CT2_MODEL) / "model.bin").exists()
     checks = [
@@ -120,6 +157,12 @@ def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> 
             required_for="media validation",
         ),
         HealthCheck(
+            name="FFmpeg subtitle rendering",
+            ok=subtitle_filter_ok,
+            detail=subtitle_filter_detail,
+            required_for="captioned MP4 output",
+        ),
+        HealthCheck(
             name="faster-whisper package",
             ok=_package_available("faster_whisper"),
             detail="Installed" if _package_available("faster_whisper") else "Install requirements.txt",
@@ -134,6 +177,12 @@ def collect_health_checks(allow_model_download: bool = ALLOW_MODEL_DOWNLOAD) -> 
                 else f"Will download/cache {WHISPER_MODEL_ID}" if allow_model_download else str(DEFAULT_WHISPER_MODEL)
             ),
             required_for="audio/video transcription",
+        ),
+        HealthCheck(
+            name="Translated speech",
+            ok=speech_ok,
+            detail=speech_detail,
+            required_for="target-language WAV/MP3 and translated-audio video",
         ),
         HealthCheck(
             name="Transformers package",

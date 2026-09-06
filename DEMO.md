@@ -7,7 +7,7 @@ This is the single operating script for the 30-minute implementation review on 9
 ## Event-device rules
 
 - Use the organiser-provided Windows 11 laptop only for the hackathon demonstration.
-- Obtain organiser approval before installing the documented Python, Microsoft C++ Build Tools, FFmpeg, Git, or Tesseract prerequisites. Do not change security policy to bypass a restriction.
+- Obtain organiser approval before installing the documented Python, Microsoft C++ Build Tools, FFmpeg, Git, Tesseract or eSpeak NG prerequisites. Do not change security policy to bypass a restriction.
 - Connect only to the HSBC Guest network or the presenter's hotspot when setup connectivity is required. Never use corporate Wi-Fi, wired LAN, HSBC systems, or confidential/customer data.
 - Copy only required demo files by USB. Never leave the drive unattended; remove it immediately after transfer and take it away after the demo.
 - Do not leave personal credentials signed in. Save files temporarily, transfer only what must be retained, and delete the application, models, outputs, caches, and temporary content before returning the device.

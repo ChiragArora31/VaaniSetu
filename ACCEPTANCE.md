@@ -9,7 +9,7 @@ Record pass/fail, tester, date, browser, release commit, evidence path, and issu
 - Record a voice note and upload short audio/video; verify transcript, translation, subtitles, optional speech/video, and actionable failure states.
 - Correct and approve a translation; submit the exact source again and confirm visible approved-memory provenance. Repeat with memory disabled.
 - Search by filename/language/status; open, run again, cancel a queued job, and delete a disposable job.
-- On the final Windows worker, run BAIF `401.1.mp4` first with reviewer-confirmed Marathi source, Hindi target, subtitles on and optional speech/video off. Record timings, memory, backends, warnings and job ID; obtain Marathi transcript and Hindi translation review.
+- On the final Windows worker, run BAIF `401.1.mp4` first with reviewer-confirmed Marathi source, Hindi target and all recommended media outputs selected. Require Hindi WAV/MP3, SRT/VTT, captioned MP4 and translated-audio MP4 in the verified ZIP. Record timings, memory, backends, warnings and job ID; obtain Marathi transcript and Hindi translation review.
 - Repeat the core path with `401.2 HOUSING OF GOAT.mp4`, then exercise one optional captioned-video or translated-speech output.
 
 ## Administrator

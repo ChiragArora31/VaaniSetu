@@ -96,6 +96,19 @@ def _has_meaningful_speech(text: str) -> bool:
     return bool(re.search(r"[\w\u0900-\u097F]", text))
 
 
+def _looks_like_silence_hallucination(text: str) -> bool:
+    """Reject common standalone Whisper phrases produced from silent audio."""
+
+    normalized = re.sub(r"[^\w\u0900-\u097F]+", " ", text.casefold()).strip()
+    return normalized in {
+        "thank you",
+        "thanks",
+        "thanks for watching",
+        "please subscribe",
+        "धन्यवाद",
+    }
+
+
 def _resolved_source_language(text: str, source_language: str, result: PipelineResult) -> str:
     if source_language != "Auto detect":
         return source_language
@@ -349,7 +362,6 @@ class TranslationPipeline:
             _status(status, "Preparing audio for transcription...", 0.15)
             try:
                 transcription_input = extract_audio_to_wav(input_path, temp_dir)
-                result.artifacts["extracted_wav"] = transcription_input
                 result.metadata["audio_preparation"] = "ffmpeg-wav"
             except MediaError as exc:
                 if input_type in {"audio", "video"}:
@@ -381,7 +393,9 @@ class TranslationPipeline:
             )
             cleaned_text, did_cleanup = clean_indic_asr_text(transcription.text, source.whisper_code)
             result.original_text = cleaned_text
-            if not _has_meaningful_speech(result.original_text):
+            if not _has_meaningful_speech(result.original_text) or _looks_like_silence_hallucination(
+                result.original_text
+            ):
                 raise PipelineError(
                     "No clear speech was detected after the safe short-audio retry. Confirm that the selected "
                     "source language matches the recording and that speech is clearly audible; music-only, "
@@ -458,6 +472,11 @@ class TranslationPipeline:
                     )
                 except MediaError as exc:
                     result.warnings.append(str(exc))
+            elif input_type == "video" and options.merge_translated_audio:
+                result.warnings.append(
+                    "Translated-audio video was requested but could not be created because the local "
+                    "translated-speech engine did not produce a target-language WAV file."
+                )
 
         except (MediaError, TranscriptionError, TranslationError, TTSError) as exc:
             raise PipelineError(str(exc)) from exc
@@ -554,4 +573,8 @@ class TranslationPipeline:
             except TTSError as exc:
                 result.warnings.append(str(exc))
         except TTSError as exc:
-            result.metadata["tts_backend"] = "browser-fallback"
+            result.metadata["tts_backend"] = "unavailable"
+            result.warnings.append(
+                "Translated speech was requested but the worker could not create a downloadable target-language "
+                f"audio file. {exc}"
+            )

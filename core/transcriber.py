@@ -115,8 +115,9 @@ class WhisperTranscriber:
                 progress_callback=progress_callback,
             )
             # Silero VAD can occasionally reject low-volume speech. Retry only
-            # short clips: this recovers voice notes without doubling the wait
-            # for long silent/music-heavy recordings or BAIF videos.
+            # short clips with a more permissive VAD threshold. Never disable
+            # VAD here: Whisper can otherwise turn silence into stock phrases
+            # such as "thank you" or "thanks for watching".
             if (
                 not result.text
                 and 0 < result.duration_seconds <= ASR_EMPTY_RETRY_MAX_SECONDS
@@ -125,7 +126,8 @@ class WhisperTranscriber:
                     model,
                     audio_path,
                     source_language_code,
-                    vad_filter=False,
+                    vad_filter=True,
+                    vad_threshold=0.25,
                     progress_callback=progress_callback,
                 )
             return result
@@ -138,8 +140,14 @@ class WhisperTranscriber:
         audio_path: Path,
         source_language_code: str,
         vad_filter: bool,
+        vad_threshold: float | None = None,
         progress_callback: ProgressCallback | None = None,
     ) -> TranscriptionResult:
+        vad_parameters: dict[str, int | float] = {
+            "min_silence_duration_ms": ASR_VAD_MIN_SILENCE_MS,
+        }
+        if vad_threshold is not None:
+            vad_parameters["threshold"] = vad_threshold
         segments_iter, info = model.transcribe(
             str(audio_path),
             language=source_language_code,
@@ -150,7 +158,7 @@ class WhisperTranscriber:
             # language code and VAD instead.
             initial_prompt=None,
             vad_filter=vad_filter,
-            vad_parameters={"min_silence_duration_ms": ASR_VAD_MIN_SILENCE_MS},
+            vad_parameters=vad_parameters,
             beam_size=ASR_BEAM_SIZE,
             best_of=ASR_BEST_OF,
             temperature=ASR_TEMPERATURE,

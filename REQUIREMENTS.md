@@ -26,7 +26,7 @@ The later invite schedules VaaniSetu's 30-minute implementation review for 9 Sep
 ## Event-device requirements supplied 1 September
 
 - Use the organiser-provided vanilla Windows 11 demonstration laptop and begin setup in the allocated setup window; bring a screen-share-ready team laptop and power adapter as fallback.
-- Install only demonstration software approved by the organiser. VaaniSetu's Python, C++ Build Tools, FFmpeg, Tesseract and model requirements therefore need explicit approval before event-device installation.
+- Install only demonstration software approved by the organiser. VaaniSetu's Python, C++ Build Tools, FFmpeg, Tesseract, eSpeak NG and model requirements therefore need explicit approval before event-device installation.
 - Connect the event laptop only to the HSBC Guest Network or the presenter's mobile hotspot. Never use corporate Wi-Fi or wired/LAN connectivity.
 - Use only demo, public, synthetic or explicitly approved Hackathon data. Do not access or store HSBC internal, customer or confidential data.
 - Use USB storage only when needed for demo files, remove it immediately after transfer/use and never leave it unattended.

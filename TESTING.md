@@ -6,7 +6,7 @@ Local engineering environment: macOS 26.5 arm64, 8 CPU cores, 8 GB RAM, Python 3
 
 ## Automated release gate
 
-- **79/79 tests pass** locally, including scanned-PDF OCR, invariant-marker restoration, BAIF-media evidence privacy, native macOS memory detection, ASR progress reporting, bounded short-audio no-speech recovery and onboarding delivery checks.
+- **82/82 tests pass** locally, including scanned-PDF OCR, invariant-marker restoration, BAIF-media evidence privacy, native macOS memory detection, ASR silence-hallucination rejection, bounded quiet-audio recovery, long Windows TTS input and full-duration translated-video assembly.
 - **20 adversarial regressions** cover corrupt/malformed state, traversal/symlink escape, queue saturation/cancellation races, hostile password cost, bounded auth/session state, partial uploads, filename boundaries, oversized/duplicate archives and malformed manifests.
 - Python compilation, frontend JavaScript syntax, `pip check`, repository secret/generated-data policy and package verification pass.
 - Full tests complete in roughly eight seconds on the local machine; focused failure drill completes in roughly eight seconds.
@@ -76,6 +76,7 @@ Peak benchmark memory was approximately 1.2 GB in the final run. Preferred termi
 - The corrected `balanced` profile uses multilingual large-v3-turbo INT8 with deterministic single-beam decoding, VAD, no instruction prompt and no second full-file retry after an empty VAD result. It emits segment-level progress/ETA and stops at a configurable elapsed-time guard instead of continuing indefinitely.
 - A 60-second excerpt of the real `401.1.mp4` completed ASR in **35.03 seconds** (0.584× real time). In the final audit, the full 5:43 audio reached translation after **237.0 seconds**, producing 33 timed segments.
 - The final 1 September rerun passed the complete 5:43 application path on the 8 GB Mac in **227.22 seconds**: inspection, audio extraction, multilingual large-v3-turbo ASR, local NLLB CTranslate2 INT8 Marathi→Hindi translation, 33 timed segments, SRT/VTT and a verified offline ZIP. Runtime downloads were disabled, no hosted translation route existed, and there were no warnings. The privacy-safe report excludes transcript/translation content. This is engineering completion evidence, not Marathi/Hindi linguistic approval.
+- After the 5 September Windows finding, the exact `401.7 Field Gude_ Women Group.mp4` Marathi→Hindi path was rerun with every recommended media output enabled. The 11:29 video completed in **584.09 seconds** on the 8 GB engineering Mac with 90 timed segments, Hindi WAV/MP3, a full-duration 11:29 translated-audio MP4 and an integrity-valid ZIP. The source Marathi ASR WAV was absent from the package. A 20-second ASR probe of the generated voice detected Hindi and returned Devanagari speech. This machine's older FFmpeg lacks libass, so caption burn-in correctly warned and remained unproven locally; the Windows gate now requires the subtitles filter before acceptance.
 
 ## Failure and offline evidence
 

@@ -31,7 +31,7 @@ from core.export_utils import create_artifact_zip
 from core.asr_cleanup import clean_indic_asr_text
 from core.document_processor import DocumentProcessingError, extract_document_text
 from core.media_utils import MediaError, MediaInfo
-from core.pipeline import ProcessingOptions, TranslationPipeline, _validate_media_constraints
+from core.pipeline import ProcessingOptions, TranslationPipeline, _looks_like_silence_hallucination, _validate_media_constraints
 from core.review_store import ReviewStore
 from core.subtitles import Segment, render_srt, render_vtt, segments_from_text, subtitle_safe_text
 from core.text_utils import detect_language_name, normalize_text, split_for_translation
@@ -40,7 +40,8 @@ from config.settings import ENABLE_HOSTED_TRANSLATION
 from scripts.verify_package import verify as verify_package
 from core.user_messages import user_safe_error
 from core.transcriber import WhisperTranscriber, get_transcriber
-from core.video_processor import burn_subtitles
+from core.tts import synthesize_with_espeak
+from core.video_processor import burn_subtitles, mux_audio
 from scripts.operations import preflight, recommended_worker_profile
 from scripts.validate_baif_samples import build_report, inspect_sample
 
@@ -227,6 +228,31 @@ class VideoProcessorTest(unittest.TestCase):
             self.assertLess(len(str(raised.exception)), 220)
             self.assertFalse(output.exists())
 
+    def test_translated_audio_is_padded_to_the_full_video_duration(self):
+        success = SimpleNamespace(returncode=0, stderr="")
+        with patch("core.video_processor.ensure_ffmpeg", return_value="ffmpeg"), patch(
+            "core.video_processor.subprocess.run", return_value=success
+        ) as run:
+            mux_audio(Path("source.mp4"), Path("hindi.wav"), Path("translated.mp4"))
+        command = run.call_args.args[0]
+        self.assertIn("[1:a:0]apad[translated_audio]", command)
+        self.assertIn("-shortest", command)
+
+
+class TextToSpeechTest(unittest.TestCase):
+    def test_espeak_reads_long_translation_from_stdin(self):
+        success = SimpleNamespace(returncode=0, stderr="")
+        text = "लंबा अनुवाद " * 5000
+        with patch("core.tts.resolve_espeak_binary", return_value="espeak-ng"), patch(
+            "core.tts.subprocess.run", return_value=success
+        ) as run:
+            synthesize_with_espeak(text, "hi", Path("translated.wav"))
+        command = run.call_args.args[0]
+        self.assertEqual(command[-1], "--stdin")
+        self.assertNotIn(text, command)
+        self.assertEqual(run.call_args.kwargs["input"], text)
+        self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+
 
 class ImpactSummaryTest(unittest.TestCase):
     def test_aggregates_impact_without_content(self):
@@ -279,8 +305,10 @@ class OperationsRecommendationTest(unittest.TestCase):
         names = [
             "FFmpeg",
             "ffprobe",
+            "FFmpeg subtitle rendering",
             "Automatic OCR",
             "Whisper model",
+            "Translated speech",
             "Local translation route",
             "IndicTrans2 en-indic",
             "IndicTrans2 indic-en",
@@ -292,6 +320,9 @@ class OperationsRecommendationTest(unittest.TestCase):
             report = output_root / "preflight.json"
             with patch("scripts.operations.OUTPUT_DIR", output_root), patch(
                 "scripts.operations.ensure_directories"
+            ), patch(
+                "scripts.operations.shutil.disk_usage",
+                return_value=SimpleNamespace(free=25 * 1024**3),
             ), patch("scripts.operations._total_memory_gb", return_value=16), patch(
                 "scripts.operations.collect_health_checks", return_value=checks
             ), patch("scripts.operations.ALLOW_MODEL_DOWNLOAD", False), patch(
@@ -301,6 +332,8 @@ class OperationsRecommendationTest(unittest.TestCase):
                     self.assertEqual(preflight(report, port=0), 0)
             gates = json.loads(report.read_text(encoding="utf-8"))["gates"]
             self.assertTrue(gates["whisper_model_ready"])
+            self.assertTrue(gates["captioned_video_ready"])
+            self.assertTrue(gates["translated_speech_ready"])
             self.assertTrue(gates["local_translation_ready"])
             self.assertTrue(gates["runtime_model_downloads_disabled"])
             self.assertTrue(gates["hosted_translation_disabled"])
@@ -709,6 +742,7 @@ class OnboardingDeliveryTest(unittest.TestCase):
         self.assertIn('@("3.11", "3.10")', setup)
         self.assertIn("Microsoft.VisualStudio.Component.VC.Tools.x86.x64", setup)
         self.assertIn("Desktop development with C++", setup)
+        self.assertIn("eSpeak-NG.eSpeak-NG", setup)
         self.assertLess(setup.index("Microsoft.VisualStudio.Component.VC.Tools.x86.x64"), setup.index("one_click_setup.py"))
         self.assertIn('.venv\\Scripts\\python.exe', setup)
         self.assertIn('.venv\\Scripts\\python.exe', start)
@@ -716,6 +750,8 @@ class OnboardingDeliveryTest(unittest.TestCase):
         self.assertIn('[string]$HostAddress = "127.0.0.1"', start)
         self.assertIn('$env:BAIF_WHISPER_DEVICE = "cpu"', start)
         self.assertIn('$env:BAIF_WHISPER_COMPUTE_TYPE = "int8"', start)
+        self.assertIn('outputOptions: document.querySelector("#outputOptions")', script)
+        self.assertIn("refreshOutputOptions(representative, true)", script)
         self.assertIn('$env:BAIF_WHISPER_DEVICE = "cpu"', acceptance)
         self.assertIn("validate_baif_samples.py", acceptance)
 
@@ -939,7 +975,7 @@ class TranscriberSelectionTest(unittest.TestCase):
         self.assertEqual(result.text, "")
         self.assertEqual(calls, [True])
 
-    def test_whisper_retries_a_short_quiet_clip_without_vad(self):
+    def test_whisper_retries_a_short_quiet_clip_with_permissive_vad(self):
         calls = []
 
         class FakeSegment:
@@ -949,15 +985,20 @@ class TranscriberSelectionTest(unittest.TestCase):
 
         class FakeModel:
             def transcribe(self, _path, **kwargs):
-                calls.append(kwargs["vad_filter"])
-                segments = [] if kwargs["vad_filter"] else [FakeSegment()]
+                calls.append((kwargs["vad_filter"], kwargs["vad_parameters"].get("threshold")))
+                segments = [FakeSegment()] if kwargs["vad_parameters"].get("threshold") == 0.25 else []
                 return iter(segments), SimpleNamespace(language="mr", duration=30.0)
 
         transcriber = WhisperTranscriber()
         transcriber._model = FakeModel()
         result = transcriber.transcribe(Path("quiet-short.wav"), "mr")
         self.assertEqual(result.text, "नमस्कार")
-        self.assertEqual(calls, [True, False])
+        self.assertEqual(calls, [(True, None), (True, 0.25)])
+
+    def test_stock_silence_hallucination_is_not_accepted_as_speech(self):
+        self.assertTrue(_looks_like_silence_hallucination("Thank you."))
+        self.assertTrue(_looks_like_silence_hallucination("  THANKS FOR WATCHING! "))
+        self.assertFalse(_looks_like_silence_hallucination("Thank you for attending today's goat training."))
 
 
 class JobManagerTest(unittest.TestCase):

@@ -77,7 +77,7 @@ Bhashini is a strong fit when national language breadth or hosted API integratio
 
 ## Start on Windows 11
 
-Requirements: Windows 11, Python 3.10/3.11, [Microsoft C++ Build Tools](https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc?view=msvc-170) with **Desktop development with C++**, at least 16 GB RAM, six or more CPU cores and 20 GB free disk.
+Requirements: Windows 11, Python 3.10/3.11, [Microsoft C++ Build Tools](https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc?view=msvc-170) with **Desktop development with C++**, FFmpeg, Tesseract, eSpeak NG, at least 16 GB RAM, six or more CPU cores and 20 GB free disk.
 
 ```powershell
 .\scripts\setup_baif_worker.ps1

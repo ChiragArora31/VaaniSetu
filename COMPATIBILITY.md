@@ -10,6 +10,9 @@ Confirmed minimum:
 - 512 GB or 1 TB SSD/HDD
 - Microsoft Office 2020 or later for BAIF-side document workflows
 - Microsoft C++ Build Tools with the **Desktop development with C++** workload for the one-time IndicTransToolkit installation
+- Full FFmpeg build with ffprobe and the subtitles/libass filter
+- Tesseract with English, Hindi and Marathi data
+- eSpeak NG for compact offline English/Hindi/Marathi target-language WAV/MP3 and dubbed video
 - No GPU assumption
 
 VaaniSetu keeps one heavy model worker by default. Preflight recommends `balanced` on the minimum baseline, permits `quality` only with measured headroom (normally at least 32 GB RAM/eight cores), and rejects systems below 16 GB.
@@ -35,7 +38,7 @@ Video is limited to 720p/1080p; higher resolutions are rejected. Selectable PDFs
 - Source transcript and translated text
 - Reviewable TXT/Markdown/table exports
 - SRT and VTT subtitles
-- Optional translated speech, captioned video and translated-audio video
+- Recommended translated speech, captioned video and translated-audio video for media jobs; each may be deliberately deselected
 - Job report containing backend/provenance, warnings and artifact metadata
 - Integrity-protected ZIP with a server-free landing page, direct links and audio/video playback
 

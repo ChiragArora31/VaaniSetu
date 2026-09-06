@@ -81,6 +81,7 @@ const els = {
   recentCount: document.querySelector("#recentCount"),
   recentList: document.querySelector("#recentList"),
   librarySearch: document.querySelector("#librarySearch"),
+  outputOptions: document.querySelector("#outputOptions"),
   outputSummary: document.querySelector("#outputSummary"),
   makeTts: document.querySelector("#makeTts"),
   makeSubtitles: document.querySelector("#makeSubtitles"),
@@ -509,10 +510,20 @@ function isVideoFile(file) {
   return uploadLimits.video.extensions.includes(fileExtension(file.name));
 }
 
-function refreshOutputOptions(file = null) {
+function refreshOutputOptions(file = null, applyRecommendedDefaults = false) {
   const video = Boolean(file && isVideoFile(file));
+  const media = Boolean(file && isMediaFile(file));
   els.burnCaptions.disabled = !video;
   els.mergeTranslatedAudio.disabled = !video;
+  if (applyRecommendedDefaults && media) {
+    els.makeTts.checked = true;
+    els.makeSubtitles.checked = true;
+    if (video) {
+      els.burnCaptions.checked = true;
+      els.mergeTranslatedAudio.checked = true;
+    }
+    els.outputOptions.open = true;
+  }
   if (!video) {
     els.burnCaptions.checked = false;
     els.mergeTranslatedAudio.checked = false;
@@ -824,6 +835,10 @@ function onRecordingStop() {
   els.recordButton.textContent = "Record again";
   els.recordButton.classList.remove("recording");
   els.recordState.textContent = "Voice note captured";
+  els.makeTts.checked = true;
+  els.makeSubtitles.checked = true;
+  els.outputOptions.open = true;
+  refreshOutputOptions();
   drawIdleMeter();
 }
 
@@ -1564,7 +1579,7 @@ els.fileInput.addEventListener("change", () => {
   clearError();
   const files = Array.from(els.fileInput.files || []);
   const representative = files.find(isVideoFile) || files[0] || null;
-  refreshOutputOptions(representative);
+  refreshOutputOptions(representative, true);
   if (!files.length) {
     els.translateUpload.disabled = true;
     els.selectedFileName.textContent = "Choose a file";

@@ -30,7 +30,7 @@ Keep the generated `outputs\windows_acceptance` folder with the private release 
 
 ## 2. Prepare the computer from zero
 
-1. Sign in with a Windows account allowed to install Python, Microsoft C++ Build Tools, FFmpeg and Tesseract.
+1. Sign in with a Windows account allowed to install Python, Microsoft C++ Build Tools, FFmpeg, Tesseract and eSpeak NG.
 2. Connect to the controlled office internet and power.
 3. Install 64-bit Python 3.11 from python.org. In the installer, enable the Python launcher. Python 3.10 is supported if 3.11 is unavailable; do not use 3.9, 3.12 or 3.13. Install Git for Windows as well; it is used to prove the exact source release.
 4. Install [Microsoft C++ Build Tools](https://learn.microsoft.com/en-us/cpp/overview/acquire-msvc?view=msvc-170). In the Visual Studio Installer, select **Desktop development with C++** and retain its recommended MSVC x64/x86 compiler and Windows SDK components. This compiler is required to build IndicTransToolkit; installing only the Visual C++ Redistributable does not provide it.
@@ -60,7 +60,7 @@ cd C:\VaaniSetu
 .\scripts\setup_baif_worker.ps1
 ```
 
-The script selects Python 3.11/3.10, creates the private `.venv`, installs pinned packages, caches OCR languages and downloads the balanced CPU model set. It does not silently install system software. If approved prerequisites are missing, install them through the device owner's approved method; only after explicit approval may an administrator rerun `.\scripts\setup_baif_worker.ps1 -InstallApprovedSystemTools` to request FFmpeg, Git and Tesseract through Windows Package Manager. The balanced set uses multilingual large-v3-turbo INT8: it completed the real 5:43 BAIF sample end to end on the engineering Mac while the previous large-v3/beam-3 default did not. Downloads can take a long time; do not close the window.
+The script selects Python 3.11/3.10, creates the private `.venv`, installs pinned packages, caches OCR languages and downloads the balanced CPU model set. It does not silently install system software. If approved prerequisites are missing, install them through the device owner's approved method; only after explicit approval may an administrator rerun `.\scripts\setup_baif_worker.ps1 -InstallApprovedSystemTools` to request FFmpeg, Git, Tesseract and the compact open-source eSpeak NG speech engine through Windows Package Manager. The balanced set uses multilingual large-v3-turbo INT8: it completed the real 5:43 BAIF sample end to end on the engineering Mac while the previous large-v3/beam-3 default did not. Downloads can take a long time; do not close the window.
 
 The script checks the C++ compiler before any large installation starts. If it reports `Microsoft Visual C++ 14.0 or greater is required` or says that C++ Build Tools are missing, install/modify the Build Tools workload described in section 2, reopen PowerShell and rerun the same setup command. A failed run may leave `.venv`; rerunning is safe and resumes the installation.
 
@@ -117,6 +117,8 @@ The Windows launcher deliberately forces Whisper to `cpu` with `int8` computatio
 
 The expected output is `cpu int8`.
 
+Open **System** and confirm both **Translated speech** and **FFmpeg subtitle rendering** are ready. Merely having an `ffmpeg.exe` is insufficient for a captioned MP4; the installed build must include the `subtitles`/libass filter. The approved `Gyan.FFmpeg` Windows Package Manager entry installs the full build, but PowerShell must be reopened after installation so its command aliases are available.
+
 For an IT-approved private BAIF LAN only:
 
 ```powershell
@@ -157,18 +159,18 @@ Start with the shortest supplied file, `401.1.mp4` (about 5 minutes 43 seconds):
 
 1. Choose **Marathi → Hindi**.
 2. Open **Upload** and select `401.1.mp4` from the external BAIF test-data folder.
-3. For the first pass, keep subtitles on and optional speech, caption burn-in and translated-audio video off. This isolates ASR + translation + offline packaging.
+3. Confirm the expanded **Output package** shows translated voice, subtitles, captioned video and translated-audio video selected. VaaniSetu now selects these recommended media deliverables automatically for a video upload.
 4. Start translation and leave the page open. The balanced multilingual large-v3-turbo profile is CPU-bounded but a long video can still take several minutes; use the visible stage, elapsed time and ETA instead of assuming the page is stuck. Record start/end time, peak memory from Task Manager, job ID, warnings, ASR backend and translation backend.
 5. Ask the Marathi reviewer to compare representative transcript sections against the audio. Ask the Hindi reviewer to assess adequacy, fluency, agriculture/livestock terminology, names, numbers, units and safety meaning.
 6. Correct and approve only after review. Download the ZIP.
 7. Repeat with `401.2 HOUSING OF GOAT.mp4` because its topic and title are directly relevant to livestock training.
-8. After the core passes, run one optional captioned-video or translated-speech job and record the extra time. Optional media failure must leave usable text/SRT/VTT outputs.
+8. Open the ZIP and require `translated_voice.wav`, `translated_voice.mp3`, `captioned_video.mp4` and `translated_audio_video.mp4`, in addition to translated text and SRT/VTT. The WAV/MP3 must speak the Hindi target text; the original Marathi extraction is an internal ASR intermediate and must not appear in a new package. If any requested media deliverable is absent, read the visible warning, resolve the speech/FFmpeg readiness issue and rerun before sign-off.
 
 ### If audio reports “No clear speech was detected”
 
 This message means the model ran but found no usable spoken transcript; it is not a missing-model or CUDA error. First confirm the selected source language matches the recording, then play the file locally and verify that a human can clearly hear speech. Test with a 10–30 second voice recording in a quiet room to separate an application problem from a silent, music-only, very quiet or heavily mixed source file.
 
-VaaniSetu automatically makes one additional speech-recognition pass for an empty clip of 90 seconds or less. It deliberately does not repeat long files, because doing so can double CPU processing time without recovering speech. Pull the latest `main`, stop and restart VaaniSetu, and retry the original file. If the short clear recording works but the original does not, improve or isolate the source audio rather than changing model thresholds during acceptance testing. Record the input filename, selected source language, duration and job ID in the test log; do not share confidential audio in public issue trackers.
+VaaniSetu automatically makes one additional, more sensitive voice-activity pass for an empty clip of 90 seconds or less. Voice detection remains enabled so silence is not converted into stock phrases such as “thank you”; those standalone hallucinations are rejected. It deliberately does not repeat long files, because doing so can double CPU processing time without recovering speech. Pull the latest `main`, stop and restart VaaniSetu, and retry the original file. If the short clear recording works but the original does not, improve or isolate the source audio rather than disabling speech detection during acceptance testing. Record the input filename, selected source language, duration and job ID in the test log; do not share confidential audio in public issue trackers.
 
 Do not paste BAIF transcript or translation content into public issues, screenshots or the privacy-safe acceptance folder. Reviewer worksheets must stay in approved private storage.
 

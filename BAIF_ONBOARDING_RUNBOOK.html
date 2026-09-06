@@ -70,7 +70,7 @@
         <li>Stop the worker so port 8501 is free, then run <code>.\scripts\windows_acceptance.ps1 -VideosPath "C:\BAIF-Test-Data\Videos"</code>.</li>
         <li>Do not continue unless every check passes and <code>outputs\windows_acceptance\acceptance_summary.json</code> says <code>passed</code>.</li>
         <li>Start locally with <code>.\scripts\start_baif_worker.ps1</code>. LAN listening requires the explicit <code>-HostAddress 0.0.0.0</code> option and BAIF IT approval.</li>
-        <li>Run <code>401.1.mp4</code> first with reviewer-confirmed source language (the technical probe indicates Marathi), Hindi target and subtitles on. Add optional speech/video only after the core package passes.</li>
+        <li>Run <code>401.1.mp4</code> first with reviewer-confirmed source language (the technical probe indicates Marathi) and Hindi target. Confirm the output package visibly selects translated voice, subtitles, captioned video and translated-audio video.</li>
       </ol>
 
       <h3>Two-minute acceptance check</h3>
@@ -86,7 +86,7 @@
         <li>Sign in after the administrator confirms approval.</li>
         <li>Choose the source language and <strong>Translate to</strong> language. Source and target must be different.</li>
         <li>Choose <strong>Record</strong>, <strong>Text</strong> or <strong>Upload</strong>. For a first run, use a short text sample.</li>
-        <li>Choose only the outputs needed. Text is always produced; voice and video outputs take longer.</li>
+        <li>Text is always produced. Audio/video uploads preselect the recommended target-language deliverables; deselect one only when the test explicitly calls for a faster core-only run.</li>
         <li>Start translation and leave the page open. Progress and safe cancellation remain visible.</li>
         <li>Review the route, warnings, original and translated text. Machine output is a draft.</li>
         <li>Edit <strong>Corrected translation</strong>, inspect the difference, then choose <strong>Approve final</strong>.</li>
@@ -141,7 +141,7 @@
           <tr><td>Access requested</td><td>Administrator opens User approvals and approves the named account.</td></tr>
           <tr><td>Job failed after restart</td><td>Confirm System readiness, then use Run again. Completed history remains available.</td></tr>
           <tr><td>Low disk warning</td><td>Back up required packages, preview cleanup, then apply retention cleanup. Do not manually remove authentication or review folders.</td></tr>
-          <tr><td>Voice/video output missing</td><td>Use the available text/subtitles, then ask the administrator to check optional speech/media readiness.</td></tr>
+          <tr><td>Voice/video output missing</td><td>Check the visible warning and require the administrator to make Translated speech, FFmpeg and ffprobe green in preflight. Restart and rerun with the requested output boxes selected.</td></tr>
           <tr><td>Package checksum fails</td><td>Do not use it. Redownload the approved package and verify again.</td></tr>
         </tbody>
       </table>

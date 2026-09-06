@@ -8,6 +8,8 @@ voices have not been installed yet.
 
 from __future__ import annotations
 
+import os
+import platform
 import shutil
 import subprocess
 import tempfile
@@ -197,16 +199,19 @@ def synthesize_with_macos_say(text: str, language_hint: str, output_path: Path) 
 
 
 def synthesize_with_espeak(text: str, language_hint: str, output_path: Path) -> Path:
-    binary = shutil.which(ESPEAK_BINARY)
+    binary = resolve_espeak_binary()
     if not binary:
         raise TTSError("The compact open-source speech engine is not installed on this worker.")
     voice = {"en": "en", "hi": "hi", "mr": "mr"}.get(language_hint, "en")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         result = subprocess.run(
-            [binary, "-v", voice, "-s", "155", "-w", str(output_path), text],
+            [binary, "-v", voice, "-s", "155", "-w", str(output_path), "--stdin"],
+            input=text,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="strict",
             check=False,
             timeout=TTS_TIMEOUT_SECONDS,
         )
@@ -215,6 +220,22 @@ def synthesize_with_espeak(text: str, language_hint: str, output_path: Path) -> 
     if result.returncode != 0:
         raise TTSError(result.stderr.strip() or "Compact speech synthesis failed.")
     return output_path
+
+
+def resolve_espeak_binary() -> str | None:
+    """Find eSpeak NG, including the standard Windows MSI locations."""
+
+    resolved = shutil.which(ESPEAK_BINARY)
+    if resolved:
+        return resolved
+    if platform.system() != "Windows":
+        return None
+    candidates = []
+    for variable in ("ProgramFiles", "ProgramFiles(x86)"):
+        root = os.environ.get(variable)
+        if root:
+            candidates.append(Path(root) / "eSpeak NG" / "espeak-ng.exe")
+    return next((str(path) for path in candidates if path.is_file()), None)
 
 
 def synthesize_speech(text: str, language_hint: str, output_path: Path) -> tuple[Path, str, str | None]:

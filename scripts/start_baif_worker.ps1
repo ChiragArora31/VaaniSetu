@@ -12,6 +12,17 @@ $env:BAIF_MODEL_PROFILE = if ($env:BAIF_MODEL_PROFILE) { $env:BAIF_MODEL_PROFILE
 $env:BAIF_ALLOW_MODEL_DOWNLOAD = "0"
 $env:BAIF_WHISPER_DEVICE = "cpu"
 $env:BAIF_WHISPER_COMPUTE_TYPE = "int8"
+$EspeakCommand = Get-Command espeak-ng -ErrorAction SilentlyContinue
+if (-not $env:BAIF_ESPEAK_BINARY -and $EspeakCommand) {
+    $env:BAIF_ESPEAK_BINARY = $EspeakCommand.Source
+}
+if (-not $env:BAIF_ESPEAK_BINARY) {
+    $EspeakCandidates = @(
+        (Join-Path $env:ProgramFiles "eSpeak NG\espeak-ng.exe"),
+        $(if (${env:ProgramFiles(x86)}) { Join-Path ${env:ProgramFiles(x86)} "eSpeak NG\espeak-ng.exe" })
+    ) | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) }
+    if ($EspeakCandidates) { $env:BAIF_ESPEAK_BINARY = $EspeakCandidates[0] }
+}
 $VenvPython = Join-Path (Get-Location) ".venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {
     throw "VaaniSetu is not set up yet. Run .\scripts\setup_baif_worker.ps1 once, then start again."

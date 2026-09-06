@@ -41,6 +41,6 @@ Record the release commit, machine profile, model inventory, reviewers, operatio
 
 - Machine output is a draft until the appropriate reviewer approves it.
 - NLLB is a non-commercial engineering fallback and cannot support an unrestricted production claim.
-- Optional natural speech depends on the locally cached voice model; text/subtitles remain the dependable baseline.
+- The compact eSpeak NG backend provides offline Hindi/Marathi WAV/MP3 and translated-audio video. Its voice is intentionally synthetic; a larger natural-voice model requires separate capacity and quality approval.
 - Cancellation is cooperative and takes effect at a processing boundary; active native model calls are not force-killed.
 - The balanced laptop profile is the supported default. Use `quality` only after a representative-media benchmark; do not switch production workers to large-v3 by assumption.

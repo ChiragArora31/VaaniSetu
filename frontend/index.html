@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VaaniSetu</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css?v=20260805-onboarding" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260905-media" />
   </head>
   <body>
     <main class="shell">
@@ -126,7 +126,7 @@
           <div class="output-option-grid">
             <label class="check-option">
               <input id="makeTts" type="checkbox" />
-              <span><strong>Translated voice</strong><small>Offline WAV and MP3 when available</small></span>
+              <span><strong>Translated voice</strong><small>Target-language WAV and MP3</small></span>
             </label>
             <label class="check-option">
               <input id="makeSubtitles" type="checkbox" checked />
@@ -134,11 +134,11 @@
             </label>
             <label class="check-option">
               <input id="burnCaptions" type="checkbox" disabled />
-              <span><strong>Captioned video</strong><small>Burn translation into an MP4</small></span>
+              <span><strong>Captioned video</strong><small>Original audio + translated subtitles</small></span>
             </label>
             <label class="check-option">
               <input id="mergeTranslatedAudio" type="checkbox" disabled />
-              <span><strong>Translated-audio video</strong><small>Replace the original audio track</small></span>
+              <span><strong>Translated-audio video</strong><small>Target-language voice + translated subtitles</small></span>
             </label>
           </div>
         </details>
@@ -337,6 +337,6 @@
       </details>
     </main>
 
-    <script src="/static/app.js?v=20260805-onboarding"></script>
+    <script src="/static/app.js?v=20260905-media"></script>
   </body>
 </html>

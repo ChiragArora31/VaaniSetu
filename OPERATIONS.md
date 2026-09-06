@@ -45,8 +45,8 @@ Stop the worker, preserve the current `outputs` folder, verify the backup, then 
 | --- | --- |
 | Translation model not ready | Stop production jobs, cache the required IndicTrans2 assets during controlled setup, rerun preflight and keep runtime downloads disabled. |
 | OCR unavailable | Install Tesseract with `eng`, `hin` and `mar` data; confirm preflight. Use selectable-text PDFs meanwhile. |
-| No speech detected | Confirm the file contains audible speech, choose the spoken language and retry with a short clean sample. |
-| Voice output missing | Use the text/subtitle outputs, install the configured local TTS model and rerun preflight. |
+| No speech detected / repeated “thank you” | Confirm the selected source language and microphone/input level with a clear 10–30 second recording. Pull the latest release; never disable voice detection to force a transcript from silence. |
+| Voice/video output missing | Confirm **Translated speech**, **FFmpeg subtitle rendering**, FFmpeg and ffprobe are ready in preflight. Install approved eSpeak NG/full FFmpeg, restart the worker, ensure the requested media boxes are selected and rerun. Do not mistake an extracted source WAV from an older package for translated speech. |
 | Worker disk is low | Back up required packages, preview cleanup and then remove expired jobs through the supported cleanup command. Never manually delete `.auth` or `.reviews`. |
 | Job interrupted after restart | The durable queue marks it as failed; restore readiness and use **Run again**. |
 | Package will not open | Run the package verifier and redownload if any checksum fails. Never ignore a mismatch. |

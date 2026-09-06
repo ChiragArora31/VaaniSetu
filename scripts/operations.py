@@ -122,8 +122,14 @@ def preflight(output: Path | None = None, port: int = 8501) -> int:
         "port_available": port_available,
         "ffmpeg_ready": next((item["ok"] for item in checks if item["name"] == "FFmpeg"), False),
         "ffprobe_ready": next((item["ok"] for item in checks if item["name"] == "ffprobe"), False),
+        "captioned_video_ready": next(
+            (item["ok"] for item in checks if item["name"] == "FFmpeg subtitle rendering"), False
+        ),
         "ocr_ready": next((item["ok"] for item in checks if item["name"] == "Automatic OCR"), False),
         "whisper_model_ready": next((item["ok"] for item in checks if item["name"] == "Whisper model"), False),
+        "translated_speech_ready": next(
+            (item["ok"] for item in checks if item["name"] == "Translated speech"), False
+        ),
         "local_translation_ready": next(
             (item["ok"] for item in checks if item["name"] == "Local translation route"), False
         ),
